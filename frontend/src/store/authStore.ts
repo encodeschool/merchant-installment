@@ -9,6 +9,7 @@ interface AuthState {
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
+  updateUser: (u: User) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -35,6 +36,8 @@ export const useAuthStore = create<AuthState>()(
         try { await api.post('/api/v1/auth/logout') } catch {}
         set({ user: null, token: null, isAuthenticated: false })
       },
+
+      updateUser: (u: User) => set({ user: u }),
     }),
     { name: 'auth-storage' }
   )

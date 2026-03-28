@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from typing import Optional
 
 
 class LoginRequest(BaseModel):
@@ -23,3 +24,11 @@ class UserOut(BaseModel):
     role: str
     organization: str
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    organization: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None

@@ -16,6 +16,7 @@ import MerchantDashboard from '../pages/merchant/MerchantDashboard'
 import MerchantProducts from '../pages/merchant/MerchantProducts'
 import MerchantNewApplication from '../pages/merchant/MerchantNewApplication'
 import MerchantInstallments from '../pages/merchant/MerchantInstallments'
+import ProfilePage from '../pages/profile/ProfilePage'
 
 function RequireAuth({ children, role }: { children: React.ReactNode; role: string }) {
   const { isAuthenticated, user } = useAuthStore()
@@ -54,6 +55,7 @@ export default function AppRouter() {
         <Route path="tariffs" element={<CBTariffApprovals />} />
         <Route path="mfo" element={<CBMFOMonitoring />} />
         <Route path="audit" element={<CBAuditLogs />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       {/* MFO Admin */}
@@ -63,6 +65,7 @@ export default function AppRouter() {
         <Route path="merchants" element={<MFOMerchants />} />
         <Route path="applications" element={<MFOApplications />} />
         <Route path="scoring/:tariffId" element={<MFOScoringSettings />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       {/* Merchant */}
@@ -71,6 +74,7 @@ export default function AppRouter() {
         <Route path="products" element={<MerchantProducts />} />
         <Route path="apply" element={<MerchantNewApplication />} />
         <Route path="installments" element={<MerchantInstallments />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
 
       <Route path="/" element={<Navigate to={homeRedirect()} replace />} />
