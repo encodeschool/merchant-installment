@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 from supabase import Client
-from io import BytesIO
 import math
 
 from ..core.database import get_supabase
@@ -223,8 +222,8 @@ def get_contract_pdf(
     )
 
     pdf_bytes = generate_pdf(contract, app, installments)
-    return StreamingResponse(
-        BytesIO(pdf_bytes),
+    return Response(
+        content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=shartnoma-{contract_id}.pdf"},
     )

@@ -34,18 +34,17 @@ export default function MFODashboard() {
   const [recentApps, setRecentApps] = useState<Application[]>([])
 
   useEffect(() => {
-    apiDashboard.mfo().then(d => setStats({
-      totalMerchants: d.totalMerchants,
-      pendingApplications: d.pendingApplications,
-      approvedThisMonth: d.approvedThisMonth,
-      totalTurnover: d.totalTurnover,
-      unpaidAmount: d.unpaidAmount,
-      monthlyTrend: d.monthlyTrend,
-    })).catch(() => {})
-
-    apiApplications.list(1, 5).then(res => {
-      setRecentApps(res.items)
-    }).catch(() => {})
+    Promise.all([
+      apiDashboard.mfo().then(d => setStats({
+        totalMerchants: d.totalMerchants,
+        pendingApplications: d.pendingApplications,
+        approvedThisMonth: d.approvedThisMonth,
+        totalTurnover: d.totalTurnover,
+        unpaidAmount: d.unpaidAmount,
+        monthlyTrend: d.monthlyTrend,
+      })),
+      apiApplications.list(1, 5).then(res => setRecentApps(res.items)),
+    ]).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const revenueEstimate = recentApps

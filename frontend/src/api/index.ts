@@ -71,20 +71,16 @@ export const apiContracts = {
   schedule: (id: string) =>
     api.get<Installment[]>(`/api/v1/contracts/${id}/schedule`).then(r => r.data),
   downloadPdf: (id: string) => {
-    const raw = localStorage.getItem('auth-storage')
-    const token = raw ? (JSON.parse(raw)?.state?.token ?? '') : ''
-    const base = (import.meta as any).env?.VITE_API_URL ?? ''
-    fetch(`${base}/api/v1/contracts/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } })
+    api.get(`/api/v1/contracts/${id}/pdf`, { responseType: 'blob' })
       .then(res => {
-        if (!res.ok) throw new Error(`PDF error ${res.status}`)
-        return res.blob()
-      })
-      .then(blob => {
+        const url = URL.createObjectURL(res.data)
         const a = document.createElement('a')
-        a.href = URL.createObjectURL(blob)
+        a.href = url
         a.download = `shartnoma-${id.slice(-8).toUpperCase()}.pdf`
+        document.body.appendChild(a)
         a.click()
-        URL.revokeObjectURL(a.href)
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(url), 100)
       })
       .catch(err => console.error('PDF download failed:', err))
   },

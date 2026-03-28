@@ -139,6 +139,8 @@ export interface Application {
   faceImageUrl: string | null
   signatureUrl: string | null
 
+  contractId: string | null
+
   status: 'PENDING' | 'APPROVED' | 'PARTIAL' | 'REJECTED' | 'ACTIVE' | 'COMPLETED' | 'BLOCKED' | 'DRAFT'
   createdAt: string
   decidedAt: string | null
@@ -191,6 +193,7 @@ export function normalizeApplication(raw: any): Application {
       decidedBy:      raw.decidedBy       ?? raw.decided_by       ?? null,
       overrideReason: raw.overrideReason  ?? raw.override_reason  ?? null,
       createdAt:      raw.createdAt       ?? raw.created_at       ?? '',
+      contractId:     raw.contractId      ?? raw.contract_id      ?? null,
     } as Application
   }
 
@@ -242,6 +245,7 @@ export function normalizeApplication(raw: any): Application {
     decidedAt:         raw.decidedAt      ?? raw.decided_at ?? null,
     decidedBy:         raw.decidedBy      ?? null,
     overrideReason:    null,
+    contractId:        raw.contractId ?? raw.contract_id ?? null,
   }
 }
 

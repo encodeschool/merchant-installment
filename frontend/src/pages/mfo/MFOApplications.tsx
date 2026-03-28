@@ -8,7 +8,7 @@ import FraudGateBadge from '../../components/ui/FraudGateBadge'
 import ScoreFactorBars from '../../components/ui/ScoreFactorBars'
 import ScoreGauge from '../../components/merchant/ScoreGauge'
 import { Application } from '../../types'
-import { apiApplications } from '../../api'
+import { apiApplications, apiContracts } from '../../api'
 import { formatUZS, maskPassport } from '../../utils/format'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
@@ -47,11 +47,12 @@ export default function MFOApplications() {
   const { t } = useTranslation()
 
   useEffect(() => {
+    setLoading(true)
     apiApplications.list(page, PAGE_SIZE).then(res => {
       setApplications(res.items)
       setTotal(res.total)
       setTotalPages(res.total_pages)
-    }).catch(() => {})
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [page])
 
   // When opening detail, fetch full version (with score_breakdown)
@@ -174,32 +175,45 @@ export default function MFOApplications() {
                   <td className="px-3 py-3">{statusBadge(app.status)}</td>
                   <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">{app.createdAt?.split('T')[0]}</td>
                   <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                    {app.status === 'PENDING' && (
-                      <div className="flex flex-col gap-1">
-                        <div className="flex gap-1.5">
+                    <div className="flex flex-col gap-1">
+                      {app.status === 'PENDING' && (
+                        <>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => { setConfirmApp({ app, action: 'approve' }); setOverrideReason('') }}
+                              className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                            >
+                              <CheckCircleIcon className="h-3.5 w-3.5" />
+                              {t('applications.approve')}
+                            </button>
+                            <button
+                              onClick={() => { setConfirmApp({ app, action: 'reject' }); setOverrideReason('') }}
+                              className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                            >
+                              <XCircleIcon className="h-3.5 w-3.5" />
+                              {t('applications.reject')}
+                            </button>
+                          </div>
                           <button
-                            onClick={() => { setConfirmApp({ app, action: 'approve' }); setOverrideReason('') }}
-                            className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                            onClick={() => { setConfirmApp({ app, action: 'partial' }); setOverrideReason('') }}
+                            className="flex items-center gap-1 rounded-lg bg-yellow-50 px-2 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-100 w-full justify-center"
                           >
-                            <CheckCircleIcon className="h-3.5 w-3.5" />
-                            {t('applications.approve')}
+                            {t('applications.partial')}
                           </button>
-                          <button
-                            onClick={() => { setConfirmApp({ app, action: 'reject' }); setOverrideReason('') }}
-                            className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
-                          >
-                            <XCircleIcon className="h-3.5 w-3.5" />
-                            {t('applications.reject')}
-                          </button>
-                        </div>
+                        </>
+                      )}
+                      {app.contractId && (
                         <button
-                          onClick={() => { setConfirmApp({ app, action: 'partial' }); setOverrideReason('') }}
-                          className="flex items-center gap-1 rounded-lg bg-yellow-50 px-2 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-100 w-full justify-center"
+                          onClick={() => apiContracts.downloadPdf(app.contractId!)}
+                          className="flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 w-full justify-center"
                         >
-                          {t('applications.partial')}
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                          </svg>
+                          PDF
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

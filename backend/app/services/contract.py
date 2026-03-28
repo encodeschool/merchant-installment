@@ -47,15 +47,15 @@ def generate_pdf(contract: dict, application: dict, schedule: list[dict]) -> byt
         created_at = created_at[:10]
 
     info_data = [
-        ["Contract ID", str(contract["id"])],
-        ["Application ID", str(contract["application_id"])],
-        ["Client", application.get("_client_name", "—")],
-        ["Merchant", application.get("_merchant_name", "—")],
-        ["Product", application.get("_product_name", "—")],
-        ["Total Amount (UZS)", f"{contract['total_amount']:,}"],
-        ["Monthly Payment (UZS)", f"{contract['monthly_payment']:,}"],
-        ["Months", str(contract["months"])],
-        ["Status", contract["status"]],
+        ["Contract ID", str(contract.get("id", "—"))],
+        ["Application ID", str(contract.get("application_id", "—"))],
+        ["Client", application.get("_client_name", "—") or "—"],
+        ["Merchant", application.get("_merchant_name", "—") or "—"],
+        ["Product", application.get("_product_name", "—") or "—"],
+        ["Total Amount (UZS)", f"{int(contract.get('total_amount') or 0):,}"],
+        ["Monthly Payment (UZS)", f"{int(contract.get('monthly_payment') or 0):,}"],
+        ["Months", str(contract.get("months") or "—")],
+        ["Status", str(contract.get("status") or "—")],
         ["Created At", created_at],
     ]
     info_table = Table(info_data, colWidths=[160, 340])
@@ -78,10 +78,10 @@ def generate_pdf(contract: dict, application: dict, schedule: list[dict]) -> byt
     schedule_data = [["#", "Due Date", "Amount (UZS)", "Status"]]
     for inst in schedule:
         schedule_data.append([
-            str(inst["installment_number"]),
-            str(inst["due_date"]),
-            f"{inst['amount']:,}",
-            inst["status"],
+            str(inst.get("installment_number", "")),
+            str(inst.get("due_date", "—")),
+            f"{int(inst.get('amount') or 0):,}",
+            str(inst.get("status", "—")),
         ])
 
     sched_table = Table(schedule_data, colWidths=[40, 120, 160, 100])
@@ -102,4 +102,5 @@ def generate_pdf(contract: dict, application: dict, schedule: list[dict]) -> byt
     elements.append(sched_table)
 
     doc.build(elements)
-    return buffer.getvalue()
+    buffer.seek(0)
+    return buffer.read()

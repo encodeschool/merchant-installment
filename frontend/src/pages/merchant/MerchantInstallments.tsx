@@ -33,7 +33,7 @@ export default function MerchantInstallments() {
       setContracts(res.items)
       setTotal(res.total)
       setTotalPages(res.total_pages)
-    }).catch(() => {})
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [page])
 
   const paginated = contracts

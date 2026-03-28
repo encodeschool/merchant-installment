@@ -37,7 +37,7 @@ export default function MerchantDashboard() {
       setApplications(appsPage.items)
       setContracts(ctrsPage.items)
       setProducts(prods)
-    }).catch(() => {})
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const contractTotalPages = Math.max(1, Math.ceil(contracts.length / CONTRACTS_PAGE_SIZE))
