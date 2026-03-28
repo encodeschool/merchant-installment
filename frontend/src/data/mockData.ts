@@ -61,7 +61,6 @@ export const mockMFOStats: MFOStats[] = [
   { id: 'mfo4', name: 'Kapitalbank MFO', totalMerchants: 15, totalApplications: 320, approvalRate: 60, totalDisbursed: 1800000000, defaultRate: 5.2, status: 'SUSPENDED' },
 ]
 
-// monthly application trend (last 6 months)
 export const mockMonthlyTrend = [
   { month: 'Oct', applications: 120, approved: 92 },
   { month: 'Nov', applications: 145, approved: 108 },

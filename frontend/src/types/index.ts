@@ -12,12 +12,12 @@ export interface Tariff {
   id: string
   name: string
   mfoName: string
-  interestRate: number       // annual %
+  interestRate: number
   minAmount: number
   maxAmount: number
   minMonths: number
   maxMonths: number
-  minScore: number           // minimum credit score required for full approval
+  minScore: number
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   createdAt: string
   approvedAt?: string
@@ -44,7 +44,7 @@ export interface Product {
   price: number
   description: string
   available: boolean
-  downPaymentPercent: number  // % of price paid upfront (0–50)
+  downPaymentPercent: number
 }
 
 export interface Client {
@@ -72,7 +72,7 @@ export interface Application {
   totalAmount: number
   score: number
   status: 'PENDING' | 'APPROVED' | 'PARTIAL' | 'REJECTED' | 'ACTIVE' | 'COMPLETED'
-  approvedAmount?: number    // set for PARTIAL decisions (limited amount approved)
+  approvedAmount?: number
   createdAt: string
   decidedAt?: string
 }

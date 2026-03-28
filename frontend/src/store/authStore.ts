@@ -18,7 +18,6 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       login: async (email: string, _password: string) => {
-        // Mock auth — match by email, password is ignored in mock
         const user = mockUsers.find(u => u.email === email)
         if (!user) return false
         const token = `mock-jwt-${user.role}-${Date.now()}`

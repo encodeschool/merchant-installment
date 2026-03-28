@@ -3,19 +3,14 @@ import { useAuthStore } from '../store/authStore'
 import LoginPage from '../pages/auth/LoginPage'
 import Layout from '../components/layout/Layout'
 
-// Central Bank pages
 import CBDashboard from '../pages/central-bank/CBDashboard'
 import CBTariffApprovals from '../pages/central-bank/CBTariffApprovals'
 import CBMFOMonitoring from '../pages/central-bank/CBMFOMonitoring'
 import CBAuditLogs from '../pages/central-bank/CBAuditLogs'
-
-// MFO pages
 import MFODashboard from '../pages/mfo/MFODashboard'
 import MFOTariffs from '../pages/mfo/MFOTariffs'
 import MFOMerchants from '../pages/mfo/MFOMerchants'
 import MFOApplications from '../pages/mfo/MFOApplications'
-
-// Merchant pages
 import MerchantDashboard from '../pages/merchant/MerchantDashboard'
 import MerchantProducts from '../pages/merchant/MerchantProducts'
 import MerchantNewApplication from '../pages/merchant/MerchantNewApplication'

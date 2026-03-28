@@ -24,7 +24,7 @@ const emptyClient: ClientInfo = {
 }
 
 const FIXED_MONTHS = [3, 6, 9, 12]
-const PARTIAL_RATIO = 0.70  // partial approval = 70% of financed amount
+const PARTIAL_RATIO = 0.70
 
 function calculateScore(client: ClientInfo, monthlyPayment: number) {
   const income = parseFloat(client.monthlyIncome) || 0
@@ -87,7 +87,6 @@ export default function MerchantNewApplication() {
       )
     : approvedTariffs
 
-  // Down payment & financed amount
   const downPaymentPercent = selectedProduct?.downPaymentPercent ?? 0
   const downPaymentAmount = selectedProduct ? Math.round(selectedProduct.price * downPaymentPercent / 100) : 0
   const financedAmount = selectedProduct ? selectedProduct.price - downPaymentAmount : 0
@@ -103,7 +102,6 @@ export default function MerchantNewApplication() {
     ? getScoringOutcome(score.total, selectedTariff.minScore)
     : 'REJECTED'
 
-  // For PARTIAL: approved amount is 70% of financed amount
   const approvedAmount = outcome === 'PARTIAL' ? Math.round(financedAmount * PARTIAL_RATIO) : financedAmount
   const approvedMonthly = selectedTariff && outcome !== 'REJECTED'
     ? calculateMonthly(approvedAmount, selectedMonths, selectedTariff.interestRate)

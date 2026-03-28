@@ -66,10 +66,9 @@ export default function MFOApplications() {
     setConfirmApp(null)
   }
 
-  // Score breakdown calculation
-  const scoreBreakdown = (app: Application) => {
-    const incomeScore = 20  // estimated
-    const creditScore = 20   // estimated
+  const scoreBreakdown = (_app: Application) => {
+    const incomeScore = 20
+    const creditScore = 20
     const ageScore = 20
     const tariffScore = 20
     return [
