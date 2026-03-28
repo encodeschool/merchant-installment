@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, Literal
-from app.schemas.client import ClientCreate
+from ..schemas.client import ClientCreate
 
 
 class ApplicationCreate(BaseModel):

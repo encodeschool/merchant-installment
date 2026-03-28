@@ -1,4 +1,4 @@
-from app.models.audit import AuditLog
+from ..models.audit import AuditLog
 
 
 def log_action(db, user_id: str, action: str, resource: str, resource_id: str, ip: str):

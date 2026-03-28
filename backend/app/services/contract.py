@@ -7,7 +7,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
-from app.models.contract import Installment
+from ..models.contract import Installment
 
 
 def generate_payment_schedule(contract_id: str, start_date: date, monthly_payment_amount: int, months: int) -> list:
