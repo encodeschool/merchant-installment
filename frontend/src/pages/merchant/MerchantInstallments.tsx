@@ -113,8 +113,8 @@ export default function MerchantInstallments() {
                       <p className="text-sm font-medium text-gray-900">{contract.clientName}</p>
                       <p className="text-xs text-gray-400">ID: {contract.id.slice(0, 8)}…</p>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-700 max-w-32">
-                      <p className="truncate">{contract.productName}</p>
+                    <td className="px-4 py-4 text-sm text-gray-700 max-w-36">
+                      <p className="truncate">{contract.itemsSummary ?? contract.productName ?? '—'}</p>
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                       {formatUZS(contract.totalAmount)}
@@ -216,7 +216,7 @@ export default function MerchantInstallments() {
             <div className="grid grid-cols-3 gap-3 rounded-xl bg-gray-50 p-4 text-sm">
               <div>
                 <p className="text-xs text-gray-500">{t('installments.product')}</p>
-                <p className="font-semibold mt-0.5">{scheduleContract.productName}</p>
+                <p className="font-semibold mt-0.5">{scheduleContract.itemsSummary ?? scheduleContract.productName ?? '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">{t('installments.totalAmount')}</p>

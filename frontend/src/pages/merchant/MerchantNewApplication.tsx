@@ -37,20 +37,21 @@ function maskPassport(s: string): string {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface CartItem { product: Product; quantity: number }
-interface ClientForm { passportSeries: string; birthDate: string; pinfl: string }
+interface ClientForm { passportSeries: string; birthDate: string; pinfl: string; monthlyIncome: string }
 interface SelectedOffer { tariff: EligibleOffer; months: number }
 
 // ── Step indicator ────────────────────────────────────────────────────────────
 
 const STEP_LABELS = ['Products', 'Identity', 'Scoring', 'Result', 'Offers', 'Sign', 'Done']
 
-function StepIndicator({ step }: { step: number }) {
+function StepIndicator({ step, stepLabelOverride }: { step: number; stepLabelOverride?: string }) {
   return (
     <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
       {STEP_LABELS.slice(0, 6).map((label, i) => {
         const s = i + 1
         const done = s < step
         const active = s === step
+        const displayLabel = active && stepLabelOverride ? stepLabelOverride : label
         return (
           <div key={s} className="flex items-center gap-1 shrink-0">
             <div className={clsx(
@@ -65,7 +66,7 @@ function StepIndicator({ step }: { step: number }) {
               'text-xs font-medium hidden sm:inline',
               active ? 'text-blue-700' : done ? 'text-emerald-600' : 'text-gray-400'
             )}>
-              {label}
+              {displayLabel}
             </span>
             {s < 6 && (
               <div className={clsx(
@@ -144,7 +145,8 @@ export default function MerchantNewApplication() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   // Step 2: Client form
-  const [clientForm, setClientForm] = useState<ClientForm>({ passportSeries: '', birthDate: '', pinfl: '' })
+  const [subStep2, setSubStep2] = useState<'form' | 'camera'>('form')
+  const [clientForm, setClientForm] = useState<ClientForm>({ passportSeries: '', birthDate: '', pinfl: '', monthlyIncome: '' })
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
   const [face1Image, setFace1Image] = useState<string | null>(null)
   const [face1Verified, setFace1Verified] = useState(false)
@@ -229,6 +231,10 @@ export default function MerchantNewApplication() {
     if (clientForm.pinfl && !/^\d{14}$/.test(clientForm.pinfl)) {
       errors.pinfl = 'PINFL must be exactly 14 digits'
     }
+    const income = Number(clientForm.monthlyIncome.replace(/\s/g, ''))
+    if (!clientForm.monthlyIncome || isNaN(income) || income <= 0) {
+      errors.monthlyIncome = 'Monthly income must be greater than 0'
+    }
     setClientErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -250,6 +256,8 @@ export default function MerchantNewApplication() {
     const age = calcAge(clientForm.birthDate)
     if (age < 18 || age > 75) return false
     if (clientForm.pinfl && !/^\d{14}$/.test(clientForm.pinfl)) return false
+    const income = Number(clientForm.monthlyIncome.replace(/\s/g, ''))
+    if (!clientForm.monthlyIncome || isNaN(income) || income <= 0) return false
     return true
   })()
 
@@ -278,7 +286,7 @@ export default function MerchantNewApplication() {
         pinfl: clientForm.pinfl || undefined,
         full_name: '',
         phone: '',
-        monthly_income: 0,
+        monthly_income: Math.round(Number(clientForm.monthlyIncome.replace(/\s/g, ''))),
         age: calcAge(clientForm.birthDate),
         credit_history: 'NONE',
         open_loans: 0,
@@ -372,7 +380,8 @@ export default function MerchantNewApplication() {
 
   const handleReset = () => {
     setStep(1); setCart([]); setSearchQuery(''); setSelectedCategory(null)
-    setClientForm({ passportSeries: '', birthDate: '', pinfl: '' }); setClientErrors({})
+    setSubStep2('form')
+    setClientForm({ passportSeries: '', birthDate: '', pinfl: '', monthlyIncome: '' }); setClientErrors({})
     setFace1Image(null); setFace1Verified(false)
     setCheckItems([false, false, false, false]); setAnimDone(false); setApiDone(false); setApiResult(null); setScoringError(false)
     setScoreResult(null); setEligibleOffers([]); setFraudGate('PASS'); setFraudSignals([]); setAppId(null)
@@ -385,7 +394,12 @@ export default function MerchantNewApplication() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 pb-24">
-      {step < 7 && <StepIndicator step={step} />}
+      {step < 7 && (
+        <StepIndicator
+          step={step}
+          stepLabelOverride={step === 2 ? `Identity (${subStep2 === 'form' ? '1' : '2'}/2)` : undefined}
+        />
+      )}
 
       {/* ── STEP 1: Product Selection ─────────────────────────────────────────── */}
       {step === 1 && (
@@ -484,12 +498,12 @@ export default function MerchantNewApplication() {
         </div>
       )}
 
-      {/* ── STEP 2: Client Identification ─────────────────────────────────────── */}
-      {step === 2 && (
+      {/* ── STEP 2A: Passport & Birth Date form ─────────────────────────────── */}
+      {step === 2 && subStep2 === 'form' && (
         <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-5">
           <div>
             <h2 className="text-base font-semibold text-gray-900">Client Identification</h2>
-            <p className="text-sm text-gray-500 mt-1">Enter passport details to begin verification</p>
+            <p className="text-sm text-gray-500 mt-1">Enter passport details to continue</p>
           </div>
 
           {/* Passport */}
@@ -550,26 +564,88 @@ export default function MerchantNewApplication() {
             )}
           </div>
 
-          {/* Camera section — only show when form is valid */}
-          {clientFormValid && (
-            <div className="pt-2 border-t border-gray-100">
-              <FaceVerifyCamera
-                passportNumber={clientForm.passportSeries.toUpperCase()}
-                title="Identity Photo"
-                subtitle="Take a photo of the client to verify passport identity"
-                onVerified={(b64) => { setFace1Image(b64); setFace1Verified(true) }}
-                onReset={() => { setFace1Image(null); setFace1Verified(false) }}
-              />
-            </div>
-          )}
+          {/* Monthly income */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Income <span className="text-gray-500 font-normal">(UZS)</span></label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={clientForm.monthlyIncome}
+              onChange={e => {
+                const raw = e.target.value.replace(/\D/g, '')
+                setClientForm(f => ({ ...f, monthlyIncome: raw }))
+              }}
+              onBlur={() => validateClientForm()}
+              placeholder="e.g. 3000000"
+              className={clsx(
+                'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100',
+                clientErrors.monthlyIncome ? 'border-red-400' : 'border-gray-300 focus:border-blue-400'
+              )}
+            />
+            {clientErrors.monthlyIncome ? (
+              <p className="text-xs text-red-500 mt-1">{clientErrors.monthlyIncome}</p>
+            ) : clientForm.monthlyIncome && Number(clientForm.monthlyIncome) > 0 ? (
+              <p className="text-xs text-gray-400 mt-1">
+                {Number(clientForm.monthlyIncome).toLocaleString('ru-RU')} UZS / month
+              </p>
+            ) : null}
+          </div>
 
           <div className="flex gap-3 justify-between pt-2">
-            <button onClick={() => setStep(1)} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <button
+              onClick={() => setStep(1)}
+              className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
               Back
             </button>
             <button
-              onClick={() => { if (validateClientForm() && face1Verified) setStep(3) }}
-              disabled={!clientFormValid || !face1Verified}
+              onClick={() => {
+                if (validateClientForm()) {
+                  // Reset face state in case passport changed since last camera session
+                  setFace1Image(null)
+                  setFace1Verified(false)
+                  setSubStep2('camera')
+                }
+              }}
+              disabled={!clientFormValid}
+              className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 2B: Face Verification camera ────────────────────────────────── */}
+      {step === 2 && subStep2 === 'camera' && (
+        <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSubStep2('form')}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors shrink-0"
+            >
+              ← Back
+            </button>
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Identity Photo</h2>
+              <p className="text-sm text-gray-500">
+                Take a photo to verify passport <span className="font-mono font-semibold text-gray-700">{clientForm.passportSeries.toUpperCase()}</span>
+              </p>
+            </div>
+          </div>
+
+          <FaceVerifyCamera
+            passportNumber={clientForm.passportSeries.toUpperCase()}
+            title=""
+            subtitle=""
+            onVerified={(b64) => { setFace1Image(b64); setFace1Verified(true) }}
+            onReset={() => { setFace1Image(null); setFace1Verified(false) }}
+          />
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => { if (face1Verified) setStep(3) }}
+              disabled={!face1Verified}
               className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Continue →

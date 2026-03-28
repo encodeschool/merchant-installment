@@ -56,59 +56,193 @@ export interface Client {
   creditHistory: 'GOOD' | 'FAIR' | 'BAD' | 'NONE'
 }
 
+// ── Application (new multi-product model) ─────────────────────────────────────
+
+export interface ApplicationItem {
+  productId: string
+  productName: string
+  category: string
+  price: number
+  quantity: number
+  subtotal: number          // price * quantity
+}
+
+export interface ScoreBreakdown {
+  f1_affordability: number   // 0-100
+  f2_credit: number
+  f3_behavioral: number
+  f4_demographic: number
+  weights: {
+    w1: number
+    w2: number
+    w3: number
+    w4: number
+  }
+  total_score: number
+  decision: 'APPROVED' | 'PARTIAL' | 'REJECTED'
+  approved_ratio: number
+  hard_reject: boolean
+  hard_reject_reason: string | null
+  reason_codes: string[]
+}
+
+export interface FraudSignal {
+  code: string
+  severity: 'block' | 'warning' | 'info'
+  score_impact: number
+  description: string
+}
+
 export interface Application {
   id: string
   merchantId: string
   merchantName: string
-  clientName: string
-  clientPhone: string
-  productName: string
-  productPrice: number
-  tariffId: string
-  tariffName: string
-  months: number
-  monthlyPayment: number
+
+  // Client sub-object
+  client: {
+    fullName: string
+    passportNumber: string
+    phone: string
+    age: number
+    monthlyIncome: number
+    employmentType: string
+    pinfl: string | null
+    openLoans: number
+    overdueDays: number
+    hasBankruptcy: boolean
+    creditHistory: 'GOOD' | 'FAIR' | 'NONE' | 'BAD'
+  }
+
+  // Products (multiple)
+  items: ApplicationItem[]
   totalAmount: number
+  downPaymentAmount: number
+  financedAmount: number
+
+  // Selected offer
+  tariffId: string | null
+  tariffName: string | null
+  mfoName: string | null
+  months: number | null
+  monthlyPayment: number | null
+  approvedAmount: number | null
+
+  // Scoring
   score: number
-  status: 'PENDING' | 'APPROVED' | 'PARTIAL' | 'REJECTED' | 'ACTIVE' | 'COMPLETED'
-  approvedAmount?: number
+  scoreBreakdown: ScoreBreakdown | null
+
+  // Fraud
+  fraudGate: 'PASS' | 'FLAG' | 'BLOCK'
+  fraudSignals: FraudSignal[]
+
+  // Verification assets
+  faceImageUrl: string | null
+  signatureUrl: string | null
+
+  status: 'PENDING' | 'APPROVED' | 'PARTIAL' | 'REJECTED' | 'ACTIVE' | 'COMPLETED' | 'BLOCKED' | 'DRAFT'
   createdAt: string
-  decidedAt?: string
+  decidedAt: string | null
+  decidedBy: string | null
+  overrideReason: string | null
 }
 
-export interface EligibleOffer {
-  tariff_id: string
-  mfo_name: string
-  tariff_name: string
-  interest_rate: number
-  available_months: number[]
-  min_monthly_payment: number
-  max_monthly_payment: number
-  min_down_payment_pct: number
-  approved_amount: number
-  approved_ratio: number
-}
+// Normalize old flat API responses to the new Application shape
+export function normalizeApplication(raw: any): Application {
+  if (raw && typeof raw.client === 'object' && raw.client !== null) {
+    // Already new format — camelCase the client fields if needed
+    const c = raw.client
+    return {
+      ...raw,
+      client: {
+        fullName:       c.fullName       ?? c.full_name        ?? '',
+        passportNumber: c.passportNumber ?? c.passport_number  ?? '',
+        phone:          c.phone          ?? '',
+        age:            c.age            ?? 0,
+        monthlyIncome:  c.monthlyIncome  ?? c.monthly_income   ?? 0,
+        employmentType: c.employmentType ?? c.employment_type  ?? 'EMPLOYED',
+        pinfl:          c.pinfl          ?? null,
+        openLoans:      c.openLoans      ?? c.open_loans       ?? 0,
+        overdueDays:    c.overdueDays    ?? c.overdue_days     ?? 0,
+        hasBankruptcy:  c.hasBankruptcy  ?? c.has_bankruptcy   ?? false,
+        creditHistory:  c.creditHistory  ?? c.credit_history   ?? 'NONE',
+      },
+      items: (raw.items ?? []).map((it: any) => ({
+        productId:   it.productId   ?? it.product_id   ?? '',
+        productName: it.productName ?? it.product_name ?? '',
+        category:    it.category    ?? '',
+        price:       it.price       ?? 0,
+        quantity:    it.quantity    ?? 1,
+        subtotal:    it.subtotal    ?? (it.price ?? 0) * (it.quantity ?? 1),
+      })),
+      tariffId:       raw.tariffId        ?? raw.tariff_id        ?? null,
+      tariffName:     raw.tariffName      ?? raw.tariff_name      ?? null,
+      mfoName:        raw.mfoName         ?? raw.mfo_name         ?? null,
+      monthlyPayment: raw.monthlyPayment  ?? raw.monthly_payment  ?? null,
+      approvedAmount: raw.approvedAmount  ?? raw.approved_amount  ?? null,
+      totalAmount:    raw.totalAmount     ?? raw.total_amount     ?? 0,
+      downPaymentAmount: raw.downPaymentAmount ?? raw.down_payment_amount ?? 0,
+      financedAmount:    raw.financedAmount    ?? raw.financed_amount     ?? raw.approvedAmount ?? raw.totalAmount ?? 0,
+      scoreBreakdown: raw.scoreBreakdown  ?? raw.score_breakdown  ?? null,
+      fraudGate:      (raw.fraudGate      ?? raw.fraud_gate       ?? 'PASS') as Application['fraudGate'],
+      fraudSignals:   raw.fraudSignals    ?? raw.fraud_signals    ?? [],
+      faceImageUrl:   raw.faceImageUrl    ?? raw.face_image_url   ?? null,
+      signatureUrl:   raw.signatureUrl    ?? raw.signature_url    ?? null,
+      decidedAt:      raw.decidedAt       ?? raw.decided_at       ?? null,
+      decidedBy:      raw.decidedBy       ?? raw.decided_by       ?? null,
+      overrideReason: raw.overrideReason  ?? raw.override_reason  ?? null,
+      createdAt:      raw.createdAt       ?? raw.created_at       ?? '',
+    } as Application
+  }
 
-export interface ScoreResult {
-  f1: number
-  f2: number
-  f3: number
-  f4: number
-  total_score: number
-  decision: 'APPROVED' | 'PARTIAL' | 'REJECTED'
-  weights: { w1: number; w2: number; w3: number; w4: number }
-  hard_reject: boolean
-  hard_reject_reason: string | null
-  reason_codes: string[]
-  approved_ratio: number
-}
-
-export interface MultiProductResponse {
-  id: string
-  score_result: ScoreResult
-  eligible_offers: EligibleOffer[]
-  fraud_gate: 'PASS' | 'FLAG' | 'BLOCK'
-  fraud_signals: string[]
+  // Old flat format — wrap into new shape
+  return {
+    id:          raw.id          ?? '',
+    merchantId:  raw.merchantId  ?? raw.merchant_id  ?? '',
+    merchantName: raw.merchantName ?? raw.merchant_name ?? '',
+    client: {
+      fullName:       raw.clientName      ?? raw.client_name  ?? '',
+      passportNumber: raw.passportNumber  ?? '',
+      phone:          raw.clientPhone     ?? raw.client_phone ?? '',
+      age:            raw.age             ?? 0,
+      monthlyIncome:  raw.monthlyIncome   ?? 0,
+      employmentType: 'EMPLOYED',
+      pinfl:          null,
+      openLoans:      0,
+      overdueDays:    0,
+      hasBankruptcy:  false,
+      creditHistory:  'NONE',
+    },
+    items: raw.productName
+      ? [{
+          productId:   raw.tariffId ?? '',
+          productName: raw.productName,
+          category:    '',
+          price:       raw.productPrice ?? 0,
+          quantity:    1,
+          subtotal:    raw.productPrice ?? 0,
+        }]
+      : [],
+    totalAmount:       raw.totalAmount    ?? raw.total_amount    ?? 0,
+    downPaymentAmount: 0,
+    financedAmount:    raw.approvedAmount ?? raw.totalAmount     ?? 0,
+    tariffId:          raw.tariffId       ?? null,
+    tariffName:        raw.tariffName     ?? null,
+    mfoName:           raw.mfoName        ?? null,
+    months:            raw.months         ?? null,
+    monthlyPayment:    raw.monthlyPayment ?? null,
+    approvedAmount:    raw.approvedAmount ?? null,
+    score:             raw.score          ?? 0,
+    scoreBreakdown:    null,
+    fraudGate:         'PASS',
+    fraudSignals:      [],
+    faceImageUrl:      null,
+    signatureUrl:      null,
+    status:            raw.status,
+    createdAt:         raw.createdAt      ?? raw.created_at ?? '',
+    decidedAt:         raw.decidedAt      ?? raw.decided_at ?? null,
+    decidedBy:         raw.decidedBy      ?? null,
+    overrideReason:    null,
+  }
 }
 
 export interface Contract {
@@ -116,7 +250,11 @@ export interface Contract {
   applicationId: string
   clientName: string
   merchantName: string
-  productName: string
+  // Multi-product summary (replaces single productName)
+  itemsSummary: string   // e.g. "iPhone 15 × 1, MacBook × 2"
+  itemCount: number
+  /** @deprecated use itemsSummary instead */
+  productName?: string
   totalAmount: number
   months: number
   monthlyPayment: number
@@ -147,4 +285,25 @@ export interface MFOStats {
   totalDisbursed: number
   defaultRate: number
   status: 'ACTIVE' | 'SUSPENDED'
+}
+
+export interface EligibleOffer {
+  tariff_id: string
+  mfo_name: string
+  tariff_name: string
+  interest_rate: number
+  available_months: number[]
+  min_monthly_payment: number
+  max_monthly_payment: number
+  min_down_payment_pct: number
+  approved_amount: number
+  approved_ratio: number
+}
+
+export interface MultiProductResponse {
+  id: string
+  score_result: ScoreBreakdown
+  eligible_offers: EligibleOffer[]
+  fraud_gate: 'PASS' | 'FLAG' | 'BLOCK'
+  fraud_signals: string[]
 }
