@@ -190,3 +190,5 @@ The New Application form runs the same scoring logic as the backend before submi
 | < 50 | REJECTED |
 
 Monthly payment uses the annuity formula on the financed amount (price minus down payment).
+# Auto-synced from merchant-installment
+
