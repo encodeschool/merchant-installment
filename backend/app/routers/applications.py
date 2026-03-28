@@ -14,10 +14,26 @@ router = APIRouter()
 
 
 def _app_to_out(app: dict, db: Client) -> ApplicationOut:
-    merchant = db.table("merchants").select("name").eq("id", app["merchant_id"]).execute().data
-    client = db.table("clients").select("full_name, phone").eq("id", app["client_id"]).execute().data
-    product = db.table("products").select("name, price").eq("id", app["product_id"]).execute().data
-    tariff = db.table("tariffs").select("name").eq("id", app["tariff_id"]).execute().data
+    merchant = (
+        db.table("merchants").select("name").eq("id", app["merchant_id"]).execute().data
+    )
+    client = (
+        db.table("clients")
+        .select("full_name, phone")
+        .eq("id", app["client_id"])
+        .execute()
+        .data
+    )
+    product = (
+        db.table("products")
+        .select("name, price")
+        .eq("id", app["product_id"])
+        .execute()
+        .data
+    )
+    tariff = (
+        db.table("tariffs").select("name").eq("id", app["tariff_id"]).execute().data
+    )
 
     return ApplicationOut(
         id=app["id"],
@@ -47,18 +63,24 @@ def create_application(
     current_user: dict = Depends(require_role("MERCHANT")),
     db: Client = Depends(get_supabase),
 ):
-    merchant_rows = db.table("merchants").select("*").eq("id", body.merchant_id).execute().data
+    merchant_rows = (
+        db.table("merchants").select("*").eq("id", body.merchant_id).execute().data
+    )
     if not merchant_rows:
         raise HTTPException(status_code=404, detail="Merchant not found")
 
-    product_rows = db.table("products").select("*").eq("id", body.product_id).execute().data
+    product_rows = (
+        db.table("products").select("*").eq("id", body.product_id).execute().data
+    )
     if not product_rows:
         raise HTTPException(status_code=404, detail="Product not found")
     product = product_rows[0]
     if not product["available"]:
         raise HTTPException(status_code=400, detail="Product is not available")
 
-    tariff_rows = db.table("tariffs").select("*").eq("id", body.tariff_id).execute().data
+    tariff_rows = (
+        db.table("tariffs").select("*").eq("id", body.tariff_id).execute().data
+    )
     if not tariff_rows:
         raise HTTPException(status_code=404, detail="Tariff not found")
     tariff = tariff_rows[0]
@@ -70,19 +92,27 @@ def create_application(
     if not (tariff["min_months"] <= body.months <= tariff["max_months"]):
         raise HTTPException(status_code=422, detail="Months out of tariff range")
 
-    existing_client = db.table("clients").select("*").eq("passport_number", body.client.passport_number).execute().data
+    existing_client = (
+        db.table("clients")
+        .select("*")
+        .eq("passport_number", body.client.passport_number)
+        .execute()
+        .data
+    )
     if existing_client:
         client_id = existing_client[0]["id"]
-        db.table("clients").update({
-            "full_name": body.client.full_name,
-            "phone": body.client.phone,
-            "monthly_income": body.client.monthly_income,
-            "age": body.client.age,
-            "credit_history": body.client.credit_history,
-            "open_loans": body.client.open_loans,
-            "overdue_days": body.client.overdue_days,
-            "has_bankruptcy": body.client.has_bankruptcy,
-        }).eq("id", client_id).execute()
+        db.table("clients").update(
+            {
+                "full_name": body.client.full_name,
+                "phone": body.client.phone,
+                "monthly_income": body.client.monthly_income,
+                "age": body.client.age,
+                "credit_history": body.client.credit_history,
+                "open_loans": body.client.open_loans,
+                "overdue_days": body.client.overdue_days,
+                "has_bankruptcy": body.client.has_bankruptcy,
+            }
+        ).eq("id", client_id).execute()
         client = db.table("clients").select("*").eq("id", client_id).execute().data[0]
     else:
         client_data = {
@@ -139,23 +169,32 @@ def create_application(
     }
     application = db.table("applications").insert(app_data).execute().data[0]
 
-    db.table("scoring_logs").insert({
-        "id": str(uuid.uuid4()),
-        "application_id": application["id"],
-        "client_id": client["id"],
-        "income_score": score_result["f1_affordability"],
-        "credit_score": score_result["f2_credit"],
-        "age_score": score_result["f4_demographic"],
-        "tariff_score": score_result["f3_behavioral"],
-        "total_score": score_result["total_score"],
-        "outcome": score_result["decision"],
-        "weights_snapshot": score_result["weights"],
-        "hard_reject": score_result["hard_reject"],
-        "hard_reject_reason": score_result["hard_reject_reason"],
-        "reason_codes": score_result["reason_codes"],
-    }).execute()
+    db.table("scoring_logs").insert(
+        {
+            "id": str(uuid.uuid4()),
+            "application_id": application["id"],
+            "client_id": client["id"],
+            "income_score": score_result["f1_affordability"],
+            "credit_score": score_result["f2_credit"],
+            "age_score": score_result["f4_demographic"],
+            "tariff_score": score_result["f3_behavioral"],
+            "total_score": score_result["total_score"],
+            "outcome": score_result["decision"],
+            "weights_snapshot": score_result["weights"],
+            "hard_reject": score_result["hard_reject"],
+            "hard_reject_reason": score_result["hard_reject_reason"],
+            "reason_codes": score_result["reason_codes"],
+        }
+    ).execute()
 
-    log_action(db, current_user["id"], "CREATE", "application", application["id"], request.client.host if request.client else "")
+    log_action(
+        db,
+        current_user["id"],
+        "CREATE",
+        "application",
+        application["id"],
+        request.client.host if request.client else "",
+    )
     return _app_to_out(application, db)
 
 
@@ -165,13 +204,99 @@ def list_applications(
     db: Client = Depends(get_supabase),
 ):
     if current_user["role"] == "MERCHANT":
-        merchants = db.table("merchants").select("id").eq("name", current_user["organization"]).execute().data
+        merchants = (
+            db.table("merchants")
+            .select("id")
+            .eq("name", current_user["organization"])
+            .execute()
+            .data
+        )
         if not merchants:
             return []
-        apps = db.table("applications").select("*").eq("merchant_id", merchants[0]["id"]).order("created_at", desc=True).execute().data
+        apps = (
+            db.table("applications")
+            .select("*")
+            .eq("merchant_id", merchants[0]["id"])
+            .order("created_at", desc=True)
+            .execute()
+            .data
+        )
     else:
-        apps = db.table("applications").select("*").order("created_at", desc=True).execute().data
-    return [_app_to_out(a, db) for a in apps]
+        apps = (
+            db.table("applications")
+            .select("*")
+            .order("created_at", desc=True)
+            .execute()
+            .data
+        )
+
+    if not apps:
+        return []
+
+    # Batch fetch all related data to avoid N+1 queries
+    merchant_ids = list(set(a["merchant_id"] for a in apps))
+    client_ids = list(set(a["client_id"] for a in apps))
+    product_ids = list(set(a["product_id"] for a in apps))
+    tariff_ids = list(set(a["tariff_id"] for a in apps))
+
+    merchants_data = (
+        db.table("merchants").select("id, name").in_("id", merchant_ids).execute().data
+    )
+    clients_data = (
+        db.table("clients")
+        .select("id, full_name, phone")
+        .in_("id", client_ids)
+        .execute()
+        .data
+    )
+    products_data = (
+        db.table("products")
+        .select("id, name, price")
+        .in_("id", product_ids)
+        .execute()
+        .data
+    )
+    tariffs_data = (
+        db.table("tariffs").select("id, name").in_("id", tariff_ids).execute().data
+    )
+
+    # Create lookup dictionaries
+    merchants_map = {m["id"]: m for m in merchants_data}
+    clients_map = {c["id"]: c for c in clients_data}
+    products_map = {p["id"]: p for p in products_data}
+    tariffs_map = {t["id"]: t for t in tariffs_data}
+
+    # Build response objects
+    result = []
+    for app in apps:
+        merchant = merchants_map.get(app["merchant_id"], {})
+        client = clients_map.get(app["client_id"], {})
+        product = products_map.get(app["product_id"], {})
+        tariff = tariffs_map.get(app["tariff_id"], {})
+
+        result.append(
+            ApplicationOut(
+                id=app["id"],
+                merchantId=app["merchant_id"],
+                merchantName=merchant.get("name", ""),
+                clientName=client.get("full_name", ""),
+                clientPhone=client.get("phone", ""),
+                productName=product.get("name", ""),
+                productPrice=product.get("price", 0),
+                tariffId=app["tariff_id"],
+                tariffName=tariff.get("name", ""),
+                months=app["months"],
+                monthlyPayment=app["monthly_payment"],
+                totalAmount=app["total_amount"],
+                score=app["score"],
+                status=app["status"],
+                approvedAmount=app.get("approved_amount"),
+                createdAt=app["created_at"],
+                decidedAt=app.get("decided_at"),
+            )
+        )
+
+    return result
 
 
 @router.get("/{application_id}", response_model=ApplicationOut)
@@ -199,7 +324,9 @@ def decide_application(
         raise HTTPException(status_code=404, detail="Application not found")
     app = rows[0]
     if app["status"] != "PENDING":
-        raise HTTPException(status_code=400, detail="Application is not in PENDING status")
+        raise HTTPException(
+            status_code=400, detail="Application is not in PENDING status"
+        )
 
     updates = {
         "status": body.action,
@@ -208,23 +335,41 @@ def decide_application(
     }
 
     if body.action in ("APPROVED", "PARTIAL"):
-        product_rows = db.table("products").select("*").eq("id", app["product_id"]).execute().data
+        product_rows = (
+            db.table("products").select("*").eq("id", app["product_id"]).execute().data
+        )
         product = product_rows[0] if product_rows else {}
-        tariff_rows = db.table("tariffs").select("*").eq("id", app["tariff_id"]).execute().data
+        tariff_rows = (
+            db.table("tariffs").select("*").eq("id", app["tariff_id"]).execute().data
+        )
         tariff = tariff_rows[0] if tariff_rows else {}
 
         if body.action == "PARTIAL":
-            down = int(product.get("price", 0) * product.get("down_payment_percent", 0) / 100)
+            down = int(
+                product.get("price", 0) * product.get("down_payment_percent", 0) / 100
+            )
             financed = product.get("price", 0) - down
-            approved_amount = body.approved_amount if body.approved_amount else int(financed * 0.70)
-            mp = calc_monthly_payment(approved_amount, app["months"], tariff.get("interest_rate", 0))
+            approved_amount = (
+                body.approved_amount if body.approved_amount else int(financed * 0.70)
+            )
+            mp = calc_monthly_payment(
+                approved_amount, app["months"], tariff.get("interest_rate", 0)
+            )
             updates["monthly_payment"] = int(mp)
             updates["total_amount"] = int(mp * app["months"])
         else:
-            approved_amount = body.approved_amount if body.approved_amount else app["total_amount"]
+            approved_amount = (
+                body.approved_amount if body.approved_amount else app["total_amount"]
+            )
         updates["approved_amount"] = approved_amount
 
-    application = db.table("applications").update(updates).eq("id", application_id).execute().data[0]
+    application = (
+        db.table("applications")
+        .update(updates)
+        .eq("id", application_id)
+        .execute()
+        .data[0]
+    )
 
     if body.action in ("APPROVED", "PARTIAL"):
         contract_data = {
@@ -246,5 +391,12 @@ def decide_application(
         )
         db.table("installments").insert(schedule).execute()
 
-    log_action(db, current_user["id"], f"DECIDE_{body.action}", "application", application_id, request.client.host if request.client else "")
+    log_action(
+        db,
+        current_user["id"],
+        f"DECIDE_{body.action}",
+        "application",
+        application_id,
+        request.client.host if request.client else "",
+    )
     return _app_to_out(application, db)
