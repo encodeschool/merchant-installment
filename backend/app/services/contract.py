@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, timedelta
+from datetime import date
 from io import BytesIO
 
 from reportlab.lib import colors
@@ -7,39 +7,33 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
-from ..models.contract import Installment
 
-
-def generate_payment_schedule(contract_id: str, start_date: date, monthly_payment_amount: int, months: int) -> list:
+def generate_payment_schedule(contract_id: str, start_date: date, monthly_payment_amount: int, months: int) -> list[dict]:
     installments = []
     for i in range(1, months + 1):
-        # Advance due date by i months from start
         month = start_date.month - 1 + i
         year = start_date.year + month // 12
         month = month % 12 + 1
         try:
             due = date(year, month, start_date.day)
         except ValueError:
-            # Handle months shorter than start day (e.g., Feb 30 → Feb 28)
             import calendar
             last_day = calendar.monthrange(year, month)[1]
             due = date(year, month, last_day)
 
-        installments.append(
-            Installment(
-                id=str(uuid.uuid4()),
-                contract_id=contract_id,
-                installment_number=i,
-                due_date=due,
-                amount=monthly_payment_amount,
-                paid_at=None,
-                status="UPCOMING",
-            )
-        )
+        installments.append({
+            "id": str(uuid.uuid4()),
+            "contract_id": contract_id,
+            "installment_number": i,
+            "due_date": due.isoformat(),
+            "amount": monthly_payment_amount,
+            "paid_at": None,
+            "status": "UPCOMING",
+        })
     return installments
 
 
-def generate_pdf(contract, application, schedule) -> bytes:
+def generate_pdf(contract: dict, application: dict, schedule: list[dict]) -> bytes:
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=40, rightMargin=40, topMargin=40, bottomMargin=40)
     styles = getSampleStyleSheet()
@@ -48,17 +42,21 @@ def generate_pdf(contract, application, schedule) -> bytes:
     elements.append(Paragraph("Installment Platform — Loan Contract", styles["Title"]))
     elements.append(Spacer(1, 12))
 
+    created_at = contract.get("created_at", "")
+    if created_at and len(created_at) >= 10:
+        created_at = created_at[:10]
+
     info_data = [
-        ["Contract ID", str(contract.id)],
-        ["Application ID", str(contract.application_id)],
-        ["Client", getattr(application, "_client_name", "—")],
-        ["Merchant", getattr(application, "_merchant_name", "—")],
-        ["Product", getattr(application, "_product_name", "—")],
-        ["Total Amount (UZS)", f"{contract.total_amount:,}"],
-        ["Monthly Payment (UZS)", f"{contract.monthly_payment:,}"],
-        ["Months", str(contract.months)],
-        ["Status", contract.status],
-        ["Created At", contract.created_at.strftime("%Y-%m-%d") if contract.created_at else "—"],
+        ["Contract ID", str(contract["id"])],
+        ["Application ID", str(contract["application_id"])],
+        ["Client", application.get("_client_name", "—")],
+        ["Merchant", application.get("_merchant_name", "—")],
+        ["Product", application.get("_product_name", "—")],
+        ["Total Amount (UZS)", f"{contract['total_amount']:,}"],
+        ["Monthly Payment (UZS)", f"{contract['monthly_payment']:,}"],
+        ["Months", str(contract["months"])],
+        ["Status", contract["status"]],
+        ["Created At", created_at],
     ]
     info_table = Table(info_data, colWidths=[160, 340])
     info_table.setStyle(
@@ -80,10 +78,10 @@ def generate_pdf(contract, application, schedule) -> bytes:
     schedule_data = [["#", "Due Date", "Amount (UZS)", "Status"]]
     for inst in schedule:
         schedule_data.append([
-            str(inst.installment_number),
-            str(inst.due_date),
-            f"{inst.amount:,}",
-            inst.status,
+            str(inst["installment_number"]),
+            str(inst["due_date"]),
+            f"{inst['amount']:,}",
+            inst["status"],
         ])
 
     sched_table = Table(schedule_data, colWidths=[40, 120, 160, 100])
