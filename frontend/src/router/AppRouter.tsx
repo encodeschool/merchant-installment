@@ -11,6 +11,7 @@ import MFODashboard from '../pages/mfo/MFODashboard'
 import MFOTariffs from '../pages/mfo/MFOTariffs'
 import MFOMerchants from '../pages/mfo/MFOMerchants'
 import MFOApplications from '../pages/mfo/MFOApplications'
+import MFOScoringSettings from '../pages/mfo/MFOScoringSettings'
 import MerchantDashboard from '../pages/merchant/MerchantDashboard'
 import MerchantProducts from '../pages/merchant/MerchantProducts'
 import MerchantNewApplication from '../pages/merchant/MerchantNewApplication'
@@ -61,6 +62,7 @@ export default function AppRouter() {
         <Route path="tariffs" element={<MFOTariffs />} />
         <Route path="merchants" element={<MFOMerchants />} />
         <Route path="applications" element={<MFOApplications />} />
+        <Route path="scoring/:tariffId" element={<MFOScoringSettings />} />
       </Route>
 
       {/* Merchant */}

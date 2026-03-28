@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { useNavigate } from 'react-router-dom'
+import { PlusIcon, PencilSquareIcon, TrashIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
@@ -25,6 +26,7 @@ const emptyForm: TariffForm = {
 }
 
 export default function MFOTariffs() {
+  const navigate = useNavigate()
   const [tariffs, setTariffs] = useState<Tariff[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Tariff | null>(null)
@@ -252,7 +254,14 @@ export default function MFOTariffs() {
                   <td className="px-4 py-3">{statusBadge(t.status)}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{t.createdAt}</td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 flex-wrap">
+                      <button
+                        onClick={() => navigate(`/mfo/scoring/${t.id}`)}
+                        className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                      >
+                        <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
+                        Scoring
+                      </button>
                       <button
                         onClick={() => openEdit(t)}
                         disabled={t.status === 'APPROVED'}

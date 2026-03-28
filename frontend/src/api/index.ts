@@ -50,6 +50,18 @@ export const apiContracts = {
     api.get<Installment[]>(`/api/v1/contracts/${id}/schedule`).then(r => r.data),
 }
 
+export const apiScoringConfig = {
+  get: (tariffId: string) =>
+    api.get(`/api/v1/tariffs/${tariffId}/scoring-config`).then(r => r.data),
+  update: (tariffId: string, b: object) =>
+    api.patch(`/api/v1/tariffs/${tariffId}/scoring-config`, b).then(r => r.data),
+}
+
+export const apiScore = {
+  calculate: (b: object) =>
+    api.post('/api/v1/score/calculate', b).then(r => r.data),
+}
+
 export const apiDashboard = {
   mfo: () => api.get<{
     totalMerchants: number
