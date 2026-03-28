@@ -1,8 +1,6 @@
 services:
   backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-merchant-backend:latest}
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"
