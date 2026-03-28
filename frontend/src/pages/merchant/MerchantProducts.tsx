@@ -29,9 +29,10 @@ interface ProductForm {
   price: string
   description: string
   available: boolean
+  downPaymentPercent: string
 }
 
-const emptyForm: ProductForm = { name: '', category: '', price: '', description: '', available: true }
+const emptyForm: ProductForm = { name: '', category: '', price: '', description: '', available: true, downPaymentPercent: '10' }
 
 export default function MerchantProducts() {
   const [products, setProducts] = useState<Product[]>(mockProducts.filter(p => p.merchantId === MERCHANT_ID))
@@ -52,6 +53,7 @@ export default function MerchantProducts() {
       price: String(p.price),
       description: p.description,
       available: p.available,
+      downPaymentPercent: String(p.downPaymentPercent),
     })
     setEditTarget(p)
   }
@@ -65,6 +67,7 @@ export default function MerchantProducts() {
       price: parseInt(form.price),
       description: form.description,
       available: form.available,
+      downPaymentPercent: parseInt(form.downPaymentPercent) || 0,
     }
     setProducts(prev => [newProduct, ...prev])
     setCreateOpen(false)
@@ -79,6 +82,7 @@ export default function MerchantProducts() {
       price: parseInt(form.price),
       description: form.description,
       available: form.available,
+      downPaymentPercent: parseInt(form.downPaymentPercent) || 0,
     } : p))
     setEditTarget(null)
   }
@@ -135,6 +139,26 @@ export default function MerchantProducts() {
           rows={2}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none"
         />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Down Payment <span className="text-gray-400 font-normal">(% of price, 0–50%)</span>
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            min="0" max="50" step="5"
+            value={form.downPaymentPercent}
+            onChange={e => setForm(f => ({ ...f, downPaymentPercent: e.target.value }))}
+            className="flex-1 accent-blue-600"
+          />
+          <span className="text-sm font-bold text-blue-700 w-10 text-right">{form.downPaymentPercent}%</span>
+        </div>
+        {form.price && (
+          <p className="mt-1 text-xs text-gray-400">
+            Upfront: {formatUZS(Math.round(parseInt(form.price || '0') * (parseInt(form.downPaymentPercent) / 100)))} · Financed: {formatUZS(Math.round(parseInt(form.price || '0') * (1 - parseInt(form.downPaymentPercent) / 100)))}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-3">
         <label className="text-sm font-medium text-gray-700">Available for installment</label>
@@ -200,7 +224,11 @@ export default function MerchantProducts() {
                   </Badge>
                 </div>
                 <p className="text-xs text-gray-500 mb-3 line-clamp-2">{product.description}</p>
-                <p className="text-base font-bold text-blue-700 mb-4">{formatUZS(product.price)}</p>
+                <p className="text-base font-bold text-blue-700">{formatUZS(product.price)}</p>
+                {product.downPaymentPercent > 0 && (
+                  <p className="text-xs text-gray-400 mb-3">Down payment: {product.downPaymentPercent}% ({formatUZS(Math.round(product.price * product.downPaymentPercent / 100))})</p>
+                )}
+                {product.downPaymentPercent === 0 && <p className="text-xs text-gray-400 mb-3">No down payment</p>}
 
                 <div className="flex items-center gap-2">
                   <button

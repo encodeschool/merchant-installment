@@ -32,6 +32,7 @@ export function statusBadge(status: string) {
     ACTIVE: { variant: 'success', label: 'Active' },
     COMPLETED: { variant: 'info', label: 'Completed' },
     PENDING: { variant: 'warning', label: 'Pending' },
+    PARTIAL: { variant: 'warning', label: 'Partial Approval' },
     REJECTED: { variant: 'danger', label: 'Rejected' },
     SUSPENDED: { variant: 'danger', label: 'Suspended' },
     DEFAULTED: { variant: 'danger', label: 'Defaulted' },

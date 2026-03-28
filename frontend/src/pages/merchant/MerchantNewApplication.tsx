@@ -23,6 +23,9 @@ const emptyClient: ClientInfo = {
   fullName: '', passportNumber: '', phone: '', monthlyIncome: '', age: '', creditHistory: 'NONE',
 }
 
+const FIXED_MONTHS = [3, 6, 9, 12]
+const PARTIAL_RATIO = 0.70  // partial approval = 70% of financed amount
+
 function calculateScore(client: ClientInfo, monthlyPayment: number) {
   const income = parseFloat(client.monthlyIncome) || 0
   const age = parseInt(client.age) || 0
@@ -50,6 +53,15 @@ function calculateScore(client: ClientInfo, monthlyPayment: number) {
   }
 }
 
+type ScoringOutcome = 'APPROVED' | 'PARTIAL' | 'REJECTED'
+
+function getScoringOutcome(score: number, tariffMinScore: number): ScoringOutcome {
+  if (score < 50) return 'REJECTED'
+  if (score >= tariffMinScore) return 'APPROVED'
+  // score is 50–(minScore-1): partial
+  return 'PARTIAL'
+}
+
 function calculateMonthly(price: number, months: number, rate: number) {
   const monthlyRate = rate / 100 / 12
   if (monthlyRate === 0) return price / months
@@ -75,13 +87,27 @@ export default function MerchantNewApplication() {
       )
     : approvedTariffs
 
+  // Down payment & financed amount
+  const downPaymentPercent = selectedProduct?.downPaymentPercent ?? 0
+  const downPaymentAmount = selectedProduct ? Math.round(selectedProduct.price * downPaymentPercent / 100) : 0
+  const financedAmount = selectedProduct ? selectedProduct.price - downPaymentAmount : 0
+
   const monthlyPayment = selectedTariff && selectedProduct
-    ? calculateMonthly(selectedProduct.price, selectedMonths, selectedTariff.interestRate)
+    ? calculateMonthly(financedAmount, selectedMonths, selectedTariff.interestRate)
     : 0
 
   const totalAmount = monthlyPayment * selectedMonths
 
   const score = calculateScore(client, monthlyPayment)
+  const outcome: ScoringOutcome = selectedTariff
+    ? getScoringOutcome(score.total, selectedTariff.minScore)
+    : 'REJECTED'
+
+  // For PARTIAL: approved amount is 70% of financed amount
+  const approvedAmount = outcome === 'PARTIAL' ? Math.round(financedAmount * PARTIAL_RATIO) : financedAmount
+  const approvedMonthly = selectedTariff && outcome !== 'REJECTED'
+    ? calculateMonthly(approvedAmount, selectedMonths, selectedTariff.interestRate)
+    : 0
 
   const scoreColor = score.total >= 70 ? 'text-emerald-600' : score.total >= 50 ? 'text-yellow-600' : 'text-red-600'
   const scoreBg = score.total >= 70 ? 'bg-emerald-50 border-emerald-200' : score.total >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
@@ -103,41 +129,56 @@ export default function MerchantNewApplication() {
   }
 
   if (submitted) {
+    const outcomeConfig = {
+      APPROVED: { icon: 'text-emerald-600', bg: 'bg-emerald-100', title: 'Application Submitted!', subtitle: 'Preliminary score: APPROVED. Awaiting MFO final review.' },
+      PARTIAL: { icon: 'text-yellow-600', bg: 'bg-yellow-100', title: 'Application Submitted!', subtitle: 'Preliminary score: PARTIAL APPROVAL. MFO may approve a limited amount.' },
+      REJECTED: { icon: 'text-red-500', bg: 'bg-red-100', title: 'Application Submitted', subtitle: 'Preliminary score is low. MFO will review and make a final decision.' },
+    }[outcome]
+
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="text-center max-w-md">
-          <div className="mx-auto h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-            <CheckCircleIcon className="h-9 w-9 text-emerald-600" />
+        <div className="text-center max-w-md w-full">
+          <div className={clsx('mx-auto h-16 w-16 rounded-full flex items-center justify-center mb-4', outcomeConfig.bg)}>
+            <CheckCircleIcon className={clsx('h-9 w-9', outcomeConfig.icon)} />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Application Submitted!</h2>
-          <p className="text-gray-500 text-sm mb-4">
-            Your application has been sent to the MFO for review. You'll be notified of the decision shortly.
-          </p>
-          <div className="rounded-xl bg-gray-50 border border-gray-200 px-6 py-4 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-1">{outcomeConfig.title}</h2>
+          <p className="text-gray-500 text-sm mb-5">{outcomeConfig.subtitle}</p>
+
+          {/* Outcome banner */}
+          <div className={clsx(
+            'rounded-xl border px-4 py-3 mb-4 text-sm font-semibold',
+            outcome === 'APPROVED' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+            outcome === 'PARTIAL' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
+            'bg-red-50 border-red-200 text-red-700'
+          )}>
+            {outcome === 'APPROVED' && `✓ Full amount approved: ${formatUZS(financedAmount)}`}
+            {outcome === 'PARTIAL' && `⚠ Limited amount: ${formatUZS(approvedAmount)} (70% of financed amount)`}
+            {outcome === 'REJECTED' && `✗ Score too low for automatic approval`}
+          </div>
+
+          <div className="rounded-xl bg-gray-50 border border-gray-200 px-6 py-4 mb-5">
             <p className="text-xs text-gray-500">Application ID</p>
             <p className="text-lg font-bold text-blue-700 font-mono mt-1">{appId}</p>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Client</span>
-              <span className="font-medium">{client.fullName}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Product</span>
-              <span className="font-medium">{selectedProduct?.name}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Total Amount</span>
-              <span className="font-medium">{formatUZS(Math.round(totalAmount))}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Credit Score</span>
-              <span className={clsx('font-bold', scoreColor)}>{score.total}/100</span>
-            </div>
+          <div className="space-y-2 text-left mb-5">
+            {[
+              ['Client', client.fullName],
+              ['Product', selectedProduct?.name ?? ''],
+              ['Down Payment', formatUZS(downPaymentAmount) + (downPaymentPercent > 0 ? ` (${downPaymentPercent}%)` : ' (none)')],
+              ['Financed Amount', formatUZS(financedAmount)],
+              ['Duration', `${selectedMonths} months`],
+              ['Monthly Payment', formatUZS(Math.round(outcome === 'PARTIAL' ? approvedMonthly : monthlyPayment))],
+              ['Credit Score', `${score.total}/100`],
+            ].map(([label, value]) => (
+              <div key={label} className="flex justify-between text-sm">
+                <span className="text-gray-500">{label}</span>
+                <span className={clsx('font-medium', label === 'Credit Score' ? scoreColor : '')}>{value}</span>
+              </div>
+            ))}
           </div>
           <button
             onClick={handleReset}
-            className="mt-6 w-full rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+            className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           >
             Submit Another Application
           </button>
@@ -352,18 +393,22 @@ export default function MerchantNewApplication() {
                     {selectedTariff?.id === tariff.id && selectedProduct && (
                       <div className="mt-3 pt-3 border-t border-blue-200">
                         <label className="block text-xs font-medium text-gray-700 mb-2">Select Duration</label>
-                        <input
-                          type="range"
-                          min={tariff.minMonths}
-                          max={tariff.maxMonths}
-                          value={selectedMonths}
-                          onChange={e => setSelectedMonths(parseInt(e.target.value))}
-                          className="w-full accent-blue-600"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                          <span>{tariff.minMonths} mo</span>
-                          <span className="font-semibold text-blue-700">{selectedMonths} months selected</span>
-                          <span>{tariff.maxMonths} mo</span>
+                        <div className="grid grid-cols-4 gap-2">
+                          {FIXED_MONTHS.filter(m => m >= tariff.minMonths && m <= tariff.maxMonths).map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setSelectedMonths(m)}
+                              className={clsx(
+                                'rounded-lg py-1.5 text-xs font-semibold transition-all border',
+                                selectedMonths === m
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                              )}
+                            >
+                              {m} mo
+                            </button>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -375,9 +420,11 @@ export default function MerchantNewApplication() {
 
           {/* Summary */}
           {selectedTariff && selectedProduct && (
-            <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Application Summary</h2>
-              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+            <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-5">
+              <h2 className="text-base font-semibold text-gray-900">Application Summary</h2>
+
+              {/* Payment breakdown */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Product</p>
                   <p className="font-semibold mt-0.5">{selectedProduct.name}</p>
@@ -391,6 +438,14 @@ export default function MerchantNewApplication() {
                   <p className="font-semibold mt-0.5">{formatUZS(selectedProduct.price)}</p>
                 </div>
                 <div>
+                  <p className="text-gray-500">Down Payment ({downPaymentPercent}%)</p>
+                  <p className="font-semibold text-orange-600 mt-0.5">{formatUZS(downPaymentAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Financed Amount</p>
+                  <p className="font-semibold mt-0.5">{formatUZS(financedAmount)}</p>
+                </div>
+                <div>
                   <p className="text-gray-500">Duration</p>
                   <p className="font-semibold mt-0.5">{selectedMonths} months</p>
                 </div>
@@ -399,18 +454,21 @@ export default function MerchantNewApplication() {
                   <p className="font-bold text-blue-700 text-base mt-0.5">{formatUZS(Math.round(monthlyPayment))}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Total Amount</p>
+                  <p className="text-gray-500">Total Repayment</p>
                   <p className="font-bold text-gray-900 text-base mt-0.5">{formatUZS(Math.round(totalAmount))}</p>
                 </div>
               </div>
 
-              {/* Score Indicator */}
+              {/* Score + Outcome */}
               <div className={clsx('rounded-xl border p-4', scoreBg)}>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-semibold text-gray-700">Estimated Credit Score</p>
                   <span className={clsx('text-2xl font-black', scoreColor)}>{score.total}/100</span>
                 </div>
-                <div className="space-y-2">
+                <p className="text-xs text-gray-500 mb-3">Tariff minimum score: {selectedTariff.minScore}</p>
+
+                {/* Score bars */}
+                <div className="space-y-2 mb-4">
                   {[
                     { label: 'Income vs Payment', value: score.incomeScore, max: 30 },
                     { label: 'Credit History', value: score.creditScore, max: 30 },
@@ -428,6 +486,18 @@ export default function MerchantNewApplication() {
                       <span className="font-semibold w-8 text-right">{item.value}/{item.max}</span>
                     </div>
                   ))}
+                </div>
+
+                {/* Decision outcome */}
+                <div className={clsx(
+                  'rounded-lg px-3 py-2 text-xs font-semibold',
+                  outcome === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                  outcome === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-red-100 text-red-700'
+                )}>
+                  {outcome === 'APPROVED' && `✓ Preliminary: APPROVED — Full amount ${formatUZS(financedAmount)} eligible`}
+                  {outcome === 'PARTIAL' && `⚠ Preliminary: PARTIAL — Limited to ${formatUZS(approvedAmount)} (${formatUZS(Math.round(approvedMonthly))}/mo)`}
+                  {outcome === 'REJECTED' && `✗ Preliminary: REJECTED — Score below minimum threshold (50)`}
                 </div>
               </div>
             </div>

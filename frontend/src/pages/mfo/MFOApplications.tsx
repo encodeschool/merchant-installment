@@ -25,23 +25,24 @@ function ScoreBar({ score }: { score: number }) {
   )
 }
 
-type TabFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'ACTIVE'
+type TabFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'PARTIAL' | 'REJECTED' | 'ACTIVE'
 
 export default function MFOApplications() {
   const [applications, setApplications] = useState<Application[]>(mockApplications)
   const [tab, setTab] = useState<TabFilter>('ALL')
-  const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' } | null>(null)
+  const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' | 'partial' } | null>(null)
   const [detailApp, setDetailApp] = useState<Application | null>(null)
 
   const filtered = applications.filter(a =>
     tab === 'ALL' || a.status === tab
   )
 
-  const tabs: TabFilter[] = ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'ACTIVE']
+  const tabs: TabFilter[] = ['ALL', 'PENDING', 'APPROVED', 'PARTIAL', 'REJECTED', 'ACTIVE']
   const counts: Record<TabFilter, number> = {
     ALL: applications.length,
     PENDING: applications.filter(a => a.status === 'PENDING').length,
     APPROVED: applications.filter(a => a.status === 'APPROVED').length,
+    PARTIAL: applications.filter(a => a.status === 'PARTIAL').length,
     REJECTED: applications.filter(a => a.status === 'REJECTED').length,
     ACTIVE: applications.filter(a => a.status === 'ACTIVE').length,
   }
@@ -49,11 +50,15 @@ export default function MFOApplications() {
   const executeAction = () => {
     if (!confirmApp) return
     const { app, action } = confirmApp
+    const approvedAmount = action === 'partial'
+      ? Math.round(app.productPrice * 0.70)
+      : undefined
     setApplications(prev => prev.map(a =>
       a.id === app.id
         ? {
           ...a,
-          status: action === 'approve' ? 'APPROVED' as const : 'REJECTED' as const,
+          status: action === 'approve' ? 'APPROVED' as const : action === 'partial' ? 'PARTIAL' as const : 'REJECTED' as const,
+          approvedAmount,
           decidedAt: new Date().toISOString().split('T')[0],
         }
         : a
@@ -129,20 +134,28 @@ export default function MFOApplications() {
                   <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">{app.createdAt}</td>
                   <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                     {app.status === 'PENDING' && (
-                      <div className="flex gap-1.5">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => setConfirmApp({ app, action: 'approve' })}
+                            className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                          >
+                            <CheckCircleIcon className="h-3.5 w-3.5" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => setConfirmApp({ app, action: 'reject' })}
+                            className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                          >
+                            <XCircleIcon className="h-3.5 w-3.5" />
+                            Reject
+                          </button>
+                        </div>
                         <button
-                          onClick={() => setConfirmApp({ app, action: 'approve' })}
-                          className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                          onClick={() => setConfirmApp({ app, action: 'partial' })}
+                          className="flex items-center gap-1 rounded-lg bg-yellow-50 px-2 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-100 w-full justify-center"
                         >
-                          <CheckCircleIcon className="h-3.5 w-3.5" />
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => setConfirmApp({ app, action: 'reject' })}
-                          className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
-                        >
-                          <XCircleIcon className="h-3.5 w-3.5" />
-                          Reject
+                          Partial (70%)
                         </button>
                       </div>
                     )}
@@ -158,7 +171,7 @@ export default function MFOApplications() {
       <Modal
         open={!!confirmApp}
         onClose={() => setConfirmApp(null)}
-        title={confirmApp?.action === 'approve' ? 'Approve Application' : 'Reject Application'}
+        title={confirmApp?.action === 'approve' ? 'Approve Application' : confirmApp?.action === 'partial' ? 'Partial Approval' : 'Reject Application'}
         size="md"
       >
         {confirmApp && (
@@ -212,17 +225,22 @@ export default function MFOApplications() {
               </div>
             </div>
 
+            {confirmApp.action === 'partial' && (
+              <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-700">
+                Client will be approved for <strong>70% of product price</strong> ({Math.round(confirmApp.app.productPrice * 0.70).toLocaleString()} UZS). Client covers the remaining 30% as additional down payment.
+              </div>
+            )}
             <div className="flex gap-3 pt-2 border-t border-gray-100">
               <Button variant="secondary" color="gray" className="flex-1" onClick={() => setConfirmApp(null)}>
                 Cancel
               </Button>
               <Button
                 variant="primary"
-                color={confirmApp.action === 'approve' ? 'emerald' : 'red'}
-                className="flex-1"
+                color={confirmApp.action === 'approve' ? 'emerald' : confirmApp.action === 'partial' ? 'gray' : 'red'}
+                className={clsx('flex-1', confirmApp.action === 'partial' && 'bg-yellow-500 hover:bg-yellow-600 text-white')}
                 onClick={executeAction}
               >
-                {confirmApp.action === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
+                {confirmApp.action === 'approve' ? 'Confirm Approval' : confirmApp.action === 'partial' ? 'Confirm Partial' : 'Confirm Rejection'}
               </Button>
             </div>
           </div>
@@ -245,6 +263,7 @@ export default function MFOApplications() {
               ['Monthly Payment', formatUZS(detailApp.monthlyPayment)],
               ['Credit Score', String(detailApp.score)],
               ['Status', detailApp.status],
+              ...(detailApp.approvedAmount ? [['Approved Amount', formatUZS(detailApp.approvedAmount)]] : []),
               ['Submitted', detailApp.createdAt],
             ].map(([label, value]) => (
               <div key={label}>

@@ -17,6 +17,7 @@ export interface Tariff {
   maxAmount: number
   minMonths: number
   maxMonths: number
+  minScore: number           // minimum credit score required for full approval
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   createdAt: string
   approvedAt?: string
@@ -43,6 +44,7 @@ export interface Product {
   price: number
   description: string
   available: boolean
+  downPaymentPercent: number  // % of price paid upfront (0–50)
 }
 
 export interface Client {
@@ -69,7 +71,8 @@ export interface Application {
   monthlyPayment: number
   totalAmount: number
   score: number
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'COMPLETED'
+  status: 'PENDING' | 'APPROVED' | 'PARTIAL' | 'REJECTED' | 'ACTIVE' | 'COMPLETED'
+  approvedAmount?: number    // set for PARTIAL decisions (limited amount approved)
   createdAt: string
   decidedAt?: string
 }

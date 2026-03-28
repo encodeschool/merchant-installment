@@ -17,10 +17,11 @@ interface TariffForm {
   maxAmount: string
   minMonths: string
   maxMonths: string
+  minScore: string
 }
 
 const emptyForm: TariffForm = {
-  name: '', interestRate: '', minAmount: '', maxAmount: '', minMonths: '', maxMonths: '',
+  name: '', interestRate: '', minAmount: '', maxAmount: '', minMonths: '', maxMonths: '', minScore: '60',
 }
 
 export default function MFOTariffs() {
@@ -43,6 +44,7 @@ export default function MFOTariffs() {
       maxAmount: String(t.maxAmount),
       minMonths: String(t.minMonths),
       maxMonths: String(t.maxMonths),
+      minScore: String(t.minScore),
     })
     setEditTarget(t)
   }
@@ -57,6 +59,7 @@ export default function MFOTariffs() {
       maxAmount: parseInt(form.maxAmount),
       minMonths: parseInt(form.minMonths),
       maxMonths: parseInt(form.maxMonths),
+      minScore: parseInt(form.minScore),
       status: 'PENDING',
       createdAt: new Date().toISOString().split('T')[0],
     }
@@ -74,6 +77,7 @@ export default function MFOTariffs() {
       maxAmount: parseInt(form.maxAmount),
       minMonths: parseInt(form.minMonths),
       maxMonths: parseInt(form.maxMonths),
+      minScore: parseInt(form.minScore),
     } : t))
     setEditTarget(null)
   }
@@ -132,26 +136,40 @@ export default function MFOTariffs() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Min Months</label>
-          <input
-            type="number"
+          <select
             value={form.minMonths}
             onChange={e => setForm(f => ({ ...f, minMonths: e.target.value }))}
-            placeholder="3"
-            min="1"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-          />
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
+          >
+            <option value="">Select</option>
+            {[3, 6, 9, 12].map(m => <option key={m} value={m}>{m} months</option>)}
+          </select>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Max Months</label>
-          <input
-            type="number"
+          <select
             value={form.maxMonths}
             onChange={e => setForm(f => ({ ...f, maxMonths: e.target.value }))}
-            placeholder="12"
-            min="1"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-          />
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
+          >
+            <option value="">Select</option>
+            {[3, 6, 9, 12].map(m => <option key={m} value={m}>{m} months</option>)}
+          </select>
         </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Minimum Credit Score <span className="text-gray-400 font-normal">(0–100)</span>
+        </label>
+        <input
+          type="number"
+          value={form.minScore}
+          onChange={e => setForm(f => ({ ...f, minScore: e.target.value }))}
+          placeholder="60"
+          min="0" max="100"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+        />
+        <p className="mt-1 text-xs text-gray-400">Clients scoring ≥ this get full approval; 50–(minScore-1) get partial; below 50 are rejected.</p>
       </div>
     </div>
   )
@@ -179,7 +197,7 @@ export default function MFOTariffs() {
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
-                {['Name', 'Rate %', 'Min Amount', 'Max Amount', 'Min Months', 'Max Months', 'Status', 'Created', 'Actions'].map(h => (
+                {['Name', 'Rate %', 'Min Amount', 'Max Amount', 'Months', 'Min Score', 'Status', 'Created', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -197,8 +215,8 @@ export default function MFOTariffs() {
                   <td className="px-4 py-3 text-sm font-bold text-emerald-700">{t.interestRate}%</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{formatUZS(t.minAmount)}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{formatUZS(t.maxAmount)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{t.minMonths} mo</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{t.maxMonths} mo</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{t.minMonths}–{t.maxMonths} mo</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-gray-700">{t.minScore}</td>
                   <td className="px-4 py-3">{statusBadge(t.status)}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{t.createdAt}</td>
                   <td className="px-4 py-3">
