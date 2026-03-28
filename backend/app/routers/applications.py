@@ -16,7 +16,7 @@ from ..schemas.application import (
     ConfirmResponse,
 )
 from ..services.scoring import (
-    calculate_score_full,
+    calculate_score,
     monthly_payment as calc_monthly_payment,
 )
 from ..services.audit import log_action
@@ -63,6 +63,7 @@ def _build_items(app: dict, db: Client) -> list[dict]:
                                 "price": int(p["price"]),
                                 "quantity": qty,
                                 "subtotal": int(p["price"]) * qty,
+                                "image_url": p.get("image_url"),
                             }
                         )
         except Exception:
@@ -83,6 +84,7 @@ def _build_items(app: dict, db: Client) -> list[dict]:
                     "price": int(p["price"]),
                     "quantity": 1,
                     "subtotal": int(p["price"]),
+                    "image_url": p.get("image_url"),
                 }
             )
 
@@ -459,7 +461,7 @@ def get_application(
     rows = db.table("applications").select("*").eq("id", application_id).execute().data
     if not rows:
         raise HTTPException(status_code=404, detail="Application not found")
-    return _app_to_out(rows[0], db, include_score=False)
+    return _app_to_out(rows[0], db, include_score=True)
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -513,7 +515,7 @@ def _age_from_birth_date(birth_date_str: str) -> int:
 def _run_scoring(
     client_data: dict, mp: float, tariff: dict | None, fraud_gate: str
 ) -> dict:
-    """Run calculate_score_full with tariff config (or defaults). Apply fraud penalty."""
+    """Run calculate_score with tariff config. Apply fraud penalty."""
     cfg = tariff if tariff else {}
 
     # Use `or` fallback so explicit 0.0 values stored in DB fall back to defaults
@@ -530,7 +532,7 @@ def _run_scoring(
             _DEFAULT_WEIGHTS["w_demographic"],
         )
 
-    result = calculate_score_full(
+    result = calculate_score(
         monthly_income=client_data.get("monthly_income", 0),
         monthly_payment=mp,
         age=client_data.get("age", 30),
@@ -631,10 +633,6 @@ def create_multi_product_application(
             .data
             or []
         )
-        count = len(eligible_tariffs)
-        print(
-            f"[multi-product] total_price={total_price}, " f"eligible_tariffs={count}"
-        )  # noqa: E501
     except Exception as e:
         print(f"[multi-product] tariff query error: {e}")
         eligible_tariffs = []
@@ -659,6 +657,22 @@ def create_multi_product_application(
     )
     down_amount = int(total_price * max_down_pct / 100)
     financed = total_price - down_amount
+
+    # Diagnostic logging for tariff eligibility
+    count = len(eligible_tariffs)
+    print(
+        f"[multi-product] total_price={total_price} financed={financed} "
+        f"eligible_tariffs={count}"
+    )
+    if not eligible_tariffs:
+        all_approved = (
+            db.table("tariffs")
+            .select("id,name,min_amount,max_amount,status")
+            .eq("status", "APPROVED")
+            .execute()
+            .data
+        )
+        print(f"[multi-product] all APPROVED tariffs: {all_approved}")
 
     # 8. Score
     if fraud_gate == "BLOCK":
@@ -733,6 +747,7 @@ def create_multi_product_application(
         "phone": body.client.phone or "",
         "monthly_income": body.client.monthly_income,
         "age": age,
+        "birth_date": body.client.birth_date,
         "credit_history": body.client.credit_history,
         "open_loans": body.client.open_loans,
         "overdue_days": body.client.overdue_days,
@@ -839,10 +854,10 @@ def create_multi_product_application(
     return MultiProductResponse(
         id=application["id"],
         score_result={
-            "f1": score_result["f1_affordability"],
-            "f2": score_result["f2_credit"],
-            "f3": score_result["f3_behavioral"],
-            "f4": score_result["f4_demographic"],
+            "f1_affordability": score_result["f1_affordability"],
+            "f2_credit": score_result["f2_credit"],
+            "f3_behavioral": score_result["f3_behavioral"],
+            "f4_demographic": score_result["f4_demographic"],
             "total_score": score_result["total_score"],
             "decision": score_result["decision"],
             "weights": score_result["weights"],

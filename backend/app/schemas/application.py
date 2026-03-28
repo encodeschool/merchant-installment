@@ -3,17 +3,6 @@ from typing import Optional
 from ..schemas.client import ClientCreate
 
 
-# ── Existing create / decision schemas (unchanged) ────────────────────────────
-
-
-class ApplicationCreate(BaseModel):
-    merchant_id: str
-    product_id: str
-    tariff_id: str
-    months: int
-    client: ClientCreate
-
-
 # ── Multi-product flow ─────────────────────────────────────────────────────────
 
 
@@ -45,10 +34,10 @@ class EligibleOffer(BaseModel):
 
 
 class ScoreResultOut(BaseModel):
-    f1: float
-    f2: float
-    f3: float
-    f4: float
+    f1_affordability: float
+    f2_credit: float
+    f3_behavioral: float
+    f4_demographic: float
     total_score: int
     decision: str
     weights: dict
@@ -90,6 +79,7 @@ class ApplicationItemOut(BaseModel):
     price: int
     quantity: int
     subtotal: int
+    image_url: Optional[str] = None
 
 
 class ClientDetailOut(BaseModel):
@@ -103,6 +93,7 @@ class ClientDetailOut(BaseModel):
     overdue_days: int
     has_bankruptcy: bool
     credit_history: str
+    pinfl: Optional[str] = None
 
 
 class ScoreBreakdownOut(BaseModel):
