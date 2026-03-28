@@ -1,50 +1,34 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-import redis as redis_lib
+from supabase import Client
 
-from .config import settings
-from .database import get_db
+from .database import get_supabase
 from .security import decode_token
-from ..models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def get_current_user(token: str = Depends(oauth2_scheme), db: Client = Depends(get_supabase)) -> dict:
     payload = decode_token(token)
     if payload is None or payload.get("type") != "access":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
-
-    try:
-        r = redis_lib.from_url(settings.REDIS_URL, decode_responses=True)
-        if r.get(f"blacklist:{token}"):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked")
-    except redis_lib.exceptions.ConnectionError:
-        pass
 
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user or not user.is_active:
+    response = db.table("users").select("*").eq("id", user_id).execute()
+    user = response.data[0] if response.data else None
+
+    if not user or not user.get("is_active"):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
     return user
 
 
 def require_role(*roles):
-    def dependency(current_user: User = Depends(get_current_user)):
-        if current_user.role not in roles:
+    def dependency(current_user: dict = Depends(get_current_user)):
+        if current_user.get("role") not in roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
         return current_user
     return dependency
-
-
-def get_redis():
-    r = redis_lib.from_url(settings.REDIS_URL, decode_responses=True)
-    try:
-        yield r
-    finally:
-        r.close()
