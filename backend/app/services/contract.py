@@ -36,7 +36,7 @@ def generate_payment_schedule(contract_id: str, start_date: date, monthly_paymen
 
 
 _STATUS_UZ = {
-    "UPCOMING": "Kutilmoqda",
+    "UPCOMING": "To'lanmagan",
     "PAID": "To'langan",
     "OVERDUE": "Muddati o'tgan",
     "ACTIVE": "Faol",
@@ -44,7 +44,7 @@ _STATUS_UZ = {
     "DEFAULTED": "Muddati o'tgan",
     "APPROVED": "Tasdiqlangan",
     "REJECTED": "Rad etilgan",
-    "PENDING": "Kutilmoqda",
+    "PENDING": "To'lanmagan",
 }
 
 
@@ -78,12 +78,25 @@ def generate_pdf(contract: dict, application: dict, schedule: list[dict]) -> byt
     styles = getSampleStyleSheet()
     elements = []
 
-    # ── Header ────────────────────────────────────────────────────────────────
-    title_style = styles["Title"]
-    elements.append(Paragraph("Muddatli to'lov platformasi", title_style))
-    elements.append(Paragraph("Kredit shartnomasi", styles["Heading2"]))
-    elements.append(Spacer(1, 16))
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 
+    # ── Header ────────────────────────────────────────────────────────────────
+    title_style = ParagraphStyle(
+        "CustomTitle",
+        parent=styles["Title"],
+        fontSize=16,
+        spaceAfter=4,
+        textColor=colors.HexColor("#065F46"),
+    )
+    subtitle_style = ParagraphStyle(
+        "CustomSubtitle",
+        parent=styles["Heading2"],
+        fontSize=12,
+        spaceAfter=6,
+        textColor=colors.HexColor("#065F46"),
+        alignment=TA_CENTER,
+    )
     created_at = contract.get("created_at", "")
     if created_at and len(created_at) >= 10:
         created_at = created_at[:10]
@@ -93,39 +106,58 @@ def generate_pdf(contract: dict, application: dict, schedule: list[dict]) -> byt
     # Build product/items display
     items_summary = application.get("_items_summary") or application.get("_product_name") or "—"
 
-    # ── Contract info table ───────────────────────────────────────────────────
-    info_data = [
-        ["Shartnoma raqami",   str(contract.get("id", "—"))[-8:].upper()],
-        ["Ariza raqami",       str(contract.get("application_id", "—"))[-8:].upper()],
-        ["Mijoz",              application.get("_client_name", "—") or "—"],
-        ["Pasport",            application.get("_client_passport", "—") or "—"],
-        ["Telefon",            application.get("_client_phone", "—") or "—"],
-        ["Savdogar",           application.get("_merchant_name", "—") or "—"],
-        ["Mahsulot(lar)",      items_summary],
-        ["Umumiy summa (UZS)", f"{int(contract.get('total_amount') or 0):,}"],
-        ["Oylik to'lov (UZS)", f"{int(contract.get('monthly_payment') or 0):,}"],
-        ["Oylar soni",         str(contract.get("months") or "—")],
-        ["Holati",             contract_status],
-        ["Tuzilgan sana",      created_at],
-    ]
-    info_table = Table(info_data, colWidths=[170, 320])
-    info_table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F0FDF4")),
-            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("PADDING", (0, 0), (-1, -1), 7),
-            ("ROWBACKGROUNDS", (0, 0), (-1, -1), [colors.HexColor("#F9FAFB"), colors.white]),
-        ])
+    client_name = application.get("_client_name", "—") or "—"
+    merchant_name = application.get("_merchant_name", "—") or "—"
+    total_amount = f"{int(contract.get('total_amount') or 0):,}"
+    monthly_payment = f"{int(contract.get('monthly_payment') or 0):,}"
+    months = str(contract.get("months") or "—")
+    contract_short_id = str(contract.get("id", "—"))[-8:].upper()
+
+    elements.append(Paragraph("Muddatli to'lov platformasi", title_style))
+    elements.append(Paragraph(
+        f"MUDDATLI TO'LOV SHARTNOMASI № {contract_short_id}",
+        subtitle_style,
+    ))
+    elements.append(Spacer(1, 12))
+
+    # ── Description / Introduction ─────────────────────────────────────────────
+    desc_style = ParagraphStyle(
+        "DescStyle",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=16,
+        alignment=TA_JUSTIFY,
+        spaceAfter=6,
     )
-    elements.append(info_table)
-    elements.append(Spacer(1, 24))
+
+    description_text = (
+        f"Ushbu shartnoma <b>{created_at}</b> sanada tuzildi. <b>{client_name}</b> (bundan keyin — "
+        f"\"Mijoz\") <b>{merchant_name}</b> savdo do'konidan (bundan keyin — \"Sotuvchi\") "
+        f"quyidagi mahsulot(lar)ni muddatli(halol nasiya) to'lov asosida sotib oldi:"
+    )
+    elements.append(Paragraph(description_text, desc_style))
+
+    product_style = ParagraphStyle(
+        "ProductItem",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=16,
+        leftIndent=20,
+        spaceAfter=8,
+    )
+    elements.append(Paragraph(f"• <u>{items_summary}</u>", product_style))
+
+    payment_terms_text = (
+        f"Mahsulotning umumiy narxi <b>{total_amount} UZS</b> bo'lib, to'lov <b>{months} oy</b> "
+        f"muddatiga bo'lib to'lanadi. Har oyda to'lanadigan summa: <b>{monthly_payment} UZS</b>. "
+        f"To'lovlar quyidagi jadvalda ko'rsatilgan muddatlarda amalga oshirilishi shart. "
+        f"Belgilangan muddatda to'lov amalga oshirilmagan taqdirda, tegishli jarimalar qo'llanilishi mumkin."
+    )
+    elements.append(Paragraph(payment_terms_text, desc_style))
+    elements.append(Spacer(1, 20))
 
     # ── Payment schedule table ────────────────────────────────────────────────
-    elements.append(Paragraph("To'lov jadvali", styles["Heading2"]))
+    elements.append(Paragraph("To'lov jadvali (oylik to'lovlar)", styles["Heading2"]))
     elements.append(Spacer(1, 8))
 
     schedule_data = [["#", "To'lov sanasi", "Summa (UZS)", "Holati"]]
@@ -201,12 +233,16 @@ def generate_pdf(contract: dict, application: dict, schedule: list[dict]) -> byt
         elements.append(media_table)
 
     # ── Footer ────────────────────────────────────────────────────────────────
-    elements.append(Spacer(1, 30))
-    footer_style = styles["Normal"]
-    footer_style.fontSize = 8
-    footer_style.textColor = colors.HexColor("#9CA3AF")
+    elements.append(Spacer(1, 20))
+    footer_style = ParagraphStyle(
+        "Footer",
+        parent=styles["Normal"],
+        fontSize=8,
+        textColor=colors.HexColor("#9CA3AF"),
+        alignment=TA_CENTER,
+    )
     elements.append(Paragraph(
-        f"Ushbu hujjat avtomatik tarzda yaratilgan. Sana: {created_at}",
+        f"Ushbu hujjat avtomatik tarzda yaratilgan · Muddatli to'lov platformasi · Sana: {created_at}",
         footer_style,
     ))
 
