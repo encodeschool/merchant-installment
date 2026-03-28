@@ -2,24 +2,26 @@ import { useState, useRef, useEffect } from 'react'
 import { Bars3Icon, BellIcon, UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import { useTranslation } from 'react-i18next'
+import i18n from '../../i18n'
 import clsx from 'clsx'
 
-const pageTitles: Record<string, string> = {
-  '/cb': 'Dashboard',
-  '/cb/tariffs': 'Tariff Approvals',
-  '/cb/mfo': 'MFO Monitoring',
-  '/cb/audit': 'Audit Logs',
-  '/cb/profile': 'My Profile',
-  '/mfo': 'Dashboard',
-  '/mfo/tariffs': 'Tariff Plans',
-  '/mfo/merchants': 'Merchants',
-  '/mfo/applications': 'Applications',
-  '/mfo/profile': 'My Profile',
-  '/merchant': 'Dashboard',
-  '/merchant/products': 'Products',
-  '/merchant/apply': 'New Application',
-  '/merchant/installments': 'My Installments',
-  '/merchant/profile': 'My Profile',
+const pageTitleKeys: Record<string, string> = {
+  '/cb': 'nav.dashboard',
+  '/cb/tariffs': 'nav.tariffApprovals',
+  '/cb/mfo': 'nav.mfoMonitoring',
+  '/cb/audit': 'nav.auditLogs',
+  '/cb/profile': 'nav.myProfile',
+  '/mfo': 'nav.dashboard',
+  '/mfo/tariffs': 'nav.tariffPlans',
+  '/mfo/merchants': 'nav.merchants',
+  '/mfo/applications': 'nav.applications',
+  '/mfo/profile': 'nav.myProfile',
+  '/merchant': 'nav.dashboard',
+  '/merchant/products': 'nav.products',
+  '/merchant/apply': 'nav.newApplication',
+  '/merchant/installments': 'nav.installments',
+  '/merchant/profile': 'nav.myProfile',
 }
 
 const roleColors: Record<string, string> = {
@@ -34,6 +36,8 @@ const profilePaths: Record<string, string> = {
   MERCHANT: '/merchant/profile',
 }
 
+const LANGS = ['en', 'ru', 'uz'] as const
+
 interface HeaderProps {
   onMenuClick: () => void
 }
@@ -42,9 +46,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const { t } = useTranslation()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const title = pageTitles[pathname] ?? 'Installment Platform'
+  const titleKey = pageTitleKeys[pathname] ?? 'nav.dashboard'
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -78,8 +83,26 @@ export default function Header({ onMenuClick }: HeaderProps) {
       </button>
 
       <h1 className="flex-1 text-base font-semibold text-gray-800 md:text-lg truncate">
-        {title}
+        {t(titleKey)}
       </h1>
+
+      {/* Language switcher */}
+      <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 p-0.5 shrink-0">
+        {LANGS.map(lang => (
+          <button
+            key={lang}
+            onClick={() => i18n.changeLanguage(lang)}
+            className={clsx(
+              'rounded-md px-2 py-1 text-xs font-semibold uppercase transition-colors',
+              i18n.language === lang
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-500 hover:text-gray-800'
+            )}
+          >
+            {lang}
+          </button>
+        ))}
+      </div>
 
       <button className="relative p-2 rounded-full hover:bg-gray-100 shrink-0">
         <BellIcon className="h-5 w-5 text-gray-500" />
@@ -101,7 +124,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
         {dropdownOpen && (
           <div className="absolute right-0 top-10 z-50 w-56 rounded-xl border border-gray-200 bg-white shadow-lg py-1 overflow-hidden">
-            {/* User info */}
             <div className="px-4 py-3 border-b border-gray-100">
               <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
               <p className="text-xs text-gray-500 truncate mt-0.5">{user?.organization}</p>
@@ -114,20 +136,19 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 {user?.role?.replace('_', ' ')}
               </span>
             </div>
-            {/* Actions */}
             <button
               onClick={handleProfile}
               className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <UserCircleIcon className="h-4 w-4 text-gray-400" />
-              My Profile
+              {t('nav.myProfile')}
             </button>
             <button
               onClick={handleLogout}
               className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
               <ArrowRightOnRectangleIcon className="h-4 w-4" />
-              Log out
+              {t('nav.logout')}
             </button>
           </div>
         )}

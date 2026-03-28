@@ -8,9 +8,10 @@ import {
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
+import { useTranslation } from 'react-i18next'
 
 interface NavItem {
-  label: string
+  labelKey: string
   path: string
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
 }
@@ -18,10 +19,10 @@ interface NavItem {
 const navConfig: Record<string, { items: NavItem[]; color: string; bg: string; activeBg: string; activeText: string }> = {
   CENTRAL_BANK: {
     items: [
-      { label: 'Dashboard', path: '/cb', icon: HomeIcon },
-      { label: 'Tariff Approvals', path: '/cb/tariffs', icon: DocumentCheckIcon },
-      { label: 'MFO Monitoring', path: '/cb/mfo', icon: BuildingLibraryIcon },
-      { label: 'Audit Logs', path: '/cb/audit', icon: ClipboardDocumentListIcon },
+      { labelKey: 'nav.dashboard', path: '/cb', icon: HomeIcon },
+      { labelKey: 'nav.tariffApprovals', path: '/cb/tariffs', icon: DocumentCheckIcon },
+      { labelKey: 'nav.mfoMonitoring', path: '/cb/mfo', icon: BuildingLibraryIcon },
+      { labelKey: 'nav.auditLogs', path: '/cb/audit', icon: ClipboardDocumentListIcon },
     ],
     color: 'text-purple-700',
     bg: 'bg-purple-50',
@@ -30,10 +31,10 @@ const navConfig: Record<string, { items: NavItem[]; color: string; bg: string; a
   },
   MFO_ADMIN: {
     items: [
-      { label: 'Dashboard', path: '/mfo', icon: HomeIcon },
-      { label: 'Tariff Plans', path: '/mfo/tariffs', icon: ChartBarIcon },
-      { label: 'Merchants', path: '/mfo/merchants', icon: UserGroupIcon },
-      { label: 'Applications', path: '/mfo/applications', icon: ClipboardDocumentListIcon },
+      { labelKey: 'nav.dashboard', path: '/mfo', icon: HomeIcon },
+      { labelKey: 'nav.tariffPlans', path: '/mfo/tariffs', icon: ChartBarIcon },
+      { labelKey: 'nav.merchants', path: '/mfo/merchants', icon: UserGroupIcon },
+      { labelKey: 'nav.applications', path: '/mfo/applications', icon: ClipboardDocumentListIcon },
     ],
     color: 'text-emerald-700',
     bg: 'bg-emerald-50',
@@ -42,10 +43,10 @@ const navConfig: Record<string, { items: NavItem[]; color: string; bg: string; a
   },
   MERCHANT: {
     items: [
-      { label: 'Dashboard', path: '/merchant', icon: HomeIcon },
-      { label: 'Products', path: '/merchant/products', icon: ShoppingBagIcon },
-      { label: 'New Application', path: '/merchant/apply', icon: PlusCircleIcon },
-      { label: 'Installments', path: '/merchant/installments', icon: CreditCardIcon },
+      { labelKey: 'nav.dashboard', path: '/merchant', icon: HomeIcon },
+      { labelKey: 'nav.products', path: '/merchant/products', icon: ShoppingBagIcon },
+      { labelKey: 'nav.newApplication', path: '/merchant/apply', icon: PlusCircleIcon },
+      { labelKey: 'nav.installments', path: '/merchant/installments', icon: CreditCardIcon },
     ],
     color: 'text-blue-700',
     bg: 'bg-blue-50',
@@ -64,6 +65,7 @@ interface SidebarProps {
 export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarProps) {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const config = navConfig[user?.role ?? 'MERCHANT']
 
   const handleLogout = () => {
@@ -95,7 +97,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
         {/* Desktop collapse toggle */}
         <button
           onClick={onToggleCollapse}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? t('nav.dashboard') : undefined}
           className={clsx('hidden lg:flex items-center justify-center p-1 rounded hover:bg-gray-100 transition-colors', collapsed && 'mx-auto')}
         >
           {collapsed
@@ -112,7 +114,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
             to={item.path}
             end={item.path === '/cb' || item.path === '/mfo' || item.path === '/merchant'}
             onClick={onClose}
-            title={collapsed ? item.label : undefined}
+            title={collapsed ? t(item.labelKey) : undefined}
             className={({ isActive }) =>
               clsx(
                 'flex items-center rounded-lg py-2.5 text-sm transition-colors',
@@ -124,7 +126,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
             }
           >
             <item.icon className="h-5 w-5 flex-shrink-0" />
-            {!collapsed && item.label}
+            {!collapsed && t(item.labelKey)}
           </NavLink>
         ))}
       </nav>
@@ -133,14 +135,14 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
       <div className={clsx('border-t border-gray-100 p-3 shrink-0', collapsed && 'flex justify-center')}>
         <button
           onClick={handleLogout}
-          title={collapsed ? 'Log out' : undefined}
+          title={collapsed ? t('nav.logout') : undefined}
           className={clsx(
             'flex items-center rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors',
             collapsed ? 'justify-center w-10 h-10 px-0' : 'w-full gap-2',
           )}
         >
           <ArrowRightOnRectangleIcon className="h-4 w-4 shrink-0" />
-          {!collapsed && 'Log out'}
+          {!collapsed && t('nav.logout')}
         </button>
       </div>
     </aside>

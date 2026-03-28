@@ -6,6 +6,7 @@ import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import { Tariff } from '../../types'
 import { apiTariffs } from '../../api'
+import { useTranslation } from 'react-i18next'
 
 function formatUZS(n: number): string {
   return n.toLocaleString() + ' UZS'
@@ -26,6 +27,7 @@ const emptyForm: TariffForm = {
 
 export default function MFOTariffs() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [tariffs, setTariffs] = useState<Tariff[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Tariff | null>(null)
@@ -121,7 +123,7 @@ export default function MFOTariffs() {
   const formFields = (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Tariff Name</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('tariffs.name')}</label>
         <input
           type="text"
           value={form.name}
@@ -131,7 +133,7 @@ export default function MFOTariffs() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Annual Interest Rate (%)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('tariffs.interestRate')}</label>
         <input
           type="number"
           value={form.interestRate}
@@ -143,7 +145,7 @@ export default function MFOTariffs() {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Min Amount (UZS)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('tariffs.minAmount')}</label>
           <input
             type="number"
             value={form.minAmount}
@@ -153,7 +155,7 @@ export default function MFOTariffs() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Max Amount (UZS)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('tariffs.maxAmount')}</label>
           <input
             type="number"
             value={form.maxAmount}
@@ -164,19 +166,19 @@ export default function MFOTariffs() {
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Months</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('tariffs.months')}</label>
         <select
           value={form.months}
           onChange={e => setForm(f => ({ ...f, months: e.target.value }))}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
         >
-          <option value="">Select</option>
-          {[3, 6, 9, 12].map(m => <option key={m} value={m}>{m} months</option>)}
+          <option value="">{t('tariffs.select')}</option>
+          {[3, 6, 9, 12].map(m => <option key={m} value={m}>{t('tariffs.monthOption', { n: m })}</option>)}
         </select>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Minimum Credit Score <span className="text-gray-400 font-normal">(0–100)</span>
+          {t('tariffs.minScore')} <span className="text-gray-400 font-normal">{t('tariffs.minScoreRange')}</span>
         </label>
         <input
           type="number"
@@ -186,7 +188,7 @@ export default function MFOTariffs() {
           min="0" max="100"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
         />
-        <p className="mt-1 text-xs text-gray-400">Clients scoring ≥ this get full approval; 50–(minScore-1) get partial; below 50 are rejected.</p>
+        <p className="mt-1 text-xs text-gray-400">{t('tariffs.minScoreHint')}</p>
       </div>
     </div>
   )
@@ -195,7 +197,7 @@ export default function MFOTariffs() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-500">{tariffs.length} tariff plans</p>
+          <p className="text-sm text-gray-500">{t('tariffs.count', { n: tariffs.length })}</p>
         </div>
         <Button
           variant="primary"
@@ -203,7 +205,7 @@ export default function MFOTariffs() {
           icon={<PlusIcon className="h-4 w-4" />}
           onClick={openCreate}
         >
-          Create Tariff
+          {t('tariffs.createTariff')}
         </Button>
       </div>
 
@@ -212,7 +214,7 @@ export default function MFOTariffs() {
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
-                {['Name', 'Rate %', 'Min Amount', 'Max Amount', 'Months', 'Min Score', 'Status', 'Created', 'Actions'].map(h => (
+                {[t('tariffs.colName'), t('tariffs.colRate'), t('tariffs.colMinAmount'), t('tariffs.colMaxAmount'), t('tariffs.colMonths'), t('tariffs.colMinScore'), t('tariffs.colStatus'), t('tariffs.colCreated'), t('tariffs.colActions')].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -221,43 +223,43 @@ export default function MFOTariffs() {
               {tariffs.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-400">
-                    No tariffs yet. Create your first tariff plan.
+                    {t('tariffs.noTariffs')}
                   </td>
                 </tr>
-              ) : tariffs.map(t => (
-                <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900">{t.name}</td>
-                  <td className="px-4 py-3 text-sm font-bold text-emerald-700">{t.interestRate}%</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{formatUZS(t.minAmount)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{formatUZS(t.maxAmount)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{t.months} mo</td>
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-700">{t.minScore}</td>
-                  <td className="px-4 py-3">{statusBadge(t.status)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{t.createdAt}</td>
+              ) : tariffs.map(tariff => (
+                <tr key={tariff.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 text-sm font-semibold text-gray-900">{tariff.name}</td>
+                  <td className="px-4 py-3 text-sm font-bold text-emerald-700">{tariff.interestRate}%</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{formatUZS(tariff.minAmount)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{formatUZS(tariff.maxAmount)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{tariff.months} mo</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-gray-700">{tariff.minScore}</td>
+                  <td className="px-4 py-3">{statusBadge(tariff.status)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{tariff.createdAt}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1.5 flex-wrap">
                       <button
-                        onClick={() => navigate(`/mfo/scoring/${t.id}`)}
+                        onClick={() => navigate(`/mfo/scoring/${tariff.id}`)}
                         className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
                       >
                         <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
-                        Scoring
+                        {t('tariffs.scoring')}
                       </button>
                       <button
-                        onClick={() => openEdit(t)}
-                        disabled={t.status === 'APPROVED'}
+                        onClick={() => openEdit(tariff)}
+                        disabled={tariff.status === 'APPROVED'}
                         className="flex items-center gap-1 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <PencilSquareIcon className="h-3.5 w-3.5" />
-                        Edit
+                        {t('common.edit')}
                       </button>
-                      {t.status !== 'APPROVED' && (
+                      {tariff.status !== 'APPROVED' && (
                         <button
-                          onClick={() => setDeleteTarget(t)}
+                          onClick={() => setDeleteTarget(tariff)}
                           className="flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
                         >
                           <TrashIcon className="h-3.5 w-3.5" />
-                          Delete
+                          {t('common.delete')}
                         </button>
                       )}
                     </div>
@@ -269,12 +271,12 @@ export default function MFOTariffs() {
         </div>
       </div>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Tariff Plan" size="md">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('tariffs.createPlanTitle')} size="md">
         <div className="space-y-5">
           {formFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setCreateOpen(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant="primary"
@@ -283,37 +285,37 @@ export default function MFOTariffs() {
               onClick={handleCreate}
               disabled={!form.name || !form.interestRate || saving}
             >
-              {saving ? 'Creating…' : 'Create Tariff'}
+              {saving ? t('tariffs.creating') : t('tariffs.createTariff')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Tariff" size="md">
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title={t('tariffs.editTariff')} size="md">
         <div className="space-y-5">
           {formFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setEditTarget(null)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button variant="primary" color="emerald" className="flex-1" onClick={handleEdit} disabled={saving}>
-              {saving ? 'Saving…' : 'Save Changes'}
+              {saving ? t('common.saving') : t('common.saveChanges')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Tariff" size="sm">
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={t('tariffs.deleteTariff')} size="sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action cannot be undone.
+            {t('tariffs.deleteConfirm', { name: deleteTarget?.name })}
           </p>
           <div className="flex gap-3">
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setDeleteTarget(null)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button variant="primary" color="red" className="flex-1" onClick={handleDelete}>
-              Delete
+              {t('common.delete')}
             </Button>
           </div>
         </div>

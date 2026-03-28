@@ -5,6 +5,7 @@ import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import { Application } from '../../types'
 import { apiApplications } from '../../api'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 
 function formatUZS(n: number): string {
@@ -36,6 +37,7 @@ export default function MFOApplications() {
   const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' | 'partial' } | null>(null)
   const [detailApp, setDetailApp] = useState<Application | null>(null)
   const [deciding, setDeciding] = useState(false)
+  const { t } = useTranslation()
 
   useEffect(() => {
     apiApplications.list().then(setApplications).catch(() => {})
@@ -97,16 +99,16 @@ export default function MFOApplications() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 w-fit">
-        {tabs.map(t => (
+        {tabs.map(tabKey => (
           <button
-            key={t}
-            onClick={() => changeTab(t)}
+            key={tabKey}
+            onClick={() => changeTab(tabKey)}
             className={clsx(
               'rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
-              tab === t ? 'bg-white shadow-sm text-emerald-700' : 'text-gray-600 hover:text-gray-900'
+              tab === tabKey ? 'bg-white shadow-sm text-emerald-700' : 'text-gray-600 hover:text-gray-900'
             )}
           >
-            {t.charAt(0) + t.slice(1).toLowerCase()} ({counts[t]})
+            {t(`applications.tabs.${tabKey}`)} ({counts[tabKey]})
           </button>
         ))}
       </div>
@@ -116,7 +118,12 @@ export default function MFOApplications() {
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
-                {['Client', 'Merchant', 'Product', 'Amount', 'Tariff', 'Months', 'Monthly', 'Score', 'Status', 'Date', 'Actions'].map(h => (
+                {[
+                  t('applications.colClient'), t('applications.colMerchant'), t('applications.colProduct'),
+                  t('applications.colAmount'), t('applications.colTariff'), t('applications.colMonths'),
+                  t('applications.colMonthly'), t('applications.colScore'), t('applications.colStatus'),
+                  t('applications.colDate'), t('applications.colActions'),
+                ].map(h => (
                   <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -125,7 +132,7 @@ export default function MFOApplications() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="px-4 py-12 text-center text-sm text-gray-400">
-                    No applications found.
+                    {t('applications.noApplications')}
                   </td>
                 </tr>
               ) : paginated.map(app => (
@@ -153,21 +160,21 @@ export default function MFOApplications() {
                             className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
                           >
                             <CheckCircleIcon className="h-3.5 w-3.5" />
-                            Approve
+                            {t('applications.approve')}
                           </button>
                           <button
                             onClick={() => setConfirmApp({ app, action: 'reject' })}
                             className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
                           >
                             <XCircleIcon className="h-3.5 w-3.5" />
-                            Reject
+                            {t('applications.reject')}
                           </button>
                         </div>
                         <button
                           onClick={() => setConfirmApp({ app, action: 'partial' })}
                           className="flex items-center gap-1 rounded-lg bg-yellow-50 px-2 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-100 w-full justify-center"
                         >
-                          Partial (70%)
+                          {t('applications.partial')}
                         </button>
                       </div>
                     )}
@@ -182,7 +189,7 @@ export default function MFOApplications() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-1">
           <p className="text-sm text-gray-500">
-            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+            {t('common.showing', { from: (page - 1) * PAGE_SIZE + 1, to: Math.min(page * PAGE_SIZE, filtered.length), total: filtered.length })}
           </p>
           <div className="flex items-center gap-1">
             <button
@@ -190,7 +197,7 @@ export default function MFOApplications() {
               disabled={page === 1}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Previous
+              {t('common.previous')}
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1)
               .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
@@ -222,7 +229,7 @@ export default function MFOApplications() {
               disabled={page === totalPages}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Next
+              {t('common.next')}
             </button>
           </div>
         </div>
@@ -231,30 +238,30 @@ export default function MFOApplications() {
       <Modal
         open={!!confirmApp}
         onClose={() => setConfirmApp(null)}
-        title={confirmApp?.action === 'approve' ? 'Approve Application' : confirmApp?.action === 'partial' ? 'Partial Approval' : 'Reject Application'}
+        title={confirmApp?.action === 'approve' ? t('applications.approveTitle') : confirmApp?.action === 'partial' ? t('applications.partialTitle') : t('applications.rejectTitle')}
         size="md"
       >
         {confirmApp && (
           <div className="space-y-5">
             <div className="rounded-xl bg-gray-50 p-4 space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Client</span>
+                <span className="text-gray-500">{t('applications.colClient')}</span>
                 <span className="font-medium">{confirmApp.app.clientName}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Product</span>
+                <span className="text-gray-500">{t('applications.colProduct')}</span>
                 <span className="font-medium">{confirmApp.app.productName}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Total Amount</span>
+                <span className="text-gray-500">{t('applications.totalAmount')}</span>
                 <span className="font-medium">{formatUZS(confirmApp.app.totalAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Monthly Payment</span>
+                <span className="text-gray-500">{t('applications.monthlyPayment')}</span>
                 <span className="font-medium">{formatUZS(confirmApp.app.monthlyPayment)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Credit Score</span>
+                <span className="text-gray-500">{t('applications.creditScore')}</span>
                 <span className={clsx('font-bold', confirmApp.app.score >= 70 ? 'text-emerald-600' : confirmApp.app.score >= 50 ? 'text-yellow-600' : 'text-red-600')}>
                   {confirmApp.app.score}/100
                 </span>
@@ -263,12 +270,12 @@ export default function MFOApplications() {
 
             {confirmApp.action === 'partial' && (
               <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-700">
-                Client will be approved for <strong>70% of financed amount</strong>. Client covers the remaining 30%.
+                {t('applications.partialNote')}
               </div>
             )}
             <div className="flex gap-3 pt-2 border-t border-gray-100">
               <Button variant="secondary" color="gray" className="flex-1" onClick={() => setConfirmApp(null)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 variant="primary"
@@ -277,30 +284,30 @@ export default function MFOApplications() {
                 onClick={executeAction}
                 disabled={deciding}
               >
-                {deciding ? 'Saving…' : confirmApp.action === 'approve' ? 'Confirm Approval' : confirmApp.action === 'partial' ? 'Confirm Partial' : 'Confirm Rejection'}
+                {deciding ? t('common.saving') : confirmApp.action === 'approve' ? t('applications.confirmApproval') : confirmApp.action === 'partial' ? t('applications.confirmPartial') : t('applications.confirmRejection')}
               </Button>
             </div>
           </div>
         )}
       </Modal>
 
-      <Modal open={!!detailApp} onClose={() => setDetailApp(null)} title="Application Details" size="lg">
+      <Modal open={!!detailApp} onClose={() => setDetailApp(null)} title={t('applications.appDetails')} size="lg">
         {detailApp && (
           <div className="grid grid-cols-2 gap-4">
             {[
-              ['Client Name', detailApp.clientName],
-              ['Phone', detailApp.clientPhone],
-              ['Merchant', detailApp.merchantName],
-              ['Product', detailApp.productName],
-              ['Product Price', formatUZS(detailApp.productPrice)],
-              ['Total Amount', formatUZS(detailApp.totalAmount)],
-              ['Tariff', detailApp.tariffName],
-              ['Duration', `${detailApp.months} months`],
-              ['Monthly Payment', formatUZS(detailApp.monthlyPayment)],
-              ['Credit Score', String(detailApp.score)],
-              ['Status', detailApp.status],
-              ...(detailApp.approvedAmount ? [['Approved Amount', formatUZS(detailApp.approvedAmount)]] : []),
-              ['Submitted', detailApp.createdAt],
+              [t('common.client'), detailApp.clientName],
+              [t('common.phone'), detailApp.clientPhone],
+              [t('common.merchant'), detailApp.merchantName],
+              [t('common.product'), detailApp.productName],
+              [t('applications.productPrice'), formatUZS(detailApp.productPrice)],
+              [t('applications.totalAmount'), formatUZS(detailApp.totalAmount)],
+              [t('applications.tariff'), detailApp.tariffName],
+              [t('applications.duration'), `${detailApp.months} months`],
+              [t('applications.monthlyPayment'), formatUZS(detailApp.monthlyPayment)],
+              [t('applications.creditScore'), String(detailApp.score)],
+              [t('common.status'), detailApp.status],
+              ...(detailApp.approvedAmount ? [[t('applications.approvedAmount'), formatUZS(detailApp.approvedAmount)]] : []),
+              [t('applications.submittedAt'), detailApp.createdAt],
             ].map(([label, value]) => (
               <div key={label}>
                 <p className="text-xs text-gray-500">{label}</p>

@@ -3,6 +3,7 @@ import { CheckCircleIcon, CameraIcon, ArrowPathIcon } from '@heroicons/react/24/
 import { Product, Tariff } from '../../types'
 import { apiProducts, apiTariffs, apiApplications, apiMerchants, apiFaceVerify } from '../../api'
 import { useAuthStore } from '../../store/authStore'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 
 function formatUZS(n: number): string {
@@ -67,6 +68,7 @@ function calculateMonthly(price: number, months: number, rate: number) {
 }
 
 export default function MerchantNewApplication() {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
   const [merchantId, setMerchantId] = useState('')
   const [availableProducts, setAvailableProducts] = useState<Product[]>([])
@@ -235,9 +237,9 @@ export default function MerchantNewApplication() {
 
   if (submitted) {
     const outcomeConfig = {
-      APPROVED: { icon: 'text-emerald-600', bg: 'bg-emerald-100', title: 'Application Submitted!', subtitle: 'Preliminary score: APPROVED. Awaiting MFO final review.' },
-      PARTIAL: { icon: 'text-yellow-600', bg: 'bg-yellow-100', title: 'Application Submitted!', subtitle: 'Preliminary score: PARTIAL APPROVAL. MFO may approve a limited amount.' },
-      REJECTED: { icon: 'text-red-500', bg: 'bg-red-100', title: 'Application Submitted', subtitle: 'Preliminary score is low. MFO will review and make a final decision.' },
+      APPROVED: { icon: 'text-emerald-600', bg: 'bg-emerald-100', title: t('newApp.submittedTitle'), subtitle: t('newApp.approvedSubtitle') },
+      PARTIAL: { icon: 'text-yellow-600', bg: 'bg-yellow-100', title: t('newApp.submittedTitle'), subtitle: t('newApp.partialSubtitle') },
+      REJECTED: { icon: 'text-red-500', bg: 'bg-red-100', title: t('newApp.submittedTitleLow'), subtitle: t('newApp.rejectedSubtitle') },
     }[outcome]
 
     return (
@@ -255,28 +257,28 @@ export default function MerchantNewApplication() {
             outcome === 'PARTIAL' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
             'bg-red-50 border-red-200 text-red-700'
           )}>
-            {outcome === 'APPROVED' && `✓ Full amount approved: ${formatUZS(financedAmount)}`}
-            {outcome === 'PARTIAL' && `⚠ Limited amount: ${formatUZS(approvedAmount)} (70% of financed amount)`}
-            {outcome === 'REJECTED' && `✗ Score too low for automatic approval`}
+            {outcome === 'APPROVED' && t('newApp.approvedOutcome', { amount: formatUZS(financedAmount) })}
+            {outcome === 'PARTIAL' && t('newApp.partialOutcome', { amount: formatUZS(approvedAmount) })}
+            {outcome === 'REJECTED' && t('newApp.rejectedOutcome')}
           </div>
 
           <div className="rounded-xl bg-gray-50 border border-gray-200 px-6 py-4 mb-5">
-            <p className="text-xs text-gray-500">Application ID</p>
+            <p className="text-xs text-gray-500">{t('newApp.appId')}</p>
             <p className="text-lg font-bold text-blue-700 font-mono mt-1">{appId}</p>
           </div>
           <div className="space-y-2 text-left mb-5">
             {[
-              ['Client', client.fullName],
-              ['Product', selectedProduct?.name ?? ''],
-              ['Down Payment', formatUZS(downPaymentAmount) + (downPaymentPercent > 0 ? ` (${downPaymentPercent}%)` : ' (none)')],
-              ['Financed Amount', formatUZS(financedAmount)],
-              ['Duration', `${selectedMonths} months`],
-              ['Monthly Payment', formatUZS(Math.round(outcome === 'PARTIAL' ? approvedMonthly : monthlyPayment))],
-              ['Credit Score', `${score.total}/100`],
+              [t('common.client'), client.fullName],
+              [t('common.product'), selectedProduct?.name ?? ''],
+              [t('newApp.downPayment', { pct: downPaymentPercent }), downPaymentPercent > 0 ? t('newApp.downPaymentDetail', { amount: formatUZS(downPaymentAmount), pct: downPaymentPercent }) : t('newApp.downPaymentNone', { amount: formatUZS(downPaymentAmount) })],
+              [t('newApp.financedAmount'), formatUZS(financedAmount)],
+              [t('newApp.durationMonths'), `${selectedMonths} months`],
+              [t('newApp.monthlyPayment'), formatUZS(Math.round(outcome === 'PARTIAL' ? approvedMonthly : monthlyPayment))],
+              [t('newApp.creditScore'), `${score.total}/100`],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between text-sm">
                 <span className="text-gray-500">{label}</span>
-                <span className={clsx('font-medium', label === 'Credit Score' ? scoreColor : '')}>{value}</span>
+                <span className={clsx('font-medium', label === t('newApp.creditScore') ? scoreColor : '')}>{value}</span>
               </div>
             ))}
           </div>
@@ -284,7 +286,7 @@ export default function MerchantNewApplication() {
             onClick={handleReset}
             className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           >
-            Submit Another Application
+            {t('newApp.submitAnother')}
           </button>
         </div>
       </div>
@@ -303,7 +305,7 @@ export default function MerchantNewApplication() {
               {s < step ? <CheckCircleIcon className="h-4 w-4" /> : s}
             </div>
             <span className={clsx('text-sm font-medium hidden sm:inline', s === step ? 'text-blue-700' : 'text-gray-400')}>
-              {s === 1 ? 'Select Product' : s === 2 ? 'Client Info' : s === 3 ? 'Face Verify' : 'Review & Submit'}
+              {s === 1 ? t('newApp.stepSelectProduct') : s === 2 ? t('newApp.stepClientInfo') : s === 3 ? t('newApp.stepFaceVerify') : t('newApp.stepReview')}
             </span>
             {s < 4 && <div className={clsx('flex-1 h-0.5 min-w-6', s < step ? 'bg-blue-600' : 'bg-gray-200')} />}
           </div>
@@ -312,9 +314,9 @@ export default function MerchantNewApplication() {
 
       {step === 1 && (
         <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Select Product</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-4">{t('newApp.selectProductTitle')}</h2>
           {availableProducts.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">No available products. Add products first.</p>
+            <p className="text-sm text-gray-400 text-center py-8">{t('newApp.noProducts')}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {availableProducts.map(product => (
@@ -340,7 +342,7 @@ export default function MerchantNewApplication() {
                   </div>
                   <p className="text-base font-bold text-blue-700 mt-3">{formatUZS(product.price)}</p>
                   {product.downPaymentPercent > 0 && (
-                    <p className="text-xs text-gray-400 mt-0.5">Down payment: {product.downPaymentPercent}%</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{t('merchantProducts.downPaymentInfo', { pct: product.downPaymentPercent, amount: formatUZS(Math.round(product.price * product.downPaymentPercent / 100)) })}</p>
                   )}
                 </button>
               ))}
@@ -352,7 +354,7 @@ export default function MerchantNewApplication() {
               disabled={!selectedProduct}
               className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              Next: Client Info
+              {t('newApp.nextClientInfo')}
             </button>
           </div>
         </div>
@@ -360,50 +362,50 @@ export default function MerchantNewApplication() {
 
       {step === 2 && (
         <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Client Information</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-4">{t('newApp.clientInfoTitle')}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.fullName')}</label>
               <input
                 type="text"
                 value={client.fullName}
                 onChange={e => setClient(c => ({ ...c, fullName: e.target.value }))}
-                placeholder="Mansur Qodirov"
+                placeholder={t('newApp.namePlaceholder')}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Passport Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.passportNumber')}</label>
               <input
                 type="text"
                 value={client.passportNumber}
                 onChange={e => setClient(c => ({ ...c, passportNumber: e.target.value }))}
-                placeholder="AA1234567"
+                placeholder={t('newApp.passportPlaceholder')}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.phone')}</label>
               <input
                 type="text"
                 value={client.phone}
                 onChange={e => setClient(c => ({ ...c, phone: e.target.value }))}
-                placeholder="+998901234567"
+                placeholder={t('newApp.phonePlaceholder')}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Income (UZS)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.monthlyIncome')}</label>
               <input
                 type="number"
                 value={client.monthlyIncome}
                 onChange={e => setClient(c => ({ ...c, monthlyIncome: e.target.value }))}
-                placeholder="3000000"
+                placeholder={t('newApp.incomePlaceholder')}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.age')}</label>
               <input
                 type="number"
                 value={client.age}
@@ -414,7 +416,7 @@ export default function MerchantNewApplication() {
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Credit History</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.creditHistory')}</label>
               <div className="grid grid-cols-4 gap-2">
                 {(['GOOD', 'FAIR', 'NONE', 'BAD'] as const).map(ch => (
                   <button
@@ -442,14 +444,14 @@ export default function MerchantNewApplication() {
               onClick={() => setStep(1)}
               className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              Back
+              {t('newApp.back')}
             </button>
             <button
               onClick={() => setStep(3)}
               disabled={!client.fullName || !client.phone || !client.passportNumber}
               className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              Next: Face Verify
+              {t('newApp.nextFaceVerify')}
             </button>
           </div>
         </div>
@@ -457,9 +459,9 @@ export default function MerchantNewApplication() {
 
       {step === 3 && (
         <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-1">Face Verification</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-1">{t('newApp.faceVerifyTitle')}</h2>
           <p className="text-sm text-gray-500 mb-4">
-            Take a photo of the client to verify identity against passport <span className="font-mono font-semibold text-gray-700">{client.passportNumber}</span>.
+            {t('newApp.faceVerifyDesc')} <span className="font-mono font-semibold text-gray-700">{client.passportNumber}</span>.
           </p>
 
           <canvas ref={canvasRef} className="hidden" />
@@ -483,13 +485,13 @@ export default function MerchantNewApplication() {
                   <div className="w-48 h-60 border-2 border-blue-400/60 rounded-2xl" />
                 </div>
               </div>
-              <p className="text-xs text-center text-gray-400">Position the client's face within the frame</p>
+              <p className="text-xs text-center text-gray-400">{t('newApp.positionFace')}</p>
               <button
                 onClick={capturePhoto}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
               >
                 <CameraIcon className="h-5 w-5" />
-                Capture Photo
+                {t('newApp.capturePhoto')}
               </button>
             </div>
           ) : (
@@ -504,7 +506,7 @@ export default function MerchantNewApplication() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  <span className="text-sm text-blue-700 font-medium">Verifying identity…</span>
+                  <span className="text-sm text-blue-700 font-medium">{t('newApp.verifying')}</span>
                 </div>
               )}
 
@@ -519,12 +521,12 @@ export default function MerchantNewApplication() {
                     <CheckCircleIcon className={clsx('h-5 w-5 shrink-0 mt-0.5', verifyResult.verified ? 'text-emerald-600' : 'text-red-500')} />
                     <div>
                       <p className={clsx('text-sm font-semibold', verifyResult.verified ? 'text-emerald-700' : 'text-red-700')}>
-                        {verifyResult.verified ? 'Identity Verified' : 'Verification Failed'}
+                        {verifyResult.verified ? t('newApp.verified') : t('newApp.verificationFailed')}
                       </p>
                       <p className="text-xs text-gray-600 mt-0.5">{verifyResult.message}</p>
                       {verifyResult.verified && (
                         <p className="text-xs text-emerald-600 mt-1 font-medium">
-                          Confidence: {(verifyResult.confidence * 100).toFixed(1)}%
+                          {t('newApp.confidence', { pct: (verifyResult.confidence * 100).toFixed(1) })}
                         </p>
                       )}
                     </div>
@@ -538,7 +540,7 @@ export default function MerchantNewApplication() {
                   className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   <ArrowPathIcon className="h-4 w-4" />
-                  Retake Photo
+                  {t('newApp.retakePhoto')}
                 </button>
               )}
             </div>
@@ -549,14 +551,14 @@ export default function MerchantNewApplication() {
               onClick={() => setStep(2)}
               className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              Back
+              {t('newApp.back')}
             </button>
             <button
               onClick={() => setStep(4)}
               disabled={!faceVerified}
               className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              Next: Review
+              {t('newApp.nextReview')}
             </button>
           </div>
         </div>
@@ -565,10 +567,10 @@ export default function MerchantNewApplication() {
       {step === 4 && (
         <div className="space-y-5">
           <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">Select Tariff & Duration</h2>
+            <h2 className="text-base font-semibold text-gray-900 mb-4">{t('newApp.selectTariff')}</h2>
             {eligibleTariffs.length === 0 ? (
               <p className="text-sm text-yellow-700 bg-yellow-50 rounded-lg p-3">
-                No approved tariffs available for this product price range.
+                {t('newApp.noTariffs')}
               </p>
             ) : (
               <div className="space-y-3">
@@ -592,14 +594,14 @@ export default function MerchantNewApplication() {
                         <p className="text-xs text-gray-500 mt-0.5">{tariff.mfoName} · {tariff.interestRate}% annual</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-gray-500">Duration</p>
+                        <p className="text-xs text-gray-500">{t('newApp.duration')}</p>
                         <p className="text-sm font-medium">{tariff.months} months</p>
                       </div>
                     </div>
 
                     {selectedTariff?.id === tariff.id && selectedProduct && (
                       <div className="mt-3 pt-3 border-t border-blue-200 flex items-center gap-2">
-                        <span className="text-xs font-medium text-gray-700">Duration:</span>
+                        <span className="text-xs font-medium text-gray-700">{t('newApp.duration')}:</span>
                         <span className="rounded-lg bg-blue-600 text-white border border-blue-600 px-3 py-1 text-xs font-semibold">
                           {tariff.months} mo
                         </span>
@@ -613,56 +615,56 @@ export default function MerchantNewApplication() {
 
           {selectedTariff && selectedProduct && (
             <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-5">
-              <h2 className="text-base font-semibold text-gray-900">Application Summary</h2>
+              <h2 className="text-base font-semibold text-gray-900">{t('newApp.appSummary')}</h2>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-gray-500">Product</p>
+                  <p className="text-gray-500">{t('common.product')}</p>
                   <p className="font-semibold mt-0.5">{selectedProduct.name}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Client</p>
+                  <p className="text-gray-500">{t('common.client')}</p>
                   <p className="font-semibold mt-0.5">{client.fullName || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Product Price</p>
+                  <p className="text-gray-500">{t('newApp.productPrice')}</p>
                   <p className="font-semibold mt-0.5">{formatUZS(selectedProduct.price)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Down Payment ({downPaymentPercent}%)</p>
+                  <p className="text-gray-500">{t('newApp.downPayment', { pct: downPaymentPercent })}</p>
                   <p className="font-semibold text-orange-600 mt-0.5">{formatUZS(downPaymentAmount)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Financed Amount</p>
+                  <p className="text-gray-500">{t('newApp.financedAmount')}</p>
                   <p className="font-semibold mt-0.5">{formatUZS(financedAmount)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Duration</p>
+                  <p className="text-gray-500">{t('newApp.durationMonths')}</p>
                   <p className="font-semibold mt-0.5">{selectedMonths} months</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Monthly Payment</p>
+                  <p className="text-gray-500">{t('newApp.monthlyPayment')}</p>
                   <p className="font-bold text-blue-700 text-base mt-0.5">{formatUZS(Math.round(monthlyPayment))}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Total Repayment</p>
+                  <p className="text-gray-500">{t('newApp.totalRepayment')}</p>
                   <p className="font-bold text-gray-900 text-base mt-0.5">{formatUZS(Math.round(totalAmount))}</p>
                 </div>
               </div>
 
               <div className={clsx('rounded-xl border p-4', scoreBg)}>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-semibold text-gray-700">Estimated Credit Score</p>
+                  <p className="text-sm font-semibold text-gray-700">{t('newApp.estimatedScore')}</p>
                   <span className={clsx('text-2xl font-black', scoreColor)}>{score.total}/100</span>
                 </div>
-                <p className="text-xs text-gray-500 mb-3">Tariff minimum score: {selectedTariff.minScore}</p>
+                <p className="text-xs text-gray-500 mb-3">{t('newApp.tariffMinScore', { score: selectedTariff.minScore })}</p>
 
                 <div className="space-y-2 mb-4">
                   {[
-                    { label: 'Income vs Payment', value: score.incomeScore, max: 30 },
-                    { label: 'Credit History', value: score.creditScore, max: 30 },
-                    { label: 'Age Factor', value: score.ageScore, max: 20 },
-                    { label: 'Tariff Match', value: score.tariffScore, max: 20 },
+                    { label: t('newApp.incomeVsPayment'), value: score.incomeScore, max: 30 },
+                    { label: t('newApp.creditHistory_'), value: score.creditScore, max: 30 },
+                    { label: t('newApp.ageFactor'), value: score.ageScore, max: 20 },
+                    { label: t('newApp.tariffMatch'), value: score.tariffScore, max: 20 },
                   ].map(item => (
                     <div key={item.label} className="flex items-center gap-3 text-xs">
                       <span className="w-32 text-gray-600 shrink-0">{item.label}</span>
@@ -683,9 +685,9 @@ export default function MerchantNewApplication() {
                   outcome === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
                   'bg-red-100 text-red-700'
                 )}>
-                  {outcome === 'APPROVED' && `✓ Preliminary: APPROVED — Full amount ${formatUZS(financedAmount)} eligible`}
-                  {outcome === 'PARTIAL' && `⚠ Preliminary: PARTIAL — Limited to ${formatUZS(approvedAmount)} (${formatUZS(Math.round(approvedMonthly))}/mo)`}
-                  {outcome === 'REJECTED' && `✗ Preliminary: REJECTED — Score below minimum threshold (50)`}
+                  {outcome === 'APPROVED' && t('newApp.approvedPrelim', { amount: formatUZS(financedAmount) })}
+                  {outcome === 'PARTIAL' && t('newApp.partialPrelim', { amount: formatUZS(approvedAmount), monthly: formatUZS(Math.round(approvedMonthly)) })}
+                  {outcome === 'REJECTED' && t('newApp.rejectedPrelim')}
                 </div>
               </div>
             </div>
@@ -696,14 +698,14 @@ export default function MerchantNewApplication() {
               onClick={() => setStep(3)}
               className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              Back
+              {t('newApp.back')}
             </button>
             <button
               onClick={handleSubmit}
               disabled={!selectedTariff || submitting}
               className="rounded-xl bg-blue-600 px-8 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {submitting ? 'Submitting…' : 'Submit Application'}
+              {submitting ? t('newApp.submitting') : t('newApp.submit')}
             </button>
           </div>
         </div>

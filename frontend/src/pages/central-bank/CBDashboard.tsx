@@ -12,6 +12,7 @@ import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
 import { apiDashboard } from '../../api'
 import { MFOStats } from '../../types'
+import { useTranslation } from 'react-i18next'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B UZS'
@@ -20,6 +21,7 @@ function formatUZS(n: number): string {
 }
 
 export default function CBDashboard() {
+  const { t } = useTranslation()
   const [stats, setStats] = useState({
     totalMFOs: 0,
     totalApplications: 0,
@@ -49,33 +51,33 @@ export default function CBDashboard() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total MFOs"
+          title={t('cbDashboard.totalMFOs')}
           value={stats.totalMFOs}
-          subtitle={`${mfoList.filter(m => m.status === 'ACTIVE').length} active`}
+          subtitle={t('cbDashboard.activeCount', { count: mfoList.filter(m => m.status === 'ACTIVE').length })}
           icon={<BuildingLibraryIcon className="h-5 w-5" />}
           color="purple"
           trend={0}
         />
         <StatCard
-          title="Total Applications"
+          title={t('cbDashboard.totalApplications')}
           value={stats.totalApplications.toLocaleString()}
-          subtitle="All MFOs combined"
+          subtitle={t('cbDashboard.allMFOsCombined')}
           icon={<DocumentCheckIcon className="h-5 w-5" />}
           color="purple"
           trend={12}
         />
         <StatCard
-          title="Total Disbursed"
+          title={t('cbDashboard.totalDisbursed')}
           value={formatUZS(stats.totalDisbursed)}
-          subtitle="All time"
+          subtitle={t('cbDashboard.allTime')}
           icon={<BanknotesIcon className="h-5 w-5" />}
           color="purple"
           trend={8}
         />
         <StatCard
-          title="Avg Default Rate"
+          title={t('cbDashboard.avgDefaultRate')}
           value={`${stats.avgDefaultRate}%`}
-          subtitle="Across all MFOs"
+          subtitle={t('cbDashboard.acrossAllMFOs')}
           icon={<ExclamationTriangleIcon className="h-5 w-5" />}
           color="red"
           trend={-0.3}
@@ -88,16 +90,16 @@ export default function CBDashboard() {
             <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600" />
             <div>
               <p className="text-sm font-semibold text-yellow-800">
-                {pendingTariffs} tariff{pendingTariffs > 1 ? 's' : ''} awaiting approval
+                {t('cbDashboard.awaitingApproval_other', { count: pendingTariffs })}
               </p>
-              <p className="text-xs text-yellow-600 mt-0.5">Review and approve or reject pending tariff submissions</p>
+              <p className="text-xs text-yellow-600 mt-0.5">{t('cbDashboard.reviewPendingNote')}</p>
             </div>
           </div>
           <Link
             to="/cb/tariffs"
             className="shrink-0 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-700 transition-colors"
           >
-            Review Now
+            {t('cbDashboard.reviewNow')}
           </Link>
         </div>
       )}
@@ -106,8 +108,8 @@ export default function CBDashboard() {
         <div className="lg:col-span-2 rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Application Trend</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Last 6 months — all MFOs</p>
+              <h2 className="text-base font-semibold text-gray-900">{t('cbDashboard.applicationTrend')}</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{t('cbDashboard.last6Months')}</p>
             </div>
             <ChartBarIcon className="h-5 w-5 text-purple-400" />
           </div>
@@ -128,23 +130,23 @@ export default function CBDashboard() {
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
               <Legend />
-              <Area type="monotone" dataKey="applications" name="Applications" stroke="#9333ea" fill="url(#colorApps)" strokeWidth={2} />
-              <Area type="monotone" dataKey="approved" name="Approved" stroke="#10b981" fill="url(#colorApproved)" strokeWidth={2} />
+              <Area type="monotone" dataKey="applications" name={t('cbDashboard.applications')} stroke="#9333ea" fill="url(#colorApps)" strokeWidth={2} />
+              <Area type="monotone" dataKey="approved" name={t('cbDashboard.approved')} stroke="#10b981" fill="url(#colorApproved)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         <div className="rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-gray-900">MFO Summary</h2>
-            <Link to="/cb/mfo" className="text-xs text-purple-600 hover:underline">View all</Link>
+            <h2 className="text-base font-semibold text-gray-900">{t('cbDashboard.mfoSummary')}</h2>
+            <Link to="/cb/mfo" className="text-xs text-purple-600 hover:underline">{t('common.viewAll')}</Link>
           </div>
           <div className="space-y-3">
             {mfoList.map((mfo) => (
               <div key={mfo.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{mfo.name}</p>
-                  <p className="text-xs text-gray-500">{mfo.totalApplications.toLocaleString()} apps · {mfo.approvalRate}% approved</p>
+                  <p className="text-xs text-gray-500">{t('cbDashboard.appsApproved', { apps: mfo.totalApplications.toLocaleString(), rate: mfo.approvalRate })}</p>
                 </div>
                 <div className="ml-2 shrink-0">
                   {statusBadge(mfo.status)}
@@ -162,8 +164,8 @@ export default function CBDashboard() {
         >
           <DocumentCheckIcon className="h-6 w-6 text-purple-600" />
           <div>
-            <p className="text-sm font-semibold text-purple-900">Tariff Approvals</p>
-            <p className="text-xs text-purple-600">{pendingTariffs} pending</p>
+            <p className="text-sm font-semibold text-purple-900">{t('cbDashboard.tariffApprovals')}</p>
+            <p className="text-xs text-purple-600">{t('cbDashboard.pending', { count: pendingTariffs })}</p>
           </div>
         </Link>
         <Link
@@ -172,8 +174,8 @@ export default function CBDashboard() {
         >
           <BuildingLibraryIcon className="h-6 w-6 text-purple-600" />
           <div>
-            <p className="text-sm font-semibold text-purple-900">MFO Monitoring</p>
-            <p className="text-xs text-purple-600">{stats.totalMFOs} registered MFOs</p>
+            <p className="text-sm font-semibold text-purple-900">{t('cbDashboard.mfoMonitoring')}</p>
+            <p className="text-xs text-purple-600">{t('cbDashboard.registeredMFOs', { count: stats.totalMFOs })}</p>
           </div>
         </Link>
         <Link
@@ -182,8 +184,8 @@ export default function CBDashboard() {
         >
           <ChartBarIcon className="h-6 w-6 text-purple-600" />
           <div>
-            <p className="text-sm font-semibold text-purple-900">Audit Logs</p>
-            <p className="text-xs text-purple-600">Full activity trail</p>
+            <p className="text-sm font-semibold text-purple-900">{t('cbDashboard.auditLogs')}</p>
+            <p className="text-xs text-purple-600">{t('cbDashboard.fullActivity')}</p>
           </div>
         </Link>
       </div>

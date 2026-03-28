@@ -8,6 +8,7 @@ import { statusBadge } from '../../components/ui/Badge'
 import { Application, Contract, Product } from '../../types'
 import { apiApplications, apiContracts, apiProducts } from '../../api'
 import { useAuthStore } from '../../store/authStore'
+import { useTranslation } from 'react-i18next'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M UZS'
@@ -15,6 +16,7 @@ function formatUZS(n: number): string {
 }
 
 export default function MerchantDashboard() {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
 
   const [applications, setApplications] = useState<Application[]>([])
@@ -41,31 +43,31 @@ export default function MerchantDashboard() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Active Installments"
+          title={t('merchantDashboard.activeInstallments')}
           value={activeInstallments}
-          subtitle="Active contracts"
+          subtitle={t('merchantDashboard.activeContracts')}
           icon={<CreditCardIcon className="h-5 w-5" />}
           color="blue"
           trend={10}
         />
         <StatCard
-          title="Pending Applications"
+          title={t('merchantDashboard.pendingApps')}
           value={pendingApps}
-          subtitle="Awaiting MFO review"
+          subtitle={t('merchantDashboard.awaitingMFO')}
           icon={<ClockIcon className="h-5 w-5" />}
           color="orange"
         />
         <StatCard
-          title="Total Products"
+          title={t('merchantDashboard.totalProducts')}
           value={products.length}
-          subtitle={`${products.filter(p => p.available).length} available`}
+          subtitle={t('merchantDashboard.availableCount', { count: products.filter(p => p.available).length })}
           icon={<ShoppingBagIcon className="h-5 w-5" />}
           color="blue"
         />
         <StatCard
-          title="Monthly Payments Due"
+          title={t('merchantDashboard.monthlyDue')}
           value={formatUZS(revenueThisMonth)}
-          subtitle="From active contracts"
+          subtitle={t('merchantDashboard.fromActiveContracts')}
           icon={<BanknotesIcon className="h-5 w-5" />}
           color="blue"
           trend={5}
@@ -74,29 +76,29 @@ export default function MerchantDashboard() {
 
       <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 text-white">
         <div>
-          <p className="font-semibold text-lg">New Customer?</p>
-          <p className="text-blue-100 text-sm mt-0.5">Submit an installment application in minutes</p>
+          <p className="font-semibold text-lg">{t('merchantDashboard.newCustomer')}</p>
+          <p className="text-blue-100 text-sm mt-0.5">{t('merchantDashboard.newCustomerDesc')}</p>
         </div>
         <Link
           to="/merchant/apply"
           className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 transition-colors shrink-0"
         >
           <PlusCircleIcon className="h-4 w-4" />
-          New Application
+          {t('merchantDashboard.newApplication')}
         </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900">Recent Applications</h2>
+            <h2 className="text-base font-semibold text-gray-900">{t('merchantDashboard.recentApplications')}</h2>
             <Link to="/merchant/apply" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-              New <ArrowRightIcon className="h-3 w-3" />
+              {t('merchantDashboard.newApplication')} <ArrowRightIcon className="h-3 w-3" />
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
             {recentApps.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-center text-gray-400">No applications yet.</p>
+              <p className="px-5 py-8 text-sm text-center text-gray-400">{t('merchantDashboard.noApplications')}</p>
             ) : recentApps.map(app => (
               <div key={app.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
                 <div className="min-w-0">
@@ -114,14 +116,14 @@ export default function MerchantDashboard() {
 
         <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900">Active Contracts</h2>
+            <h2 className="text-base font-semibold text-gray-900">{t('merchantDashboard.activeContractsTitle')}</h2>
             <Link to="/merchant/installments" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-              View all <ArrowRightIcon className="h-3 w-3" />
+              {t('common.viewAll')} <ArrowRightIcon className="h-3 w-3" />
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
             {contracts.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-center text-gray-400">No active contracts.</p>
+              <p className="px-5 py-8 text-sm text-center text-gray-400">{t('merchantDashboard.noContracts')}</p>
             ) : contracts.map(contract => (
               <div key={contract.id} className="px-5 py-4 hover:bg-gray-50">
                 <div className="flex items-center justify-between mb-2">
@@ -131,13 +133,13 @@ export default function MerchantDashboard() {
                 <p className="text-xs text-gray-500 mb-2">{contract.productName}</p>
                 <div className="flex items-center gap-4 text-xs">
                   <span className="text-gray-500">
-                    Paid: <span className="font-medium text-gray-700">{contract.paidInstallments}/{contract.months}</span>
+                    {t('merchantDashboard.paid')}: <span className="font-medium text-gray-700">{contract.paidInstallments}/{contract.months}</span>
                   </span>
                   <span className="text-gray-500">
-                    Monthly: <span className="font-medium text-gray-700">{formatUZS(contract.monthlyPayment)}</span>
+                    {t('merchantDashboard.monthly')}: <span className="font-medium text-gray-700">{formatUZS(contract.monthlyPayment)}</span>
                   </span>
                   <span className="text-gray-500">
-                    Next: <span className="font-medium text-blue-600">{contract.nextPaymentDate}</span>
+                    {t('merchantDashboard.nextDate')}: <span className="font-medium text-blue-600">{contract.nextPaymentDate}</span>
                   </span>
                 </div>
                 <div className="mt-2 bg-gray-100 rounded-full h-1.5">
