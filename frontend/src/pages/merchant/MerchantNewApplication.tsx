@@ -1281,7 +1281,7 @@ export default function MerchantNewApplication() {
                 Start New Application
               </button>
               <button
-                onClick={() => navigate('/merchant/installments')}
+                onClick={() => navigate('/merchant')}
                 className="flex-1 rounded-xl bg-blue-600 text-white py-2.5 text-sm font-semibold hover:bg-blue-700 transition-colors"
               >
                 View Applications
