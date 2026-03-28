@@ -8,6 +8,7 @@ import { Contract } from '../../types'
 import { apiContracts, Installment } from '../../api'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { MerchantInstallmentsSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M UZS'
@@ -17,12 +18,13 @@ function formatUZS(n: number): string {
 export default function MerchantInstallments() {
   const { t } = useTranslation()
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
   const [scheduleContract, setScheduleContract] = useState<Contract | null>(null)
   const [schedule, setSchedule] = useState<Installment[]>([])
   const [loadingSchedule, setLoadingSchedule] = useState(false)
 
   useEffect(() => {
-    apiContracts.list().then(setContracts).catch(() => {})
+    apiContracts.list().then(setContracts).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const openSchedule = (contract: Contract) => {
@@ -50,6 +52,8 @@ export default function MerchantInstallments() {
   const nextDueDate = contracts
     .filter(c => c.status === 'ACTIVE' && c.nextPaymentDate)
     .sort((a, b) => new Date(a.nextPaymentDate).getTime() - new Date(b.nextPaymentDate).getTime())[0]?.nextPaymentDate ?? 'N/A'
+
+  if (loading) return <MerchantInstallmentsSkeleton />
 
   return (
     <div className="space-y-6">

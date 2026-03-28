@@ -12,6 +12,7 @@ import { apiApplications } from '../../api'
 import { formatUZS, maskPassport } from '../../utils/format'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { MFOApplicationsSkeleton } from '../../components/ui/Skeleton'
 
 function ScoreBar({ score }: { score: number }) {
   const color = score >= 70 ? 'text-emerald-600' : score >= 50 ? 'text-yellow-600' : 'text-red-600'
@@ -33,6 +34,7 @@ const PAGE_SIZE = 10
 
 export default function MFOApplications() {
   const [applications, setApplications] = useState<Application[]>([])
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabFilter>('ALL')
   const [page, setPage] = useState(1)
   const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' | 'partial' } | null>(null)
@@ -43,7 +45,7 @@ export default function MFOApplications() {
   const { t } = useTranslation()
 
   useEffect(() => {
-    apiApplications.list().then(setApplications).catch(() => {})
+    apiApplications.list().then(setApplications).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   // When opening detail, fetch full version (with score_breakdown)
@@ -99,7 +101,7 @@ export default function MFOApplications() {
       .finally(() => setDeciding(false))
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  if (loading) return <MFOApplicationsSkeleton />
 
   return (
     <div className="space-y-5">
@@ -316,7 +318,7 @@ export default function MFOApplications() {
       </Modal>
 
       {/* ── Detail Modal ────────────────────────────────────────────────────── */}
-      <Modal open={!!detailApp} onClose={() => setDetailApp(null)} title="Application Details" size="xl">
+      <Modal open={!!detailApp} onClose={() => setDetailApp(null)} title="Application Details" size="lg">
         {detailApp && (
           <div className="space-y-4">
             {/* Tab bar */}

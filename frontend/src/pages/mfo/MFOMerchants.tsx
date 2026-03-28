@@ -7,6 +7,7 @@ import { Merchant } from '../../types'
 import { apiMerchants } from '../../api'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { MFOMerchantsSkeleton } from '../../components/ui/Skeleton'
 
 type TabFilter = 'ALL' | 'ACTIVE' | 'SUSPENDED' | 'PENDING'
 
@@ -25,6 +26,7 @@ const categories = ['Electronics', 'Mobile & Gadgets', 'Home Appliances', 'Furni
 export default function MFOMerchants() {
   const { t } = useTranslation()
   const [merchants, setMerchants] = useState<Merchant[]>([])
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabFilter>('ALL')
   const [search, setSearch] = useState('')
   const [onboardOpen, setOnboardOpen] = useState(false)
@@ -32,7 +34,7 @@ export default function MFOMerchants() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    apiMerchants.list().then(setMerchants).catch(() => {})
+    apiMerchants.list().then(setMerchants).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const filtered = merchants.filter(m => {
@@ -99,6 +101,8 @@ export default function MFOMerchants() {
       : 0
 
   const categoryInitial = (cat: string) => cat.charAt(0).toUpperCase()
+
+  if (loading) return <MFOMerchantsSkeleton />
 
   return (
     <div className="space-y-5">

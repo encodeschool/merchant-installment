@@ -9,6 +9,7 @@ import { Application, Contract, Product } from '../../types'
 import { apiApplications, apiContracts, apiProducts } from '../../api'
 import { useAuthStore } from '../../store/authStore'
 import { useTranslation } from 'react-i18next'
+import { MerchantDashboardSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M UZS'
@@ -22,11 +23,18 @@ export default function MerchantDashboard() {
   const [applications, setApplications] = useState<Application[]>([])
   const [contracts, setContracts] = useState<Contract[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    apiApplications.list().then(setApplications).catch(() => {})
-    apiContracts.list().then(setContracts).catch(() => {})
-    apiProducts.list().then(setProducts).catch(() => {})
+    Promise.all([
+      apiApplications.list().catch(() => [] as Application[]),
+      apiContracts.list().catch(() => [] as Contract[]),
+      apiProducts.list().catch(() => [] as Product[]),
+    ]).then(([apps, conts, prods]) => {
+      setApplications(apps)
+      setContracts(conts)
+      setProducts(prods)
+    }).finally(() => setLoading(false))
   }, [])
 
   const activeInstallments = contracts.filter(c => c.status === 'ACTIVE').length
@@ -38,6 +46,8 @@ export default function MerchantDashboard() {
   const recentApps = [...applications]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5)
+
+  if (loading) return <MerchantDashboardSkeleton />
 
   return (
     <div className="space-y-6">
