@@ -53,6 +53,8 @@ def mfo_dashboard(
 
     pending_apps = 0
     approved_this_month = 0
+    total_turnover = 0
+    unpaid_amount = 0
     if merchant_ids:
         pending_apps = (
             db.table("applications").select("*", count="exact")
@@ -68,11 +70,29 @@ def mfo_dashboard(
             .gte("decided_at", from_dt.isoformat())
             .execute().count or 0
         )
+        app_ids = [
+            a["id"] for a in
+            db.table("applications").select("id").in_("merchant_id", merchant_ids).execute().data
+        ]
+        if app_ids:
+            contracts = db.table("contracts").select("id, total_amount").in_("application_id", app_ids).execute().data
+            total_turnover = sum(c["total_amount"] for c in contracts)
+            contract_ids = [c["id"] for c in contracts]
+            if contract_ids:
+                unpaid_installments = (
+                    db.table("installments").select("amount")
+                    .in_("contract_id", contract_ids)
+                    .in_("status", ["UPCOMING", "OVERDUE"])
+                    .execute().data
+                )
+                unpaid_amount = sum(i["amount"] for i in unpaid_installments)
 
     return {
         "totalMerchants": total_merchants,
         "pendingApplications": pending_apps,
         "approvedThisMonth": approved_this_month,
+        "totalTurnover": total_turnover,
+        "unpaidAmount": unpaid_amount,
         "monthlyTrend": _monthly_trend(db, current_user["id"]),
     }
 

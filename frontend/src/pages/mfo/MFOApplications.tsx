@@ -27,9 +27,12 @@ function ScoreBar({ score }: { score: number }) {
 
 type TabFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'PARTIAL' | 'REJECTED' | 'ACTIVE'
 
+const PAGE_SIZE = 10
+
 export default function MFOApplications() {
   const [applications, setApplications] = useState<Application[]>([])
   const [tab, setTab] = useState<TabFilter>('ALL')
+  const [page, setPage] = useState(1)
   const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' | 'partial' } | null>(null)
   const [detailApp, setDetailApp] = useState<Application | null>(null)
   const [deciding, setDeciding] = useState(false)
@@ -41,6 +44,11 @@ export default function MFOApplications() {
   const filtered = applications.filter(a =>
     tab === 'ALL' || a.status === tab
   )
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const changeTab = (t: TabFilter) => { setTab(t); setPage(1) }
 
   const tabs: TabFilter[] = ['ALL', 'PENDING', 'APPROVED', 'PARTIAL', 'REJECTED', 'ACTIVE']
   const counts: Record<TabFilter, number> = {
@@ -92,7 +100,7 @@ export default function MFOApplications() {
         {tabs.map(t => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => changeTab(t)}
             className={clsx(
               'rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
               tab === t ? 'bg-white shadow-sm text-emerald-700' : 'text-gray-600 hover:text-gray-900'
@@ -120,7 +128,7 @@ export default function MFOApplications() {
                     No applications found.
                   </td>
                 </tr>
-              ) : filtered.map(app => (
+              ) : paginated.map(app => (
                 <tr
                   key={app.id}
                   className="hover:bg-gray-50 cursor-pointer transition-colors"
@@ -170,6 +178,55 @@ export default function MFOApplications() {
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-1">
+          <p className="text-sm text-gray-500">
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+              .reduce<(number | '…')[]>((acc, n, idx, arr) => {
+                if (idx > 0 && n - (arr[idx - 1] as number) > 1) acc.push('…')
+                acc.push(n)
+                return acc
+              }, [])
+              .map((n, i) =>
+                n === '…' ? (
+                  <span key={`ellipsis-${i}`} className="px-2 text-gray-400 text-sm">…</span>
+                ) : (
+                  <button
+                    key={n}
+                    onClick={() => setPage(n as number)}
+                    className={clsx(
+                      'rounded-lg px-3 py-1.5 text-sm font-medium',
+                      page === n
+                        ? 'bg-emerald-600 text-white'
+                        : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                    )}
+                  >
+                    {n}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       <Modal
         open={!!confirmApp}

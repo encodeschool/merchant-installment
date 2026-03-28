@@ -75,6 +75,8 @@ export const apiDashboard = {
     totalMerchants: number
     pendingApplications: number
     approvedThisMonth: number
+    totalTurnover: number
+    unpaidAmount: number
     monthlyTrend: { month: string; applications: number }[]
   }>('/api/v1/dashboard/mfo').then(r => r.data),
 

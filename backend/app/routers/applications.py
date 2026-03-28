@@ -171,7 +171,59 @@ def list_applications(
         apps = db.table("applications").select("*").eq("merchant_id", merchants[0]["id"]).order("created_at", desc=True).execute().data
     else:
         apps = db.table("applications").select("*").order("created_at", desc=True).execute().data
-    return [_app_to_out(a, db) for a in apps]
+
+    if not apps:
+        return []
+
+    # Batch-fetch all related rows in 4 queries total (avoids N+1)
+    merchant_ids = list({a["merchant_id"] for a in apps})
+    client_ids   = list({a["client_id"]   for a in apps})
+    product_ids  = list({a["product_id"]  for a in apps})
+    tariff_ids   = list({a["tariff_id"]   for a in apps})
+
+    merchants_map = {
+        m["id"]: m for m in
+        db.table("merchants").select("id, name").in_("id", merchant_ids).execute().data
+    }
+    clients_map = {
+        c["id"]: c for c in
+        db.table("clients").select("id, full_name, phone").in_("id", client_ids).execute().data
+    }
+    products_map = {
+        p["id"]: p for p in
+        db.table("products").select("id, name, price").in_("id", product_ids).execute().data
+    }
+    tariffs_map = {
+        t["id"]: t for t in
+        db.table("tariffs").select("id, name").in_("id", tariff_ids).execute().data
+    }
+
+    result = []
+    for a in apps:
+        m = merchants_map.get(a["merchant_id"], {})
+        c = clients_map.get(a["client_id"], {})
+        p = products_map.get(a["product_id"], {})
+        t = tariffs_map.get(a["tariff_id"], {})
+        result.append(ApplicationOut(
+            id=a["id"],
+            merchantId=a["merchant_id"],
+            merchantName=m.get("name", ""),
+            clientName=c.get("full_name", ""),
+            clientPhone=c.get("phone", ""),
+            productName=p.get("name", ""),
+            productPrice=p.get("price", 0),
+            tariffId=a["tariff_id"],
+            tariffName=t.get("name", ""),
+            months=a["months"],
+            monthlyPayment=a["monthly_payment"],
+            totalAmount=a["total_amount"],
+            score=a["score"],
+            status=a["status"],
+            approvedAmount=a.get("approved_amount"),
+            createdAt=a["created_at"],
+            decidedAt=a.get("decided_at"),
+        ))
+    return result
 
 
 @router.get("/{application_id}", response_model=ApplicationOut)
