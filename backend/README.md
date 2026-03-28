@@ -275,3 +275,35 @@ Seeded by `python -m app.seed`. All passwords: **`demo1234`**
 | Approve / reject applications | — | ✓ | — |
 | View all data | ✓ | own org | own data |
 | Audit logs | ✓ | — | — |
+
+## IF you cannot run the app try:
+The backend needs two things before it can run:
+
+  1. Create a .env file
+
+  No .env file exists yet. You need to create D:/BUSINESS/MICROCREDIT/project/backend/.env with your Supabase credentials:
+
+  SUPABASE_URL=https://your-project.supabase.co
+  SUPABASE_KEY=your-supabase-anon-or-service-key
+  SECRET_KEY=some-long-random-string
+  ACCESS_TOKEN_EXPIRE_MINUTES=60
+  REFRESH_TOKEN_EXPIRE_DAYS=7
+  ALGORITHM=HS256
+
+  Do you have a Supabase project? If not, you can create one free at supabase.com. Or if you want to run without Supabase (local SQLite/PostgreSQL), I can refactor the database layer.     
+
+  2. Install dependencies & run
+
+  Once the .env is ready, run these commands from D:/BUSINESS/MICROCREDIT/project/backend/:
+
+  # Create virtual environment
+  python -m venv venv
+  venv\Scripts\activate
+
+  # Install dependencies
+  pip install -r requirements.txt
+
+  # Run the server
+  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+  The API will be at http://localhost:8000 and docs at http://localhost:8000/docs.
