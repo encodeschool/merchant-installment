@@ -3,12 +3,21 @@ from typing import Optional, Literal
 from ..schemas.client import ClientCreate
 
 
+# ── Existing create / decision schemas (unchanged) ────────────────────────────
+
 class ApplicationCreate(BaseModel):
     merchant_id: str
     product_id: str
     tariff_id: str
     months: int
     client: ClientCreate
+
+
+class DecisionRequest(BaseModel):
+    action: Literal["APPROVED", "PARTIAL", "REJECTED"]
+    approved_amount: Optional[int] = None
+    note: Optional[str] = None
+    override_reason: Optional[str] = None
 
 
 # ── Multi-product flow ─────────────────────────────────────────────────────────
@@ -33,8 +42,8 @@ class EligibleOffer(BaseModel):
     tariff_name: str
     interest_rate: float
     available_months: list[int]
-    min_monthly_payment: float   # at max months
-    max_monthly_payment: float   # at min months
+    min_monthly_payment: float
+    max_monthly_payment: float
     min_down_payment_pct: float
     approved_amount: int
     approved_ratio: float
@@ -58,7 +67,7 @@ class MultiProductResponse(BaseModel):
     id: str
     score_result: ScoreResultOut
     eligible_offers: list[EligibleOffer]
-    fraud_gate: str   # PASS | FLAG | BLOCK
+    fraud_gate: str
     fraud_signals: list[str]
 
 
@@ -76,30 +85,84 @@ class ConfirmResponse(BaseModel):
     months: int
 
 
-# ── MFO decision ───────────────────────────────────────────────────────────────
+# ── New detailed output schemas ────────────────────────────────────────────────
 
-class DecisionRequest(BaseModel):
-    action: Literal["APPROVED", "PARTIAL", "REJECTED"]
-    approved_amount: Optional[int] = None
-    note: Optional[str] = None
+class ApplicationItemOut(BaseModel):
+    product_id: str
+    product_name: str
+    category: str
+    price: int
+    quantity: int
+    subtotal: int
+
+
+class ClientDetailOut(BaseModel):
+    full_name: str
+    passport_number: str
+    phone: str
+    age: int
+    monthly_income: int
+    employment_type: str
+    pinfl: Optional[str]
+    open_loans: int
+    overdue_days: int
+    has_bankruptcy: bool
+    credit_history: str
+
+
+class ScoreBreakdownOut(BaseModel):
+    f1_affordability: float
+    f2_credit: float
+    f3_behavioral: float
+    f4_demographic: float
+    weights: dict
+    total_score: int
+    decision: str
+    approved_ratio: float
+    hard_reject: bool
+    hard_reject_reason: Optional[str]
+    reason_codes: list[str]
+
+
+class FraudSignalOut(BaseModel):
+    code: str
+    severity: str        # 'block' | 'warning' | 'info'
+    score_impact: int
+    description: str
 
 
 class ApplicationOut(BaseModel):
     id: str
-    merchantId: str
-    merchantName: str
-    clientName: str
-    clientPhone: str
-    productName: str
-    productPrice: int
-    tariffId: str
-    tariffName: str
-    months: int
-    monthlyPayment: int
-    totalAmount: int
+    merchant_id: str
+    merchant_name: str
+
+    client: ClientDetailOut
+
+    items: list[ApplicationItemOut]
+    total_amount: int
+    down_payment_amount: int
+    financed_amount: int
+
+    tariff_id: Optional[str]
+    tariff_name: Optional[str]
+    mfo_name: Optional[str]
+    months: Optional[int]
+    monthly_payment: Optional[int]
+    approved_amount: Optional[int]
+
     score: int
+    score_breakdown: Optional[ScoreBreakdownOut]
+
+    fraud_gate: str
+    fraud_signals: list[FraudSignalOut]
+
+    face_image_url: Optional[str]
+    signature_url: Optional[str]
+
     status: str
-    approvedAmount: Optional[int] = None
-    createdAt: str
-    decidedAt: Optional[str] = None
+    created_at: str
+    decided_at: Optional[str]
+    decided_by: Optional[str]
+    override_reason: Optional[str]
+
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)

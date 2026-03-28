@@ -1,5 +1,5 @@
 import api from './client'
-import { Application, AuditLog, Contract, Merchant, MFOStats, MultiProductResponse, Product, Tariff, User } from '../types'
+import { Application, AuditLog, Contract, Merchant, MFOStats, MultiProductResponse, Product, Tariff, User, normalizeApplication } from '../types'
 
 export interface Installment {
   id: string
@@ -38,14 +38,23 @@ export const apiProducts = {
 }
 
 export const apiApplications = {
-  list: () => api.get<Application[]>('/api/v1/applications').then(r => r.data),
-  submit: (b: object) => api.post<Application>('/api/v1/applications', b).then(r => r.data),
+  list: () =>
+    api.get<any[]>('/api/v1/applications')
+      .then(r => r.data.map(normalizeApplication)),
+  get: (id: string) =>
+    api.get<any>(`/api/v1/applications/${id}/detail`)
+      .then(r => normalizeApplication(r.data)),
+  submit: (b: object) =>
+    api.post<any>('/api/v1/applications', b)
+      .then(r => normalizeApplication(r.data)),
   submitMulti: (b: object) =>
     api.post<MultiProductResponse>('/api/v1/applications/multi-product', b).then(r => r.data),
   confirm: (id: string, b: object) =>
-    api.post(`/api/v1/applications/${id}/confirm`, b).then(r => r.data),
+    api.post<any>(`/api/v1/applications/${id}/confirm`, b)
+      .then(r => normalizeApplication(r.data)).catch(() => r => r),
   decide: (id: string, b: object) =>
-    api.patch<Application>(`/api/v1/applications/${id}/decide`, b).then(r => r.data),
+    api.patch<any>(`/api/v1/applications/${id}/decide`, b)
+      .then(r => normalizeApplication(r.data)),
 }
 
 export const apiContracts = {
