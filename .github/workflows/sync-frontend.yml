@@ -1,0 +1,42 @@
+name: Sync frontend to merchant-frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout merchant-installment
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push frontend/ to merchant-frontend repo
+        env:
+          DEST_REPO: https://x-access-token:${{ secrets.FRONTEND_SYNC_TOKEN }}@github.com/ElmurodovJavohir/merchant-frontend.git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          # Clone destination repo
+          git clone "$DEST_REPO" /tmp/merchant-frontend
+
+          # Sync frontend/ contents into destination (delete files removed in source)
+          rsync -av --delete \
+            --exclude='.git' \
+            frontend/ /tmp/merchant-frontend/
+
+          # Commit and push if there are changes
+          cd /tmp/merchant-frontend
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to sync."
+          else
+            git commit -m "sync: from merchant-installment/frontend @ ${{ github.sha }}"
+            git push
+          fi
