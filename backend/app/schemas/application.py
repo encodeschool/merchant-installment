@@ -52,10 +52,10 @@ class EligibleOffer(BaseModel):
 
 
 class ScoreResultOut(BaseModel):
-    f1: float
-    f2: float
-    f3: float
-    f4: float
+    f1_affordability: float
+    f2_credit: float
+    f3_behavioral: float
+    f4_demographic: float
     total_score: int
     decision: str
     weights: dict
@@ -98,6 +98,7 @@ class ApplicationItemOut(BaseModel):
     price: int
     quantity: int
     subtotal: int
+    image_url: Optional[str] = None
 
 
 class ClientDetailOut(BaseModel):

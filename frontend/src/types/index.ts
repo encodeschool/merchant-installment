@@ -65,6 +65,26 @@ export interface ApplicationItem {
   price: number
   quantity: number
   subtotal: number          // price * quantity
+  imageUrl: string | null
+}
+
+export interface ScoreResult {
+  f1_affordability: number   // 0-100
+  f2_credit: number
+  f3_behavioral: number
+  f4_demographic: number
+  weights: {
+    w1: number
+    w2: number
+    w3: number
+    w4: number
+  }
+  total_score: number
+  decision: 'APPROVED' | 'PARTIAL' | 'REJECTED'
+  approved_ratio: number
+  hard_reject: boolean
+  hard_reject_reason: string | null
+  reason_codes: string[]
 }
 
 export interface ScoreBreakdown {
@@ -110,6 +130,7 @@ export interface Application {
     overdueDays: number
     hasBankruptcy: boolean
     creditHistory: 'GOOD' | 'FAIR' | 'NONE' | 'BAD'
+    pinfl: string | null
   }
 
   // Products (multiple)
@@ -163,6 +184,7 @@ export function normalizeApplication(raw: any): Application {
         overdueDays:    c.overdueDays    ?? c.overdue_days     ?? 0,
         hasBankruptcy:  c.hasBankruptcy  ?? c.has_bankruptcy   ?? false,
         creditHistory:  c.creditHistory  ?? c.credit_history   ?? 'NONE',
+        pinfl:          c.pinfl          ?? null,
       },
       items: (raw.items ?? []).map((it: any) => ({
         productId:   it.productId   ?? it.product_id   ?? '',
@@ -171,10 +193,12 @@ export function normalizeApplication(raw: any): Application {
         price:       it.price       ?? 0,
         quantity:    it.quantity    ?? 1,
         subtotal:    it.subtotal    ?? (it.price ?? 0) * (it.quantity ?? 1),
+        imageUrl:    it.imageUrl    ?? it.image_url    ?? null,
       })),
       tariffId:       raw.tariffId        ?? raw.tariff_id        ?? null,
       tariffName:     raw.tariffName      ?? raw.tariff_name      ?? null,
       mfoName:        raw.mfoName         ?? raw.mfo_name         ?? null,
+      months:         raw.months          ?? raw.months           ?? null,
       monthlyPayment: raw.monthlyPayment  ?? raw.monthly_payment  ?? null,
       approvedAmount: raw.approvedAmount  ?? raw.approved_amount  ?? null,
       totalAmount:    raw.totalAmount     ?? raw.total_amount     ?? 0,
@@ -207,6 +231,7 @@ export function normalizeApplication(raw: any): Application {
       overdueDays:    0,
       hasBankruptcy:  false,
       creditHistory:  'NONE',
+      pinfl:          raw.pinfl           ?? null,
     },
     items: raw.productName
       ? [{
@@ -216,6 +241,7 @@ export function normalizeApplication(raw: any): Application {
           price:       raw.productPrice ?? 0,
           quantity:    1,
           subtotal:    raw.productPrice ?? 0,
+          imageUrl:    null,
         }]
       : [],
     totalAmount:       raw.totalAmount    ?? raw.total_amount    ?? 0,
@@ -297,7 +323,7 @@ export interface EligibleOffer {
 
 export interface MultiProductResponse {
   id: string
-  score_result: ScoreBreakdown
+  score_result: ScoreResult
   eligible_offers: EligibleOffer[]
   fraud_gate: 'PASS' | 'FLAG' | 'BLOCK'
   fraud_signals: string[]

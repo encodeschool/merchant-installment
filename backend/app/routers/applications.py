@@ -21,6 +21,7 @@ from ..schemas.application import (
 )
 from ..services.contract import generate_payment_schedule
 from ..services.scoring import (
+    calculate_score,
     calculate_score_full,
     monthly_payment as calc_monthly_payment,
 )
@@ -68,6 +69,7 @@ def _build_items(app: dict, db: Client) -> list[dict]:
                                 "price": int(p["price"]),
                                 "quantity": qty,
                                 "subtotal": int(p["price"]) * qty,
+                                "image_url": p.get("image_url"),
                             }
                         )
         except Exception:
@@ -88,6 +90,7 @@ def _build_items(app: dict, db: Client) -> list[dict]:
                     "price": int(p["price"]),
                     "quantity": 1,
                     "subtotal": int(p["price"]),
+                    "image_url": p.get("image_url"),
                 }
             )
 
@@ -455,15 +458,27 @@ def list_applications(
     tariffs_data   = db.table("tariffs").select("id, name, mfo_user_id").in_("id", tariff_ids).execute().data if tariff_ids else []
 
     mfo_user_ids = list(set(t["mfo_user_id"] for t in tariffs_data))
-    mfo_data     = db.table("users").select("id, organization").in_("id", mfo_user_ids).execute().data if mfo_user_ids else []
-    mfo_map      = {m["id"]: m["organization"] for m in mfo_data}
+    mfo_data = (
+        db.table("users")
+        .select("id, organization")
+        .in_("id", mfo_user_ids)
+        .execute()
+        .data
+        if mfo_user_ids
+        else []
+    )
+    mfo_name_map = {u["id"]: u.get("organization", "") for u in mfo_data}
+
+    tariff_map = {}
     for t in tariffs_data:
-        t["mfo_name"] = mfo_map.get(t["mfo_user_id"], "")
+        tariff_map[t["id"]] = {
+            "name": t["name"],
+            "mfo_name": mfo_name_map.get(t["mfo_user_id"], ""),
+        }
 
     merchants_map = {m["id"]: m for m in merchants_data}
     clients_map   = {c["id"]: c for c in clients_data}
     products_map  = {p["id"]: p for p in products_data}
-    tariffs_map   = {t["id"]: t for t in tariffs_data}
 
     app_ids = [a["id"] for a in apps]
     contracts_rows = db.table("contracts").select("id, application_id").in_("application_id", app_ids).execute().data if app_ids else []
@@ -472,9 +487,9 @@ def list_applications(
     result = []
     for app in apps:
         merchant = merchants_map.get(app.get("merchant_id", ""), {})
-        c        = clients_map.get(app.get("client_id", ""), {})
-        product  = products_map.get(app.get("product_id", ""), {})
-        tariff   = tariffs_map.get(app.get("tariff_id", ""), {})
+        c       = clients_map.get(app.get("client_id", ""), {})
+        product = products_map.get(app.get("product_id", ""), {})
+        tariff  = tariff_map.get(app.get("tariff_id"), {})
 
         client_out = ClientDetailOut(
             full_name=c.get("full_name", ""),
@@ -483,11 +498,11 @@ def list_applications(
             age=c.get("age", 0),
             monthly_income=c.get("monthly_income", 0),
             employment_type=c.get("employment_type", "EMPLOYED"),
-            pinfl=c.get("pinfl"),
             open_loans=c.get("open_loans", 0),
             overdue_days=c.get("overdue_days", 0),
             has_bankruptcy=bool(c.get("has_bankruptcy", False)),
             credit_history=c.get("credit_history", "NONE"),
+            pinfl=c.get("pinfl"),
         )
 
         items_out: list[ApplicationItemOut] = []
@@ -578,7 +593,7 @@ def get_application(
     rows = db.table("applications").select("*").eq("id", application_id).execute().data
     if not rows:
         raise HTTPException(status_code=404, detail="Application not found")
-    return _app_to_out(rows[0], db, include_score=False)
+    return _app_to_out(rows[0], db, include_score=True)
 
 
 @router.patch("/{application_id}/decide", response_model=ApplicationOut)
@@ -725,7 +740,7 @@ def _age_from_birth_date(birth_date_str: str) -> int:
 def _run_scoring(
     client_data: dict, mp: float, tariff: dict | None, fraud_gate: str
 ) -> dict:
-    """Run calculate_score_full with tariff config (or defaults). Apply fraud penalty."""
+    """Run calculate_score with tariff config. Apply fraud penalty."""
     cfg = tariff if tariff else {}
 
     # Use `or` fallback so explicit 0.0 values stored in DB fall back to defaults
@@ -742,7 +757,7 @@ def _run_scoring(
             _DEFAULT_WEIGHTS["w_demographic"],
         )
 
-    result = calculate_score_full(
+    result = calculate_score(
         monthly_income=client_data.get("monthly_income", 0),
         monthly_payment=mp,
         age=client_data.get("age", 30),
@@ -843,10 +858,6 @@ def create_multi_product_application(
             .data
             or []
         )
-        count = len(eligible_tariffs)
-        print(
-            f"[multi-product] total_price={total_price}, " f"eligible_tariffs={count}"
-        )  # noqa: E501
     except Exception as e:
         print(f"[multi-product] tariff query error: {e}")
         eligible_tariffs = []
@@ -872,6 +883,22 @@ def create_multi_product_application(
     down_amount = int(total_price * max_down_pct / 100)
     financed = total_price - down_amount
 
+    # Diagnostic logging for tariff eligibility
+    count = len(eligible_tariffs)
+    print(
+        f"[multi-product] total_price={total_price} financed={financed} "
+        f"eligible_tariffs={count}"
+    )
+    if not eligible_tariffs:
+        all_approved = (
+            db.table("tariffs")
+            .select("id,name,min_amount,max_amount,status")
+            .eq("status", "APPROVED")
+            .execute()
+            .data
+        )
+        print(f"[multi-product] all APPROVED tariffs: {all_approved}")
+
     # 8. Score
     if fraud_gate == "BLOCK":
         score_result = {
@@ -894,7 +921,22 @@ def create_multi_product_application(
         mp = calc_monthly_payment(financed, months_for_scoring, rate)
         score_result = _run_scoring(client_data, mp, first_tariff, fraud_gate)
 
-    # 9. Build eligible offers
+    # 9. Batch fetch MFO names
+    mfo_user_ids_list = list(
+        set(t["mfo_user_id"] for t in eligible_tariffs if t.get("mfo_user_id"))
+    )
+    mfo_users = (
+        db.table("users")
+        .select("id, organization")
+        .in_("id", mfo_user_ids_list)
+        .execute()
+        .data
+        if mfo_user_ids_list
+        else []
+    )
+    mfo_name_lookup = {u["id"]: u["organization"] for u in mfo_users}
+
+    # 10. Build eligible offers
     eligible_offers = []
     if fraud_gate != "BLOCK" and not score_result.get("hard_reject", False):
         approved_ratio = score_result.get("approved_ratio", 1.0)
@@ -919,7 +961,7 @@ def create_multi_product_application(
             eligible_offers.append(
                 {
                     "tariff_id": tariff["id"],
-                    "mfo_name": tariff.get("mfo_name", ""),
+                    "mfo_name": mfo_name_lookup.get(tariff.get("mfo_user_id", ""), ""),
                     "tariff_name": tariff["name"],
                     "interest_rate": tariff["interest_rate"],
                     "available_months": av_months,
@@ -945,6 +987,7 @@ def create_multi_product_application(
         "phone": body.client.phone or "",
         "monthly_income": body.client.monthly_income,
         "age": age,
+        "birth_date": body.client.birth_date,
         "credit_history": body.client.credit_history,
         "open_loans": body.client.open_loans,
         "overdue_days": body.client.overdue_days,
@@ -1051,10 +1094,10 @@ def create_multi_product_application(
     return MultiProductResponse(
         id=application["id"],
         score_result={
-            "f1": score_result["f1_affordability"],
-            "f2": score_result["f2_credit"],
-            "f3": score_result["f3_behavioral"],
-            "f4": score_result["f4_demographic"],
+            "f1_affordability": score_result["f1_affordability"],
+            "f2_credit": score_result["f2_credit"],
+            "f3_behavioral": score_result["f3_behavioral"],
+            "f4_demographic": score_result["f4_demographic"],
             "total_score": score_result["total_score"],
             "decision": score_result["decision"],
             "weights": score_result["weights"],

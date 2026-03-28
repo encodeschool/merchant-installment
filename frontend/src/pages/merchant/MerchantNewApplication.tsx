@@ -104,7 +104,7 @@ function mockMultiProductResponse(appId: string): MultiProductResponse {
   return {
     id: appId,
     score_result: {
-      f1: 70, f2: 65, f3: 80, f4: 75,
+      f1_affordability: 70, f2_credit: 65, f3_behavioral: 80, f4_demographic: 75,
       total_score: score,
       decision: score >= 70 ? 'APPROVED' : score >= 50 ? 'PARTIAL' : 'REJECTED',
       weights: { w1: 0.4, w2: 0.3, w3: 0.2, w4: 0.1 },
@@ -898,10 +898,10 @@ export default function MerchantNewApplication() {
                 {/* Factor bars */}
                 <div className="space-y-3 mb-4">
                   {[
-                    { label: 'F1 Affordability', val: scoreResult.f1, w: scoreResult.weights.w1, color: 'bg-emerald-500' },
-                    { label: 'F2 Credit History', val: scoreResult.f2, w: scoreResult.weights.w2, color: 'bg-blue-500' },
-                    { label: 'F3 Behavioral', val: scoreResult.f3, w: scoreResult.weights.w3, color: 'bg-amber-500' },
-                    { label: 'F4 Demographic', val: scoreResult.f4, w: scoreResult.weights.w4, color: 'bg-violet-500' },
+                    { label: 'F1 Affordability', val: scoreResult.f1_affordability, w: scoreResult.weights.w1, color: 'bg-emerald-500' },
+                    { label: 'F2 Credit History', val: scoreResult.f2_credit, w: scoreResult.weights.w2, color: 'bg-blue-500' },
+                    { label: 'F3 Behavioral', val: scoreResult.f3_behavioral, w: scoreResult.weights.w3, color: 'bg-amber-500' },
+                    { label: 'F4 Demographic', val: scoreResult.f4_demographic, w: scoreResult.weights.w4, color: 'bg-violet-500' },
                   ].map(item => (
                     <div key={item.label}>
                       <div className="flex items-center justify-between text-xs mb-1">

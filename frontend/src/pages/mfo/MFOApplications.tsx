@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { PhotoIcon, PencilSquareIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, PhotoIcon, PencilSquareIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import ApplicationItemsCell from '../../components/ui/ApplicationItemsCell'
@@ -38,6 +38,7 @@ export default function MFOApplications() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [search, setSearch] = useState('')
   const [detailApp, setDetailApp] = useState<Application | null>(null)
   const [detailTab, setDetailTab] = useState<DetailTab>('overview')
   const { t } = useTranslation()
@@ -59,7 +60,14 @@ export default function MFOApplications() {
       .catch(() => {})
   }
 
-  const filtered = applications.filter(a => tab === 'ALL' || a.status === tab)
+  const filtered = applications.filter(a => {
+    const matchTab = tab === 'ALL' || a.status === tab
+    const matchSearch = !search ||
+      a.client.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      a.client.passportNumber.toLowerCase().includes(search.toLowerCase()) ||
+      a.merchantName.toLowerCase().includes(search.toLowerCase())
+    return matchTab && matchSearch
+  })
   const paginated = filtered
 
   const changeTab = (t: TabFilter) => { setTab(t); setPage(1) }
@@ -78,6 +86,26 @@ export default function MFOApplications() {
   if (loading) return <MFOApplicationsSkeleton />
   return (
     <div className="space-y-5">
+      {/* Search input */}
+      <div className="relative">
+        <input
+          type="text"
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1) }}
+          placeholder="Search by client name or passport…"
+          className="w-full sm:w-72 rounded-xl border border-gray-200 pl-9 pr-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+        />
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <XMarkIcon className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       {/* Tab bar */}
       <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 w-fit">
         {tabs.map(tabKey => (

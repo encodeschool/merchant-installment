@@ -16,6 +16,7 @@ export const mockApplications: Application[] = [
       overdueDays: 0,
       hasBankruptcy: false,
       creditHistory: 'GOOD',
+      pinfl: null,
     },
     items: [
       {
@@ -25,6 +26,7 @@ export const mockApplications: Application[] = [
         price: 12000000,
         quantity: 1,
         subtotal: 12000000,
+        imageUrl: null,
       },
     ],
     totalAmount: 12000000,
@@ -73,6 +75,7 @@ export const mockApplications: Application[] = [
       overdueDays: 0,
       hasBankruptcy: false,
       creditHistory: 'FAIR',
+      pinfl: null,
     },
     items: [
       {
@@ -82,6 +85,7 @@ export const mockApplications: Application[] = [
         price: 15000000,
         quantity: 1,
         subtotal: 15000000,
+        imageUrl: null,
       },
     ],
     totalAmount: 15000000,
@@ -130,6 +134,7 @@ export const mockApplications: Application[] = [
       overdueDays: 15,
       hasBankruptcy: false,
       creditHistory: 'BAD',
+      pinfl: null,
     },
     items: [
       {
@@ -139,6 +144,7 @@ export const mockApplications: Application[] = [
         price: 25000000,
         quantity: 1,
         subtotal: 25000000,
+        imageUrl: null,
       },
     ],
     totalAmount: 25000000,
@@ -187,6 +193,7 @@ export const mockApplications: Application[] = [
       overdueDays: 45,
       hasBankruptcy: true,
       creditHistory: 'BAD',
+      pinfl: null,
     },
     items: [
       {
@@ -196,6 +203,7 @@ export const mockApplications: Application[] = [
         price: 6500000,
         quantity: 1,
         subtotal: 6500000,
+        imageUrl: null,
       },
     ],
     totalAmount: 6500000,
@@ -244,6 +252,7 @@ export const mockApplications: Application[] = [
       overdueDays: 0,
       hasBankruptcy: false,
       creditHistory: 'GOOD',
+      pinfl: null,
     },
     items: [
       {
@@ -253,6 +262,7 @@ export const mockApplications: Application[] = [
         price: 8000000,
         quantity: 1,
         subtotal: 8000000,
+        imageUrl: null,
       },
     ],
     totalAmount: 8000000,
