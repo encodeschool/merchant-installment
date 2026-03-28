@@ -169,3 +169,6 @@ CREATE TABLE audit_logs (
     ip_address  TEXT NOT NULL DEFAULT '',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Add image_url to products
+ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT;

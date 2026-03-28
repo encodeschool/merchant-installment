@@ -44,4 +44,5 @@ class ProductOut(BaseModel):
     description: Optional[str] = ""
     available: bool
     downPaymentPercent: int
+    imageUrl: Optional[str] = None
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)

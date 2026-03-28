@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { useState, useEffect, useRef } from 'react'
+import { PlusIcon, PencilSquareIcon, TrashIcon, PhotoIcon } from '@heroicons/react/24/outline'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
@@ -45,6 +45,12 @@ export default function MerchantProducts() {
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [saving, setSaving] = useState(false)
 
+  // Image upload state
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null)
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     apiMerchants.my()
       .then(m => setMerchantId(m.id))
@@ -55,7 +61,29 @@ export default function MerchantProducts() {
       .catch(() => {})
   }, [user])
 
-  const openCreate = () => { setForm(emptyForm); setCreateOpen(true) }
+  const resetImageState = () => {
+    setPendingImageFile(null)
+    setPendingImagePreview(null)
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }
+
+  const handleImageSelect = (file: File | undefined) => {
+    if (!file) return
+    setPendingImageFile(file)
+    const reader = new FileReader()
+    reader.onload = e => setPendingImagePreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const uploadImageFor = (productId: string, fallbackProduct: Product) => {
+    if (!pendingImageFile) return Promise.resolve(fallbackProduct)
+    setUploadingImage(true)
+    return apiProducts.uploadImage(productId, pendingImageFile)
+      .catch(() => fallbackProduct)
+      .finally(() => { setUploadingImage(false); resetImageState() })
+  }
+
+  const openCreate = () => { setForm(emptyForm); resetImageState(); setCreateOpen(true) }
 
   const openEdit = (p: Product) => {
     setForm({
@@ -66,6 +94,7 @@ export default function MerchantProducts() {
       available: p.available,
       downPaymentPercent: String(p.downPaymentPercent),
     })
+    resetImageState()
     setEditTarget(p)
   }
 
@@ -80,7 +109,11 @@ export default function MerchantProducts() {
       available: form.available,
       down_payment_percent: parseInt(form.downPaymentPercent) || 0,
     })
-      .then(created => { setProducts(prev => [created, ...prev]); setCreateOpen(false) })
+      .then(created => uploadImageFor(created.id, created))
+      .then(final => {
+        setProducts(prev => [final, ...prev])
+        setCreateOpen(false)
+      })
       .catch(() => {
         const newProduct: Product = {
           id: `p${Date.now()}`,
@@ -93,6 +126,7 @@ export default function MerchantProducts() {
           downPaymentPercent: parseInt(form.downPaymentPercent) || 0,
         }
         setProducts(prev => [newProduct, ...prev])
+        resetImageState()
         setCreateOpen(false)
       })
       .finally(() => setSaving(false))
@@ -109,7 +143,11 @@ export default function MerchantProducts() {
       available: form.available,
       down_payment_percent: parseInt(form.downPaymentPercent) || 0,
     })
-      .then(updated => { setProducts(prev => prev.map(p => p.id === editTarget.id ? updated : p)); setEditTarget(null) })
+      .then(updated => uploadImageFor(updated.id, updated))
+      .then(final => {
+        setProducts(prev => prev.map(p => p.id === editTarget.id ? final : p))
+        setEditTarget(null)
+      })
       .catch(() => {
         setProducts(prev => prev.map(p => p.id === editTarget.id ? {
           ...p,
@@ -120,6 +158,7 @@ export default function MerchantProducts() {
           available: form.available,
           downPaymentPercent: parseInt(form.downPaymentPercent) || 0,
         } : p))
+        resetImageState()
         setEditTarget(null)
       })
       .finally(() => setSaving(false))
@@ -138,6 +177,8 @@ export default function MerchantProducts() {
       .then(updated => setProducts(prev => prev.map(p => p.id === id ? updated : p)))
       .catch(() => setProducts(prev => prev.map(p => p.id === id ? { ...p, available: !p.available } : p)))
   }
+
+  const isSavingOrUploading = saving || uploadingImage
 
   const productFormFields = (
     <div className="space-y-4">
@@ -211,17 +252,48 @@ export default function MerchantProducts() {
           type="button"
           onClick={() => setForm(f => ({ ...f, available: !f.available }))}
           className={clsx(
-            'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
             form.available ? 'bg-blue-600' : 'bg-gray-300'
           )}
         >
           <span
             className={clsx(
               'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform',
-              form.available ? 'translate-x-4.5' : 'translate-x-0.5'
+              form.available ? 'translate-x-5' : 'translate-x-0.5'
             )}
           />
         </button>
+      </div>
+
+      {/* Image upload */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {t('merchantProducts.productImage')} <span className="text-gray-400 font-normal">{t('merchantProducts.imageHint')}</span>
+        </label>
+        <label className="relative flex flex-col items-center justify-center w-full rounded-xl border-2 border-dashed border-gray-300 cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors overflow-hidden">
+          {pendingImagePreview ? (
+            <div className="relative w-full h-32">
+              <img src={pendingImagePreview} alt="preview" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <span className="text-xs font-medium text-white bg-black/50 px-2 py-1 rounded-md">
+                  {t('merchantProducts.changeImage')}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-5">
+              <PhotoIcon className="h-7 w-7 text-gray-400 mb-1.5" />
+              <p className="text-xs text-gray-500">{t('merchantProducts.uploadImage')}</p>
+            </div>
+          )}
+          <input
+            ref={imageInputRef}
+            type="file"
+            className="hidden"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={e => handleImageSelect(e.target.files?.[0])}
+          />
+        </label>
       </div>
     </div>
   )
@@ -249,13 +321,24 @@ export default function MerchantProducts() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map(product => (
             <div key={product.id} className="rounded-xl bg-white border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                <div className="text-center">
-                  <div className={clsx('inline-flex rounded-xl px-3 py-1.5 text-xs font-semibold mb-1', categoryColors[product.category] ?? categoryColors['Other'])}>
-                    {product.category}
+              {/* Product image / placeholder */}
+              <div className="relative h-36 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="text-center">
+                      <div className={clsx('inline-flex rounded-xl px-3 py-1.5 text-xs font-semibold mb-1', categoryColors[product.category] ?? categoryColors['Other'])}>
+                        {product.category}
+                      </div>
+                      <p className="text-2xl font-black text-gray-300">{product.name.charAt(0)}</p>
+                    </div>
                   </div>
-                  <p className="text-2xl font-black text-gray-300">{product.name.charAt(0)}</p>
-                </div>
+                )}
               </div>
 
               <div className="p-4">
@@ -266,33 +349,46 @@ export default function MerchantProducts() {
                   </Badge>
                 </div>
                 <p className="text-xs text-gray-500 mb-3 line-clamp-2">{product.description}</p>
-                <p className="text-base font-bold text-blue-700">{formatUZS(product.price)}</p>
-                {product.downPaymentPercent > 0 && (
+                <p className="text-base font-bold text-blue-700 mb-0.5">{formatUZS(product.price)}</p>
+                {product.downPaymentPercent > 0 ? (
                   <p className="text-xs text-gray-400 mb-3">{t('merchantProducts.downPaymentInfo', { pct: product.downPaymentPercent, amount: formatUZS(Math.round(product.price * product.downPaymentPercent / 100)) })}</p>
+                ) : (
+                  <p className="text-xs text-gray-400 mb-3">{t('merchantProducts.noDownPayment')}</p>
                 )}
-                {product.downPaymentPercent === 0 && <p className="text-xs text-gray-400 mb-3">{t('merchantProducts.noDownPayment')}</p>}
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
+                  {/* Visual toggle switch for availability */}
                   <button
+                    type="button"
                     onClick={() => toggleAvailability(product.id)}
-                    className={clsx(
-                      'flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors',
-                      product.available
-                        ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                    )}
+                    className="flex items-center gap-2 flex-1 rounded-lg py-1.5 px-2 hover:bg-gray-50 transition-colors"
+                    title={product.available ? t('merchantProducts.markUnavailable') : t('merchantProducts.markAvailable')}
                   >
-                    {product.available ? t('merchantProducts.markUnavailable') : t('merchantProducts.markAvailable')}
+                    <div className={clsx(
+                      'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+                      product.available ? 'bg-blue-600' : 'bg-gray-300'
+                    )}>
+                      <span className={clsx(
+                        'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform',
+                        product.available ? 'translate-x-5' : 'translate-x-0.5'
+                      )} />
+                    </div>
+                    <span className="text-xs text-gray-600">
+                      {product.available ? t('merchantProducts.availableBadge') : t('merchantProducts.unavailableBadge')}
+                    </span>
                   </button>
+
                   <button
                     onClick={() => openEdit(product)}
                     className="rounded-lg p-1.5 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
+                    title={t('common.edit')}
                   >
                     <PencilSquareIcon className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => setDeleteTarget(product)}
                     className="rounded-lg p-1.5 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                    title={t('common.delete')}
                   >
                     <TrashIcon className="h-4 w-4" />
                   </button>
@@ -303,25 +399,25 @@ export default function MerchantProducts() {
         </div>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('merchantProducts.addNewTitle')} size="md">
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); resetImageState() }} title={t('merchantProducts.addNewTitle')} size="md">
         <div className="space-y-5">
           {productFormFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
-            <Button variant="secondary" color="gray" className="flex-1" onClick={() => setCreateOpen(false)}>{t('common.cancel')}</Button>
-            <Button variant="primary" color="blue" className="flex-1" onClick={handleCreate} disabled={!form.name || !form.price || saving}>
-              {saving ? t('merchantProducts.saving') : t('merchantProducts.addProduct')}
+            <Button variant="secondary" color="gray" className="flex-1" onClick={() => { setCreateOpen(false); resetImageState() }}>{t('common.cancel')}</Button>
+            <Button variant="primary" color="blue" className="flex-1" onClick={handleCreate} disabled={!form.name || !form.price || isSavingOrUploading}>
+              {uploadingImage ? t('merchantProducts.uploadingImage') : saving ? t('merchantProducts.saving') : t('merchantProducts.addProduct')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title={t('merchantProducts.editProduct')} size="md">
+      <Modal open={!!editTarget} onClose={() => { setEditTarget(null); resetImageState() }} title={t('merchantProducts.editProduct')} size="md">
         <div className="space-y-5">
           {productFormFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
-            <Button variant="secondary" color="gray" className="flex-1" onClick={() => setEditTarget(null)}>{t('common.cancel')}</Button>
-            <Button variant="primary" color="blue" className="flex-1" onClick={handleEdit} disabled={saving}>
-              {saving ? t('merchantProducts.saving') : t('common.saveChanges')}
+            <Button variant="secondary" color="gray" className="flex-1" onClick={() => { setEditTarget(null); resetImageState() }}>{t('common.cancel')}</Button>
+            <Button variant="primary" color="blue" className="flex-1" onClick={handleEdit} disabled={isSavingOrUploading}>
+              {uploadingImage ? t('merchantProducts.uploadingImage') : saving ? t('merchantProducts.saving') : t('common.saveChanges')}
             </Button>
           </div>
         </div>

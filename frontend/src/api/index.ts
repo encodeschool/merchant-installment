@@ -34,6 +34,13 @@ export const apiProducts = {
   update: (id: string, b: object) => api.put<Product>(`/api/v1/products/${id}`, b).then(r => r.data),
   toggleAvailability: (id: string) =>
     api.patch<Product>(`/api/v1/products/${id}/availability`).then(r => r.data),
+  uploadImage: (id: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post<Product>(`/api/v1/products/${id}/image`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data)
+  },
   remove: (id: string) => api.delete(`/api/v1/products/${id}`),
 }
 

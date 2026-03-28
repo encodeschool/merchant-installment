@@ -374,6 +374,11 @@ const uz: Translations = {
     deleteProduct: 'Mahsulotni oʻchirish',
     deleteConfirm: '{{name}} mahsulotini oʻchirishni xohlaysizmi? Bu amalni bekor qilib boʻlmaydi.',
     saving: 'Saqlanmoqda…',
+    productImage: 'Mahsulot rasmi',
+    imageHint: 'JPG, PNG, WebP — 5 MBgacha',
+    uploadImage: 'Rasm yuklash uchun bosing',
+    changeImage: 'Rasmni oʻzgartirish',
+    uploadingImage: 'Rasm yuklanmoqda…',
   },
   newApp: {
     stepSelectProduct: 'Mahsulot tanlash',

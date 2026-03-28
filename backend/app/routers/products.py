@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from supabase import Client
 
 from ..core.database import get_supabase
@@ -7,6 +7,10 @@ from ..core.deps import get_current_user, require_role
 from ..schemas.product import ProductCreate, ProductUpdate, ProductOut
 
 router = APIRouter()
+
+BUCKET = "product-images"
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_SIZE = 5 * 1024 * 1024  # 5 MB
 
 
 def _product_to_out(p: dict) -> ProductOut:
@@ -19,6 +23,7 @@ def _product_to_out(p: dict) -> ProductOut:
         description=p.get("description") or "",
         available=p["available"],
         downPaymentPercent=p["down_payment_percent"],
+        imageUrl=p.get("image_url"),
     )
 
 
@@ -33,7 +38,6 @@ def _check_merchant_access(db: Client, merchant_id: str, user: dict):
 @router.post("", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
 def create_product(
     body: ProductCreate,
-    request: Request,
     current_user: dict = Depends(require_role("MERCHANT")),
     db: Client = Depends(get_supabase),
 ):
@@ -106,6 +110,51 @@ def toggle_availability(
         raise HTTPException(status_code=404, detail="Product not found")
     _check_merchant_access(db, rows[0]["merchant_id"], current_user)
     product = db.table("products").update({"available": not rows[0]["available"]}).eq("id", product_id).execute().data[0]
+    return _product_to_out(product)
+
+
+@router.post("/{product_id}/image", response_model=ProductOut)
+def upload_product_image(
+    product_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(require_role("MERCHANT")),
+    db: Client = Depends(get_supabase),
+):
+    rows = db.table("products").select("*").eq("id", product_id).execute().data
+    if not rows:
+        raise HTTPException(status_code=404, detail="Product not found")
+    _check_merchant_access(db, rows[0]["merchant_id"], current_user)
+
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPG, PNG, WebP and GIF images are allowed")
+
+    content = file.file.read()
+    if len(content) > MAX_SIZE:
+        raise HTTPException(status_code=400, detail="Image must be under 5 MB")
+
+    ext = (file.filename or "image.jpg").rsplit(".", 1)[-1].lower()
+    path = f"{product_id}.{ext}"
+
+    try:
+        db.storage.from_(BUCKET).upload(
+            path=path,
+            file=content,
+            file_options={"content-type": file.content_type, "upsert": "true"},
+        )
+    except Exception:
+        # File may already exist — try update via remove + re-upload
+        try:
+            db.storage.from_(BUCKET).remove([path])
+            db.storage.from_(BUCKET).upload(
+                path=path,
+                file=content,
+                file_options={"content-type": file.content_type},
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Storage error: {exc}") from exc
+
+    public_url = db.storage.from_(BUCKET).get_public_url(path)
+    product = db.table("products").update({"image_url": public_url}).eq("id", product_id).execute().data[0]
     return _product_to_out(product)
 
 

@@ -374,6 +374,11 @@ const ru: Translations = {
     deleteProduct: 'Удалить товар',
     deleteConfirm: 'Удалить {{name}}? Это нельзя отменить.',
     saving: 'Сохранение…',
+    productImage: 'Фото товара',
+    imageHint: 'JPG, PNG, WebP — до 5 МБ',
+    uploadImage: 'Нажмите для загрузки фото',
+    changeImage: 'Изменить фото',
+    uploadingImage: 'Загрузка изображения…',
   },
   newApp: {
     stepSelectProduct: 'Выбор товара',

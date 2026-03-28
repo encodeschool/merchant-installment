@@ -372,6 +372,11 @@ const en = {
     deleteProduct: 'Delete Product',
     deleteConfirm: 'Delete {{name}}? This cannot be undone.',
     saving: 'Saving…',
+    productImage: 'Product Image',
+    imageHint: 'JPG, PNG, WebP — max 5 MB',
+    uploadImage: 'Click to upload image',
+    changeImage: 'Change image',
+    uploadingImage: 'Uploading image…',
   },
   newApp: {
     stepSelectProduct: 'Select Product',

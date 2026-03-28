@@ -44,6 +44,7 @@ export interface Product {
   description: string
   available: boolean
   downPaymentPercent: number
+  imageUrl?: string
 }
 
 export interface Client {
