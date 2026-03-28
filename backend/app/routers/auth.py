@@ -1,25 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
-import redis as redis_lib
+from fastapi import APIRouter, Depends, HTTPException, status
+from supabase import Client
 
-from ..core.database import get_db
+from ..core.database import get_supabase
 from ..core.security import verify_password, create_access_token, create_refresh_token, decode_token
-from ..core.deps import get_current_user, get_redis, oauth2_scheme
-from ..models.user import User
+from ..core.deps import get_current_user, oauth2_scheme
 from ..schemas.auth import LoginRequest, TokenResponse, RefreshRequest, UserOut
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == body.email).first()
-    if not user or not verify_password(body.password, user.hashed_password):
+def login(body: LoginRequest, db: Client = Depends(get_supabase)):
+    response = db.table("users").select("*").eq("email", body.email).execute()
+    user = response.data[0] if response.data else None
+
+    if not user or not verify_password(body.password, user["hashed_password"]):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
-    if not user.is_active:
+    if not user.get("is_active"):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is inactive")
 
-    token_data = {"sub": user.id, "role": user.role}
+    token_data = {"sub": user["id"], "role": user["role"]}
     return TokenResponse(
         access_token=create_access_token(token_data),
         refresh_token=create_refresh_token(token_data),
@@ -40,24 +40,16 @@ def refresh(body: RefreshRequest):
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(
-    token: str = Depends(oauth2_scheme),
-    r: redis_lib.Redis = Depends(get_redis),
-):
-    payload = decode_token(token)
-    if payload:
-        from datetime import datetime, timezone
-        exp = payload.get("exp", 0)
-        ttl = max(int(exp - datetime.now(timezone.utc).timestamp()), 1)
-        r.setex(f"blacklist:{token}", ttl, "1")
+def logout(token: str = Depends(oauth2_scheme)):
+    pass
 
 
 @router.get("/me", response_model=UserOut)
-def me(current_user: User = Depends(get_current_user)):
+def me(current_user: dict = Depends(get_current_user)):
     return UserOut(
-        id=current_user.id,
-        name=current_user.name,
-        email=current_user.email,
-        role=current_user.role,
-        organization=current_user.organization,
+        id=current_user["id"],
+        name=current_user["name"],
+        email=current_user["email"],
+        role=current_user["role"],
+        organization=current_user.get("organization"),
     )
