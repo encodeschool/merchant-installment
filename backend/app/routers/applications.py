@@ -332,23 +332,25 @@ def list_applications(
         if mfo_user_ids
         else []
     )
-    mfo_map = {m["id"]: m["organization"] for m in mfo_data}
+    mfo_name_map = {u["id"]: u.get("organization", "") for u in mfo_data}
 
-    # Add mfo_name to tariffs
+    tariff_map = {}
     for t in tariffs_data:
-        t["mfo_name"] = mfo_map.get(t["mfo_user_id"], "")
+        tariff_map[t["id"]] = {
+            "name": t["name"],
+            "mfo_name": mfo_name_map.get(t["mfo_user_id"], ""),
+        }
 
     merchants_map = {m["id"]: m for m in merchants_data}
     clients_map = {c["id"]: c for c in clients_data}
     products_map = {p["id"]: p for p in products_data}
-    tariffs_map = {t["id"]: t for t in tariffs_data}
 
     result = []
     for app in apps:
         merchant = merchants_map.get(app.get("merchant_id", ""), {})
         c = clients_map.get(app.get("client_id", ""), {})
         product = products_map.get(app.get("product_id", ""), {})
-        tariff = tariffs_map.get(app.get("tariff_id", ""), {})
+        tariff = tariff_map.get(app.get("tariff_id"), {})
 
         client_out = ClientDetailOut(
             full_name=c.get("full_name", ""),
@@ -357,11 +359,11 @@ def list_applications(
             age=c.get("age", 0),
             monthly_income=c.get("monthly_income", 0),
             employment_type=c.get("employment_type", "EMPLOYED"),
-            pinfl=c.get("pinfl"),
             open_loans=c.get("open_loans", 0),
             overdue_days=c.get("overdue_days", 0),
             has_bankruptcy=bool(c.get("has_bankruptcy", False)),
             credit_history=c.get("credit_history", "NONE"),
+            pinfl=c.get("pinfl"),
         )
 
         # Items: try application_items JSON, fall back to product row
@@ -696,7 +698,22 @@ def create_multi_product_application(
         mp = calc_monthly_payment(financed, months_for_scoring, rate)
         score_result = _run_scoring(client_data, mp, first_tariff, fraud_gate)
 
-    # 9. Build eligible offers
+    # 9. Batch fetch MFO names
+    mfo_user_ids_list = list(
+        set(t["mfo_user_id"] for t in eligible_tariffs if t.get("mfo_user_id"))
+    )
+    mfo_users = (
+        db.table("users")
+        .select("id, organization")
+        .in_("id", mfo_user_ids_list)
+        .execute()
+        .data
+        if mfo_user_ids_list
+        else []
+    )
+    mfo_name_lookup = {u["id"]: u["organization"] for u in mfo_users}
+
+    # 10. Build eligible offers
     eligible_offers = []
     if fraud_gate != "BLOCK" and not score_result.get("hard_reject", False):
         approved_ratio = score_result.get("approved_ratio", 1.0)
@@ -721,7 +738,7 @@ def create_multi_product_application(
             eligible_offers.append(
                 {
                     "tariff_id": tariff["id"],
-                    "mfo_name": tariff.get("mfo_name", ""),
+                    "mfo_name": mfo_name_lookup.get(tariff.get("mfo_user_id", ""), ""),
                     "tariff_name": tariff["name"],
                     "interest_rate": tariff["interest_rate"],
                     "available_months": av_months,

@@ -196,6 +196,7 @@ export function normalizeApplication(raw: any): Application {
       tariffId:       raw.tariffId        ?? raw.tariff_id        ?? null,
       tariffName:     raw.tariffName      ?? raw.tariff_name      ?? null,
       mfoName:        raw.mfoName         ?? raw.mfo_name         ?? null,
+      months:         raw.months          ?? raw.months           ?? null,
       monthlyPayment: raw.monthlyPayment  ?? raw.monthly_payment  ?? null,
       approvedAmount: raw.approvedAmount  ?? raw.approved_amount  ?? null,
       totalAmount:    raw.totalAmount     ?? raw.total_amount     ?? 0,

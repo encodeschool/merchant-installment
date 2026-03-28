@@ -146,7 +146,7 @@ class ApplicationOut(BaseModel):
     signature_url: Optional[str]
 
     status: str
-    decision_source: str  # always "AUTOMATED"
+    decision_source: str = "AUTOMATED"
     created_at: str
     decided_at: Optional[str] = None
     decided_by: Optional[str] = None
