@@ -50,7 +50,7 @@ export const apiApplications = {
     api.get<PagedResponse<any>>('/api/v1/applications', { params: { page, page_size: pageSize } })
       .then(r => ({ ...r.data, items: r.data.items.map(normalizeApplication) })),
   get: (id: string) =>
-    api.get<Application>(`/api/v1/applications/${id}/detail`).then(r => r.data),
+    api.get<any>(`/api/v1/applications/${id}/detail`).then(r => normalizeApplication(r.data)),
   submit: (b: object) =>
     api.post<any>('/api/v1/applications', b)
       .then(r => normalizeApplication(r.data)),

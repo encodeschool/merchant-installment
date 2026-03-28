@@ -198,7 +198,7 @@ def update_scoring_config(
 def approve_tariff(
     tariff_id: str,
     request: Request,
-    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    current_user: dict = Depends(require_role("CENTRAL_BANK")),
     db: Client = Depends(get_supabase),
 ):
     rows = db.table("tariffs").select("*").eq("id", tariff_id).execute().data
@@ -218,7 +218,7 @@ def approve_tariff(
 def reject_tariff(
     tariff_id: str,
     request: Request,
-    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    current_user: dict = Depends(require_role("CENTRAL_BANK")),
     db: Client = Depends(get_supabase),
 ):
     rows = db.table("tariffs").select("*").eq("id", tariff_id).execute().data

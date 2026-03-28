@@ -137,7 +137,6 @@ export default function CBDashboard() {
               <Tooltip />
               <Legend />
               <Area type="monotone" dataKey="applications" name={t('cbDashboard.applications')} stroke="#9333ea" fill="url(#colorApps)" strokeWidth={2} />
-              <Area type="monotone" dataKey="approved" name={t('cbDashboard.approved')} stroke="#10b981" fill="url(#colorApproved)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

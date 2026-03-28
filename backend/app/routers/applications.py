@@ -841,7 +841,6 @@ def create_multi_product_application(
 
     # 4. Fraud pre-gate
     fraud_gate, fraud_signals = check_fraud_gate(
-        body.client.pinfl,
         body.client.passport_number,
         body.merchant_id,
     )
