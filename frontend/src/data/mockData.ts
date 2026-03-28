@@ -59,6 +59,7 @@ export const mockApplications: Application[] = [
     status: 'APPROVED',
     decisionSource: 'AUTOMATED',
     createdAt: '2026-03-28T12:00:00Z',
+    contractId: null,
   },
   {
     id: 'app-002',
@@ -118,6 +119,7 @@ export const mockApplications: Application[] = [
     status: 'APPROVED',
     decisionSource: 'AUTOMATED',
     createdAt: '2026-03-27T10:30:00Z',
+    contractId: null,
   },
   {
     id: 'app-003',
@@ -177,6 +179,7 @@ export const mockApplications: Application[] = [
     status: 'PARTIAL',
     decisionSource: 'AUTOMATED',
     createdAt: '2026-03-26T14:15:00Z',
+    contractId: null,
   },
   {
     id: 'app-004',
@@ -236,6 +239,7 @@ export const mockApplications: Application[] = [
     status: 'REJECTED',
     decisionSource: 'AUTOMATED',
     createdAt: '2026-03-25T09:45:00Z',
+    contractId: null,
   },
   {
     id: 'app-005',
@@ -295,5 +299,6 @@ export const mockApplications: Application[] = [
     status: 'PENDING',
     decisionSource: 'AUTOMATED',
     createdAt: '2026-03-28T16:20:00Z',
+    contractId: null,
   },
 ];

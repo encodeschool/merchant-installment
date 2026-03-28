@@ -70,7 +70,7 @@ export default function MFOApplications() {
   })
   const paginated = filtered
 
-  const changeTab = (t: TabFilter) => { setTab(t); setPage(1) }
+  const changeTab = (newTab: TabFilter) => { setTab(newTab); setPage(1) }
 
   const tabs: TabFilter[] = ['ALL', 'PENDING', 'APPROVED', 'PARTIAL', 'REJECTED', 'ACTIVE']
   const counts: Record<TabFilter, number> = {

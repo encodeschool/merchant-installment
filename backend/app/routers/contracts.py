@@ -134,21 +134,24 @@ def list_contracts(
 
     apps = {
         a["id"]: a for a in
-        db.table("applications").select("id, client_id, merchant_id, product_id")
+        db.table("applications").select("id, client_id, merchant_id, product_id, application_items")
         .in_("id", all_app_ids).execute().data
     }
 
     client_ids   = list({a["client_id"]   for a in apps.values()})
     merchant_ids = list({a["merchant_id"] for a in apps.values()})
-    product_ids  = list({a["product_id"]  for a in apps.values()})
+    # Only include non-None product_ids (multi-product apps use application_items)
+    product_ids  = list({a["product_id"] for a in apps.values() if a.get("product_id")})
 
     clients   = {r["id"]: r for r in db.table("clients").select("id, full_name").in_("id", client_ids).execute().data}
     merchants = {r["id"]: r for r in db.table("merchants").select("id, name").in_("id", merchant_ids).execute().data}
-    products  = {r["id"]: r for r in db.table("products").select("id, name").in_("id", product_ids).execute().data}
+    products  = {r["id"]: r for r in (db.table("products").select("id, name").in_("id", product_ids).execute().data if product_ids else [])}
 
     all_installments: dict[str, list] = {cid: [] for cid in contract_ids}
     for inst in db.table("installments").select("contract_id, due_date, status").in_("contract_id", contract_ids).execute().data:
         all_installments[inst["contract_id"]].append(inst)
+
+    import json as _json
 
     items = []
     for c in contracts:
@@ -157,12 +160,36 @@ def list_contracts(
         merchant = merchants.get(app.get("merchant_id", ""), {})
         product  = products.get(app.get("product_id", ""), {})
         insts    = all_installments.get(c["id"], [])
+
+        # Build itemsSummary: prefer multi-product JSON, fall back to legacy product_id
+        items_summary = ""
+        item_count = 1
+        raw_items = app.get("application_items")
+        if isinstance(raw_items, str):
+            try:
+                raw_items = _json.loads(raw_items)
+            except Exception:
+                raw_items = None
+        if raw_items and isinstance(raw_items, list) and len(raw_items) > 0:
+            parts = []
+            for it in raw_items:
+                name = it.get("product_name") or products.get(it.get("product_id", ""), {}).get("name", "")
+                qty = it.get("quantity", 1)
+                parts.append(f"{name} ×{qty}")
+            items_summary = ", ".join(parts)
+            item_count = len(raw_items)
+        elif product:
+            items_summary = product.get("name", "")
+            item_count = 1
+
         items.append(ContractOut(
             id=c["id"],
             applicationId=c["application_id"],
             clientName=client.get("full_name", ""),
             merchantName=merchant.get("name", ""),
-            productName=product.get("name", ""),
+            productName=product.get("name") if product else None,
+            itemsSummary=items_summary,
+            itemCount=item_count,
             totalAmount=c["total_amount"],
             months=c["months"],
             monthlyPayment=c["monthly_payment"],
