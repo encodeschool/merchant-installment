@@ -74,7 +74,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b border-gray-200 bg-white px-4 md:px-6 shrink-0">
+    <header className="flex h-14 items-center gap-4 border-b border-gray-100 bg-white px-4 md:px-8 shrink-0 sticky top-0 z-20">
       <button
         onClick={onMenuClick}
         className="lg:hidden p-1.5 rounded-md hover:bg-gray-100"

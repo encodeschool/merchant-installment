@@ -3,11 +3,15 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased;
-  }
   * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     @apply box-border;
+  }
+  body {
+    background-color: #f8fafc;
+    font-family: "Inter", system-ui, sans-serif;
+    @apply text-gray-900;
   }
 }
 

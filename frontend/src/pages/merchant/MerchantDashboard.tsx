@@ -56,8 +56,8 @@ export default function MerchantDashboard() {
   if (loading) return <MerchantDashboardSkeleton />
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title={t('merchantDashboard.activeInstallments')}
           value={activeInstallments}
@@ -90,7 +90,7 @@ export default function MerchantDashboard() {
         />
       </div>
 
-      <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 text-white">
+      <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 text-white shadow-card">
         <div>
           <p className="font-semibold text-lg">{t('merchantDashboard.newCustomer')}</p>
           <p className="text-blue-100 text-sm mt-0.5">{t('merchantDashboard.newCustomerDesc')}</p>
@@ -105,18 +105,18 @@ export default function MerchantDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900">{t('merchantDashboard.recentApplications')}</h2>
+        <div className="rounded-2xl bg-white shadow-card overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('merchantDashboard.recentApplications')}</h2>
             <Link to="/merchant/apply" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
               {t('merchantDashboard.newApplication')} <ArrowRightIcon className="h-3 w-3" />
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
             {recentApps.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-center text-gray-400">{t('merchantDashboard.noApplications')}</p>
+              <p className="px-6 py-8 text-sm text-center text-gray-400">{t('merchantDashboard.noApplications')}</p>
             ) : recentApps.map(app => (
-              <div key={app.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+              <div key={app.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{app.client?.fullName ?? '—'}</p>
                   <p className="text-xs text-gray-500 truncate">{app.items?.[0]?.productName ?? '—'} · {formatUZS(app.totalAmount)}</p>
@@ -130,18 +130,18 @@ export default function MerchantDashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900">{t('merchantDashboard.activeContractsTitle')}</h2>
+        <div className="rounded-2xl bg-white shadow-card overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('merchantDashboard.activeContractsTitle')}</h2>
             <Link to="/merchant/installments" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
               {t('common.viewAll')} <ArrowRightIcon className="h-3 w-3" />
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
             {contracts.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-center text-gray-400">{t('merchantDashboard.noContracts')}</p>
+              <p className="px-6 py-8 text-sm text-center text-gray-400">{t('merchantDashboard.noContracts')}</p>
             ) : contracts.map(contract => (
-              <div key={contract.id} className="px-5 py-4 hover:bg-gray-50">
+              <div key={contract.id} className="px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-medium text-gray-900">{contract.clientName}</p>
                   {statusBadge(contract.status)}
@@ -168,7 +168,7 @@ export default function MerchantDashboard() {
             ))}
           </div>
           {contractTotalPages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+            <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100">
               <p className="text-xs text-gray-400">
                 {(contractPage - 1) * CONTRACTS_PAGE_SIZE + 1}–{Math.min(contractPage * CONTRACTS_PAGE_SIZE, contracts.length)} of {contracts.length}
               </p>

@@ -16,7 +16,7 @@ interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
 }
 
-const navConfig: Record<string, { items: NavItem[]; color: string; bg: string; activeBg: string; activeText: string }> = {
+const navConfig: Record<string, { items: NavItem[]; gradient: string }> = {
   CENTRAL_BANK: {
     items: [
       { labelKey: 'nav.dashboard', path: '/cb', icon: HomeIcon },
@@ -24,10 +24,7 @@ const navConfig: Record<string, { items: NavItem[]; color: string; bg: string; a
       { labelKey: 'nav.mfoMonitoring', path: '/cb/mfo', icon: BuildingLibraryIcon },
       { labelKey: 'nav.auditLogs', path: '/cb/audit', icon: ClipboardDocumentListIcon },
     ],
-    color: 'text-purple-700',
-    bg: 'bg-purple-50',
-    activeBg: 'bg-purple-100',
-    activeText: 'text-purple-700 font-semibold',
+    gradient: 'linear-gradient(180deg, #1e1b4b 0%, #3730a3 100%)',
   },
   MFO_ADMIN: {
     items: [
@@ -36,10 +33,7 @@ const navConfig: Record<string, { items: NavItem[]; color: string; bg: string; a
       { labelKey: 'nav.merchants', path: '/mfo/merchants', icon: UserGroupIcon },
       { labelKey: 'nav.applications', path: '/mfo/applications', icon: ClipboardDocumentListIcon },
     ],
-    color: 'text-emerald-700',
-    bg: 'bg-emerald-50',
-    activeBg: 'bg-emerald-100',
-    activeText: 'text-emerald-700 font-semibold',
+    gradient: 'linear-gradient(180deg, #052e16 0%, #14532d 100%)',
   },
   MERCHANT: {
     items: [
@@ -48,10 +42,7 @@ const navConfig: Record<string, { items: NavItem[]; color: string; bg: string; a
       { labelKey: 'nav.newApplication', path: '/merchant/apply', icon: PlusCircleIcon },
       { labelKey: 'nav.installments', path: '/merchant/installments', icon: CreditCardIcon },
     ],
-    color: 'text-blue-700',
-    bg: 'bg-blue-50',
-    activeBg: 'bg-blue-100',
-    activeText: 'text-blue-700 font-semibold',
+    gradient: 'linear-gradient(180deg, #0f172a 0%, #1e3a5f 100%)',
   },
 }
 
@@ -76,52 +67,54 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
   return (
     <aside
       className={clsx(
-        'fixed inset-y-0 left-0 z-30 flex flex-col bg-white shadow-lg transition-all duration-300',
-        'lg:static lg:shadow-none lg:border-r lg:border-gray-200',
+        'fixed inset-y-0 left-0 z-30 flex flex-col transition-all duration-300',
         collapsed ? 'lg:w-16' : 'lg:w-64',
         open ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0',
       )}
+      style={{ background: config.gradient }}
     >
-      {/* Logo / header */}
-      <div className={clsx('flex items-center border-b border-gray-100 shrink-0 bg-white', collapsed ? 'justify-center px-0 py-4' : 'justify-between px-5 py-4')}>
-        {!collapsed && (
-          <div className="flex flex-col gap-1">
-            <img
-              src="https://cbu.uz/bitrix/templates/main/img/logo-en.svg"
-              alt="Central Bank of Uzbekistan"
-              className="h-8 w-auto object-contain"
-              onError={(e) => {
-                // Fallback to text if SVG fails to load
-                e.currentTarget.style.display = 'none'
-                e.currentTarget.nextElementSibling?.removeAttribute('style')
-              }}
-            />
-            <span
-              className="text-xs text-gray-400 hidden"
-              style={{ display: 'none' }}
-            >
-              Central Bank of Uzbekistan
-            </span>
+      {/* TOP SECTION: Logo */}
+      <div className={clsx('shrink-0', collapsed ? 'px-2 pt-5 pb-3' : 'px-5 pt-6 pb-4')}>
+        <div className={clsx('flex items-center', collapsed ? 'justify-center' : 'gap-3')}>
+          <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-sm">MIP</span>
           </div>
-        )}
-        {/* Mobile close */}
-        <button onClick={onClose} className={clsx('p-1 rounded hover:bg-gray-100 lg:hidden', collapsed && 'mx-auto')}>
-          <XMarkIcon className="h-5 w-5 text-gray-500" />
-        </button>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="text-white font-bold text-sm truncate">Merchant Installment</p>
+              <p className="text-white/40 text-xs truncate">Platform</p>
+            </div>
+          )}
+          {/* Mobile close */}
+          <button onClick={onClose} className="ml-auto p-1 rounded-lg hover:bg-white/10 lg:hidden">
+            <XMarkIcon className="h-5 w-5 text-white/60" />
+          </button>
+        </div>
         {/* Desktop collapse toggle */}
-        <button
-          onClick={onToggleCollapse}
-          title={collapsed ? t('nav.dashboard') : undefined}
-          className={clsx('hidden lg:flex items-center justify-center p-1 rounded hover:bg-gray-100 transition-colors', collapsed && 'mx-auto')}
-        >
-          {collapsed
-            ? <ChevronRightIcon className="h-4 w-4 text-gray-500" />
-            : <ChevronLeftIcon className="h-4 w-4 text-gray-500" />}
-        </button>
+        {!collapsed && (
+          <button
+            onClick={onToggleCollapse}
+            className="hidden lg:flex items-center justify-center p-1 rounded-lg hover:bg-white/10 transition-colors absolute top-5 right-3"
+          >
+            <ChevronLeftIcon className="h-4 w-4 text-white/40" />
+          </button>
+        )}
+        {collapsed && (
+          <button
+            onClick={onToggleCollapse}
+            title={t('nav.dashboard')}
+            className="hidden lg:flex items-center justify-center p-1 rounded-lg hover:bg-white/10 transition-colors mx-auto mt-2"
+          >
+            <ChevronRightIcon className="h-4 w-4 text-white/40" />
+          </button>
+        )}
       </div>
 
-      {/* Nav */}
+      {/* NAV SECTION */}
       <nav className={clsx('flex-1 overflow-y-auto py-4 space-y-1', collapsed ? 'px-2' : 'px-3')}>
+        <p className={clsx('text-white/30 text-[10px] font-semibold uppercase tracking-widest pb-1', collapsed ? 'text-center' : 'px-3 pt-0')}>
+          {!collapsed && 'Menu'}
+        </p>
         {config.items.map((item) => (
           <NavLink
             key={item.path}
@@ -131,33 +124,50 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
             title={collapsed ? t(item.labelKey) : undefined}
             className={({ isActive }) =>
               clsx(
-                'flex items-center rounded-lg py-2.5 text-sm transition-colors',
-                collapsed ? 'justify-center px-0' : 'gap-3 px-3',
+                'flex items-center rounded-xl text-sm font-medium transition-all cursor-pointer',
+                collapsed ? 'justify-center px-0 py-2.5' : 'gap-3 py-2.5',
                 isActive
-                  ? clsx(config.activeBg, config.activeText)
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? clsx('bg-white/12 text-white border-l-2 border-white/70 font-semibold', collapsed ? 'px-0' : 'pl-[calc(0.75rem-2px)] pr-3')
+                  : clsx('text-white/55 hover:bg-white/[0.08] hover:text-white/80 border-l-2 border-transparent', collapsed ? 'px-0' : 'px-3')
               )
             }
           >
-            <item.icon className="h-5 w-5 flex-shrink-0" />
+            <item.icon className="h-5 w-5 shrink-0" />
             {!collapsed && t(item.labelKey)}
           </NavLink>
         ))}
       </nav>
 
-      {/* Logout */}
-      <div className={clsx('border-t border-gray-100 p-3 shrink-0', collapsed && 'flex justify-center')}>
-        <button
-          onClick={handleLogout}
-          title={collapsed ? t('nav.logout') : undefined}
-          className={clsx(
-            'flex items-center rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors',
-            collapsed ? 'justify-center w-10 h-10 px-0' : 'w-full gap-2',
-          )}
-        >
-          <ArrowRightOnRectangleIcon className="h-4 w-4 shrink-0" />
-          {!collapsed && t('nav.logout')}
-        </button>
+      {/* BOTTOM SECTION: User + Logout */}
+      <div className={clsx('border-t border-white/10 shrink-0', collapsed ? 'px-2 py-3' : 'px-4 py-4')}>
+        {!collapsed ? (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {user?.name?.charAt(0)?.toUpperCase() ?? 'U'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-white/80 text-sm font-medium truncate">{user?.name ?? 'User'}</p>
+              <span className="text-white/50 text-[10px] bg-white/10 rounded-full px-2 py-0.5 inline-block mt-0.5">
+                {user?.role?.replace('_', ' ')}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              title={t('nav.logout')}
+              className="ml-auto p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
+            >
+              <ArrowRightOnRectangleIcon className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleLogout}
+            title={t('nav.logout')}
+            className="flex items-center justify-center w-full p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
+          >
+            <ArrowRightOnRectangleIcon className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </aside>
   )

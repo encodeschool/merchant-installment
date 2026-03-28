@@ -54,8 +54,8 @@ export default function MFODashboard() {
   if (loading) return <MFODashboardSkeleton />
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           title={t('mfoDashboard.totalTurnover')}
           value={formatUZS(stats.totalTurnover)}
@@ -96,7 +96,7 @@ export default function MFODashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
+        <div className="lg:col-span-2 rounded-2xl bg-white shadow-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-semibold text-gray-900">{t('mfoDashboard.monthlyApplications')}</h2>
@@ -161,34 +161,34 @@ export default function MFODashboard() {
         </div>
       </div>
 
-      <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">{t('mfoDashboard.recentApplications')}</h2>
+      <div className="rounded-2xl bg-white shadow-card overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('mfoDashboard.recentApplications')}</h2>
           <Link to="/mfo/applications" className="text-xs text-emerald-600 hover:underline">{t('common.viewAll')}</Link>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-50">
+          <table className="min-w-full">
             <thead className="bg-gray-50">
               <tr>
                 {[t('common.client'), t('common.merchant'), t('common.product'), t('applications.totalAmount'), t('applications.colScore'), t('common.status'), t('common.date')].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                  <th key={h} className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody>
               {recentApps.map(app => (
-                <tr key={app.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{app.client?.fullName ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{app.merchantName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600 max-w-32 truncate">{app.items?.[0]?.productName ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatUZS(app.totalAmount)}</td>
-                  <td className="px-4 py-3">
+                <tr key={app.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{app.client?.fullName ?? '—'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{app.merchantName}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 max-w-32 truncate">{app.items?.[0]?.productName ?? '—'}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{formatUZS(app.totalAmount)}</td>
+                  <td className="px-6 py-4">
                     <span className={`text-sm font-bold ${app.score >= 70 ? 'text-emerald-600' : app.score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
                       {app.score}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{statusBadge(app.status)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{app.createdAt}</td>
+                  <td className="px-6 py-4">{statusBadge(app.status)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{app.createdAt}</td>
                 </tr>
               ))}
             </tbody>

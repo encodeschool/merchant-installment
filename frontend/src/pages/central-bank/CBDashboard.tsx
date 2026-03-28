@@ -54,8 +54,8 @@ export default function CBDashboard() {
   if (loading) return <CBDashboardSkeleton />
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title={t('cbDashboard.totalMFOs')}
           value={stats.totalMFOs}
@@ -111,7 +111,7 @@ export default function CBDashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
+        <div className="lg:col-span-2 rounded-2xl bg-white shadow-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-semibold text-gray-900">{t('cbDashboard.applicationTrend')}</h2>
@@ -137,14 +137,14 @@ export default function CBDashboard() {
           </ResponsiveContainer>
         </div>
 
-        <div className="rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
+        <div className="rounded-2xl bg-white shadow-card p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-gray-900">{t('cbDashboard.mfoSummary')}</h2>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{t('cbDashboard.mfoSummary')}</h2>
             <Link to="/cb/mfo" className="text-xs text-purple-600 hover:underline">{t('common.viewAll')}</Link>
           </div>
           <div className="space-y-3">
             {mfoList.map((mfo) => (
-              <div key={mfo.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+              <div key={mfo.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{mfo.name}</p>
                   <p className="text-xs text-gray-500">{t('cbDashboard.appsApproved', { apps: mfo.totalApplications.toLocaleString(), rate: mfo.approvalRate })}</p>
