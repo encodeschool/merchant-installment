@@ -3,10 +3,10 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import redis as redis_lib
 
-from app.core.config import settings
-from app.core.database import get_db
-from app.core.security import decode_token
-from app.models.user import User
+from .config import settings
+from .database import get_db
+from .security import decode_token
+from ..models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 

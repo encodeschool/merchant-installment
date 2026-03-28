@@ -2,12 +2,12 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.core.deps import get_current_user, require_role
-from app.models.user import User
-from app.models.tariff import Tariff
-from app.schemas.tariff import TariffCreate, TariffUpdate, TariffOut
-from app.services.audit import log_action
+from ..core.database import get_db
+from ..core.deps import get_current_user, require_role
+from ..models.user import User
+from ..models.tariff import Tariff
+from ..schemas.tariff import TariffCreate, TariffUpdate, TariffOut
+from ..services.audit import log_action
 
 router = APIRouter()
 

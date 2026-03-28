@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 import redis as redis_lib
 
-from app.core.database import get_db
-from app.core.security import verify_password, create_access_token, create_refresh_token, decode_token
-from app.core.deps import get_current_user, get_redis, oauth2_scheme
-from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, UserOut
+from ..core.database import get_db
+from ..core.security import verify_password, create_access_token, create_refresh_token, decode_token
+from ..core.deps import get_current_user, get_redis, oauth2_scheme
+from ..models.user import User
+from ..schemas.auth import LoginRequest, TokenResponse, RefreshRequest, UserOut
 
 router = APIRouter()
 

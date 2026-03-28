@@ -3,14 +3,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 
-from app.core.database import get_db
-from app.core.deps import require_role
-from app.models.user import User
-from app.models.merchant import Merchant
-from app.models.application import Application
-from app.models.contract import Contract
-from app.models.tariff import Tariff
-from app.models.audit import AuditLog
+from ..core.database import get_db
+from ..core.deps import require_role
+from ..models.user import User
+from ..models.merchant import Merchant
+from ..models.application import Application
+from ..models.contract import Contract
+from ..models.tariff import Tariff
+from ..models.audit import AuditLog
 
 router = APIRouter()
 

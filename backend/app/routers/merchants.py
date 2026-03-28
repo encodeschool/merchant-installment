@@ -2,14 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.core.database import get_db
-from app.core.deps import get_current_user, require_role
-from app.models.user import User
-from app.models.merchant import Merchant
-from app.models.application import Application
-from app.models.contract import Contract
-from app.schemas.merchant import MerchantCreate, MerchantUpdate, MerchantStatusUpdate, MerchantOut, MerchantStats
-from app.services.audit import log_action
+from ..core.database import get_db
+from ..core.deps import get_current_user, require_role
+from ..models.user import User
+from ..models.merchant import Merchant
+from ..models.application import Application
+from ..models.contract import Contract
+from ..schemas.merchant import MerchantCreate, MerchantUpdate, MerchantStatusUpdate, MerchantOut, MerchantStats
+from ..services.audit import log_action
 
 router = APIRouter()
 

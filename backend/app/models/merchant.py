@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime, Enum as SAEnum, ForeignKey
-from app.core.database import Base
+from ..core.database import Base
 
 
 class Merchant(Base):

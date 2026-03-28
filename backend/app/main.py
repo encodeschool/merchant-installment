@@ -1,18 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.database import Base, engine
 
-from app.models import user as _m_user
-from app.models import merchant as _m_merchant
-from app.models import product as _m_product
-from app.models import tariff as _m_tariff
-from app.models import client as _m_client
-from app.models import application as _m_application
-from app.models import contract as _m_contract
-from app.models import audit as _m_audit
-from app.models import scoring as _m_scoring
-
-from app.routers import auth, tariffs, merchants, products, applications, contracts, scoring, dashboard
+from .core.database import Base, engine
+from .routers import auth, tariffs, merchants, products, applications, contracts, scoring, dashboard
 
 Base.metadata.create_all(bind=engine)
 

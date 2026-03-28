@@ -4,12 +4,12 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime, timezone
-from app.core.database import SessionLocal, Base, engine
-from app.core.security import hash_password
-from app.models.user import User
-from app.models.tariff import Tariff
-from app.models.merchant import Merchant
-from app.models.product import Product
+from .core.database import SessionLocal, Base, engine
+from .core.security import hash_password
+from .models.user import User
+from .models.tariff import Tariff
+from .models.merchant import Merchant
+from .models.product import Product
 
 Base.metadata.create_all(bind=engine)
 

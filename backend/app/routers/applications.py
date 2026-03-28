@@ -2,20 +2,20 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.core.deps import get_current_user, require_role
-from app.models.user import User
-from app.models.merchant import Merchant
-from app.models.product import Product
-from app.models.tariff import Tariff
-from app.models.client import Client
-from app.models.application import Application
-from app.models.contract import Contract
-from app.models.scoring import ScoringLog
-from app.schemas.application import ApplicationCreate, DecisionRequest, ApplicationOut
-from app.services.scoring import calculate_score, get_outcome, monthly_payment as calc_monthly_payment
-from app.services.contract import generate_payment_schedule
-from app.services.audit import log_action
+from ..core.database import get_db
+from ..core.deps import get_current_user, require_role
+from ..models.user import User
+from ..models.merchant import Merchant
+from ..models.product import Product
+from ..models.tariff import Tariff
+from ..models.client import Client
+from ..models.application import Application
+from ..models.contract import Contract
+from ..models.scoring import ScoringLog
+from ..schemas.application import ApplicationCreate, DecisionRequest, ApplicationOut
+from ..services.scoring import calculate_score, get_outcome, monthly_payment as calc_monthly_payment
+from ..services.contract import generate_payment_schedule
+from ..services.audit import log_action
 
 router = APIRouter()
 

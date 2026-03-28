@@ -3,16 +3,16 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from io import BytesIO
 
-from app.core.database import get_db
-from app.core.deps import get_current_user
-from app.models.user import User
-from app.models.merchant import Merchant
-from app.models.application import Application
-from app.models.client import Client
-from app.models.product import Product
-from app.models.contract import Contract, Installment
-from app.schemas.contract import ContractOut, InstallmentOut
-from app.services.contract import generate_pdf
+from ..core.database import get_db
+from ..core.deps import get_current_user
+from ..models.user import User
+from ..models.merchant import Merchant
+from ..models.application import Application
+from ..models.client import Client
+from ..models.product import Product
+from ..models.contract import Contract, Installment
+from ..schemas.contract import ContractOut, InstallmentOut
+from ..services.contract import generate_pdf
 
 router = APIRouter()
 

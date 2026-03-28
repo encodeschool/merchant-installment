@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from app.core.database import get_db
-from app.core.deps import get_current_user, require_role
-from app.models.user import User
-from app.models.scoring import ScoringLog
-from app.services.scoring import calculate_score, get_outcome, monthly_payment as calc_monthly_payment
+from ..core.database import get_db
+from ..core.deps import get_current_user, require_role
+from ..models.user import User
+from ..models.scoring import ScoringLog
+from ..services.scoring import calculate_score, get_outcome, monthly_payment as calc_monthly_payment
 
 router = APIRouter()
 
