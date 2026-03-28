@@ -10,6 +10,7 @@ from app.models.merchant import Merchant
 from app.models.application import Application
 from app.models.contract import Contract
 from app.models.tariff import Tariff
+from app.models.audit import AuditLog
 
 router = APIRouter()
 
@@ -126,14 +127,51 @@ def mfo_list(
             .filter(Tariff.mfo_user_id == mfo.id, Tariff.status == "PENDING")
             .scalar() or 0
         )
+        approval_rate = round(approved_apps / total_apps * 100) if total_apps > 0 else 0
+        total_contracts = (
+            db.query(func.count(Contract.id))
+            .join(Application, Application.id == Contract.application_id)
+            .filter(Application.merchant_id.in_(merchant_ids))
+            .scalar() or 0
+        )
+        defaulted_contracts = (
+            db.query(func.count(Contract.id))
+            .join(Application, Application.id == Contract.application_id)
+            .filter(Application.merchant_id.in_(merchant_ids), Contract.status == "DEFAULTED")
+            .scalar() or 0
+        )
+        default_rate = round(defaulted_contracts / total_contracts * 100, 2) if total_contracts > 0 else 0.0
         result.append({
             "id": mfo.id,
-            "name": mfo.name,
-            "organization": mfo.organization,
+            "name": mfo.organization,
             "totalMerchants": len(merchant_ids),
             "totalApplications": total_apps,
-            "approvedApplications": approved_apps,
+            "approvalRate": approval_rate,
             "totalDisbursed": int(total_disbursed),
-            "pendingTariffs": pending_tariffs,
+            "defaultRate": default_rate,
+            "status": "ACTIVE" if mfo.is_active else "SUSPENDED",
+        })
+    return result
+
+
+@router.get("/audit-logs")
+def audit_logs_list(
+    current_user: User = Depends(require_role("CENTRAL_BANK")),
+    db: Session = Depends(get_db),
+):
+    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(500).all()
+    result = []
+    for log in logs:
+        user = db.query(User).filter(User.id == log.user_id).first()
+        result.append({
+            "id": log.id,
+            "userId": log.user_id,
+            "userName": user.name if user else "Unknown",
+            "role": user.role if user else "UNKNOWN",
+            "action": log.action,
+            "resource": log.resource,
+            "resourceId": log.resource_id,
+            "ipAddress": log.ip_address,
+            "timestamp": log.created_at.isoformat(),
         })
     return result

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   BuildingLibraryIcon, CheckBadgeIcon, ExclamationCircleIcon, BanknotesIcon,
 } from '@heroicons/react/24/outline'
@@ -6,6 +6,7 @@ import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
 import { mockMFOStats } from '../../data/mockData'
 import { MFOStats } from '../../types'
+import { apiDashboard } from '../../api'
 import clsx from 'clsx'
 
 function formatUZS(n: number): string {
@@ -29,20 +30,19 @@ function defaultRateBg(rate: number) {
 export default function CBMFOMonitoring() {
   const [mfos, setMfos] = useState<MFOStats[]>(mockMFOStats)
 
+  useEffect(() => {
+    apiDashboard.mfoList().then(setMfos).catch(() => {})
+  }, [])
+
   const activeMFOs = mfos.filter(m => m.status === 'ACTIVE').length
   const suspendedMFOs = mfos.filter(m => m.status === 'SUSPENDED').length
-  const avgApproval = (mfos.reduce((sum, m) => sum + m.approvalRate, 0) / mfos.length).toFixed(0)
+  const avgApproval = mfos.length > 0
+    ? (mfos.reduce((sum, m) => sum + m.approvalRate, 0) / mfos.length).toFixed(0)
+    : '0'
   const totalDisbursed = mfos.reduce((sum, m) => sum + m.totalDisbursed, 0)
-
-  const toggleStatus = (id: string) => {
-    setMfos(prev => prev.map(m =>
-      m.id === id ? { ...m, status: m.status === 'ACTIVE' ? 'SUSPENDED' as const : 'ACTIVE' as const } : m
-    ))
-  }
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Active MFOs"
@@ -72,7 +72,6 @@ export default function CBMFOMonitoring() {
         />
       </div>
 
-      {/* MFO Table */}
       <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Registered MFOs</h2>
@@ -82,7 +81,7 @@ export default function CBMFOMonitoring() {
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
-                {['MFO Name', 'Merchants', 'Applications', 'Approval Rate', 'Total Disbursed', 'Default Rate', 'Status', 'Actions'].map(h => (
+                {['MFO Name', 'Merchants', 'Applications', 'Approval Rate', 'Total Disbursed', 'Default Rate', 'Status'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -125,19 +124,6 @@ export default function CBMFOMonitoring() {
                     </span>
                   </td>
                   <td className="px-4 py-4">{statusBadge(mfo.status)}</td>
-                  <td className="px-4 py-4">
-                    <button
-                      onClick={() => toggleStatus(mfo.id)}
-                      className={clsx(
-                        'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                        mfo.status === 'ACTIVE'
-                          ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                          : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                      )}
-                    >
-                      {mfo.status === 'ACTIVE' ? 'Suspend' : 'Reactivate'}
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -145,7 +131,6 @@ export default function CBMFOMonitoring() {
         </div>
       </div>
 
-      {/* Default Rate Legend */}
       <div className="flex items-center gap-6 text-xs text-gray-500">
         <span className="font-medium">Default Rate:</span>
         <div className="flex items-center gap-1.5">

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import { mockTariffs } from '../../data/mockData'
 import { Tariff } from '../../types'
+import { apiTariffs } from '../../api'
 
 function formatUZS(n: number): string {
   return n.toLocaleString() + ' UZS'
@@ -25,16 +26,20 @@ const emptyForm: TariffForm = {
 }
 
 export default function MFOTariffs() {
-  const [tariffs, setTariffs] = useState<Tariff[]>(mockTariffs.filter(t => t.mfoName === 'Ipoteka Bank MFO'))
+  const [tariffs, setTariffs] = useState<Tariff[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Tariff | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Tariff | null>(null)
   const [form, setForm] = useState<TariffForm>(emptyForm)
+  const [saving, setSaving] = useState(false)
 
-  const openCreate = () => {
-    setForm(emptyForm)
-    setCreateOpen(true)
-  }
+  useEffect(() => {
+    apiTariffs.list()
+      .then(setTariffs)
+      .catch(() => setTariffs(mockTariffs.filter(t => t.mfoName === 'Ipoteka Bank MFO')))
+  }, [])
+
+  const openCreate = () => { setForm(emptyForm); setCreateOpen(true) }
 
   const openEdit = (t: Tariff) => {
     setForm({
@@ -50,42 +55,72 @@ export default function MFOTariffs() {
   }
 
   const handleCreate = () => {
-    const newTariff: Tariff = {
-      id: `t${Date.now()}`,
+    setSaving(true)
+    apiTariffs.create({
       name: form.name,
-      mfoName: 'Ipoteka Bank MFO',
-      interestRate: parseFloat(form.interestRate),
-      minAmount: parseInt(form.minAmount),
-      maxAmount: parseInt(form.maxAmount),
-      minMonths: parseInt(form.minMonths),
-      maxMonths: parseInt(form.maxMonths),
-      minScore: parseInt(form.minScore),
-      status: 'PENDING',
-      createdAt: new Date().toISOString().split('T')[0],
-    }
-    setTariffs(prev => [newTariff, ...prev])
-    setCreateOpen(false)
+      interest_rate: parseFloat(form.interestRate),
+      min_amount: parseInt(form.minAmount),
+      max_amount: parseInt(form.maxAmount),
+      min_months: parseInt(form.minMonths),
+      max_months: parseInt(form.maxMonths),
+      min_score: parseInt(form.minScore),
+    })
+      .then(created => { setTariffs(prev => [created, ...prev]); setCreateOpen(false) })
+      .catch(() => {
+        const newTariff: Tariff = {
+          id: `t${Date.now()}`,
+          name: form.name,
+          mfoName: 'Ipoteka Bank MFO',
+          interestRate: parseFloat(form.interestRate),
+          minAmount: parseInt(form.minAmount),
+          maxAmount: parseInt(form.maxAmount),
+          minMonths: parseInt(form.minMonths),
+          maxMonths: parseInt(form.maxMonths),
+          minScore: parseInt(form.minScore),
+          status: 'PENDING',
+          createdAt: new Date().toISOString().split('T')[0],
+        }
+        setTariffs(prev => [newTariff, ...prev])
+        setCreateOpen(false)
+      })
+      .finally(() => setSaving(false))
   }
 
   const handleEdit = () => {
     if (!editTarget) return
-    setTariffs(prev => prev.map(t => t.id === editTarget.id ? {
-      ...t,
+    setSaving(true)
+    apiTariffs.update(editTarget.id, {
       name: form.name,
-      interestRate: parseFloat(form.interestRate),
-      minAmount: parseInt(form.minAmount),
-      maxAmount: parseInt(form.maxAmount),
-      minMonths: parseInt(form.minMonths),
-      maxMonths: parseInt(form.maxMonths),
-      minScore: parseInt(form.minScore),
-    } : t))
-    setEditTarget(null)
+      interest_rate: parseFloat(form.interestRate),
+      min_amount: parseInt(form.minAmount),
+      max_amount: parseInt(form.maxAmount),
+      min_months: parseInt(form.minMonths),
+      max_months: parseInt(form.maxMonths),
+      min_score: parseInt(form.minScore),
+    })
+      .then(updated => { setTariffs(prev => prev.map(t => t.id === editTarget.id ? updated : t)); setEditTarget(null) })
+      .catch(() => {
+        setTariffs(prev => prev.map(t => t.id === editTarget.id ? {
+          ...t,
+          name: form.name,
+          interestRate: parseFloat(form.interestRate),
+          minAmount: parseInt(form.minAmount),
+          maxAmount: parseInt(form.maxAmount),
+          minMonths: parseInt(form.minMonths),
+          maxMonths: parseInt(form.maxMonths),
+          minScore: parseInt(form.minScore),
+        } : t))
+        setEditTarget(null)
+      })
+      .finally(() => setSaving(false))
   }
 
   const handleDelete = () => {
     if (!deleteTarget) return
-    setTariffs(prev => prev.filter(t => t.id !== deleteTarget.id))
-    setDeleteTarget(null)
+    apiTariffs.remove(deleteTarget.id)
+      .then(() => setTariffs(prev => prev.filter(t => t.id !== deleteTarget.id)))
+      .catch(() => setTariffs(prev => prev.filter(t => t.id !== deleteTarget.id)))
+      .finally(() => setDeleteTarget(null))
   }
 
   const TariffFormFields = () => (
@@ -176,7 +211,6 @@ export default function MFOTariffs() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-500">{tariffs.length} tariff plans</p>
@@ -191,7 +225,6 @@ export default function MFOTariffs() {
         </Button>
       </div>
 
-      {/* Table */}
       <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100">
@@ -223,7 +256,8 @@ export default function MFOTariffs() {
                     <div className="flex gap-1.5">
                       <button
                         onClick={() => openEdit(t)}
-                        className="flex items-center gap-1 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                        disabled={t.status === 'APPROVED'}
+                        className="flex items-center gap-1 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <PencilSquareIcon className="h-3.5 w-3.5" />
                         Edit
@@ -246,7 +280,6 @@ export default function MFOTariffs() {
         </div>
       </div>
 
-      {/* Create Modal */}
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Tariff Plan" size="md">
         <div className="space-y-5">
           <TariffFormFields />
@@ -259,15 +292,14 @@ export default function MFOTariffs() {
               color="emerald"
               className="flex-1"
               onClick={handleCreate}
-              disabled={!form.name || !form.interestRate}
+              disabled={!form.name || !form.interestRate || saving}
             >
-              Create Tariff
+              {saving ? 'Creating…' : 'Create Tariff'}
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Edit Modal */}
       <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Tariff" size="md">
         <div className="space-y-5">
           <TariffFormFields />
@@ -275,14 +307,13 @@ export default function MFOTariffs() {
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setEditTarget(null)}>
               Cancel
             </Button>
-            <Button variant="primary" color="emerald" className="flex-1" onClick={handleEdit}>
-              Save Changes
+            <Button variant="primary" color="emerald" className="flex-1" onClick={handleEdit} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Changes'}
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Delete Confirm Modal */}
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Tariff" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-600">

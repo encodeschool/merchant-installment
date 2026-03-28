@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FunnelIcon } from '@heroicons/react/24/outline'
 import Badge from '../../components/ui/Badge'
 import { mockAuditLogs } from '../../data/mockData'
 import { AuditLog, Role } from '../../types'
+import { apiDashboard } from '../../api'
 import clsx from 'clsx'
 
 function actionBadge(action: string) {
@@ -13,6 +14,8 @@ function actionBadge(action: string) {
     SUBMIT: { color: 'bg-orange-50 text-orange-700 ring-orange-200', label: 'SUBMIT' },
     DELETE: { color: 'bg-red-50 text-red-700 ring-red-200', label: 'DELETE' },
     UPDATE: { color: 'bg-yellow-50 text-yellow-700 ring-yellow-200', label: 'UPDATE' },
+    STATUS_UPDATE: { color: 'bg-yellow-50 text-yellow-700 ring-yellow-200', label: 'STATUS' },
+    DECIDE: { color: 'bg-purple-50 text-purple-700 ring-purple-200', label: 'DECIDE' },
   }
   const entry = map[action] ?? { color: 'bg-gray-100 text-gray-600 ring-gray-200', label: action }
   return (
@@ -29,20 +32,25 @@ function roleBadge(role: Role) {
     MERCHANT: 'bg-blue-50 text-blue-700 ring-blue-200',
   }
   return (
-    <span className={clsx('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset', map[role])}>
+    <span className={clsx('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset', map[role] ?? 'bg-gray-100 text-gray-600 ring-gray-200')}>
       {role.replace('_', ' ')}
     </span>
   )
 }
 
-const PAGE_SIZE = 5
+const PAGE_SIZE = 20
 
 export default function CBAuditLogs() {
+  const [logs, setLogs] = useState<AuditLog[]>(mockAuditLogs)
   const [roleFilter, setRoleFilter] = useState<string>('ALL')
   const [actionFilter, setActionFilter] = useState<string>('ALL')
   const [page, setPage] = useState(1)
 
-  const filtered = mockAuditLogs.filter(log => {
+  useEffect(() => {
+    apiDashboard.auditLogs().then(setLogs).catch(() => {})
+  }, [])
+
+  const filtered = logs.filter(log => {
     return (roleFilter === 'ALL' || log.role === roleFilter) &&
       (actionFilter === 'ALL' || log.action === actionFilter)
   })
@@ -50,7 +58,7 @@ export default function CBAuditLogs() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const uniqueActions = Array.from(new Set(mockAuditLogs.map(l => l.action)))
+  const uniqueActions = Array.from(new Set(logs.map(l => l.action)))
 
   const formatTimestamp = (ts: string) => {
     const d = new Date(ts)
@@ -59,7 +67,6 @@ export default function CBAuditLogs() {
 
   return (
     <div className="space-y-5">
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <FunnelIcon className="h-4 w-4 text-gray-400" />
@@ -91,7 +98,6 @@ export default function CBAuditLogs() {
         <span className="ml-auto text-xs text-gray-400">{filtered.length} records</span>
       </div>
 
-      {/* Table */}
       <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100">
@@ -113,7 +119,7 @@ export default function CBAuditLogs() {
                 <tr key={log.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatTimestamp(log.timestamp)}</td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{log.userName}</td>
-                  <td className="px-4 py-3">{roleBadge(log.role)}</td>
+                  <td className="px-4 py-3">{roleBadge(log.role as Role)}</td>
                   <td className="px-4 py-3">{actionBadge(log.action)}</td>
                   <td className="px-4 py-3 text-sm text-gray-600 capitalize">{log.resource}</td>
                   <td className="px-4 py-3">
@@ -126,7 +132,6 @@ export default function CBAuditLogs() {
           </table>
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
             <p className="text-xs text-gray-500">
@@ -140,7 +145,7 @@ export default function CBAuditLogs() {
               >
                 Previous
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(p => (
                 <button
                   key={p}
                   onClick={() => setPage(p)}

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import { mockMerchants } from '../../data/mockData'
 import { Merchant } from '../../types'
+import { apiMerchants } from '../../api'
 import clsx from 'clsx'
 
 type TabFilter = 'ALL' | 'ACTIVE' | 'SUSPENDED' | 'PENDING'
@@ -27,6 +28,11 @@ export default function MFOMerchants() {
   const [search, setSearch] = useState('')
   const [onboardOpen, setOnboardOpen] = useState(false)
   const [form, setForm] = useState<MerchantForm>(emptyForm)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    apiMerchants.list().then(setMerchants).catch(() => {})
+  }, [])
 
   const filtered = merchants.filter(m => {
     const matchesTab = tab === 'ALL' || m.status === tab
@@ -36,29 +42,46 @@ export default function MFOMerchants() {
   })
 
   const toggleStatus = (id: string) => {
-    setMerchants(prev => prev.map(m =>
-      m.id === id
-        ? { ...m, status: m.status === 'ACTIVE' ? 'SUSPENDED' as const : 'ACTIVE' as const }
-        : m
-    ))
+    const m = merchants.find(x => x.id === id)
+    if (!m || m.status === 'PENDING') return
+    const newStatus = m.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
+    apiMerchants.setStatus(id, newStatus)
+      .then(updated => setMerchants(prev => prev.map(x => x.id === id ? updated : x)))
+      .catch(() => setMerchants(prev => prev.map(x => x.id === id ? { ...x, status: newStatus as Merchant['status'] } : x)))
   }
 
   const handleOnboard = () => {
-    const newMerchant: Merchant = {
-      id: `m${Date.now()}`,
+    setSaving(true)
+    apiMerchants.create({
       name: form.name,
-      legalName: form.legalName,
+      legal_name: form.legalName,
       category: form.category,
       phone: form.phone,
       address: form.address,
-      status: 'PENDING',
-      totalApplications: 0,
-      approvedApplications: 0,
-      joinedAt: new Date().toISOString().split('T')[0],
-    }
-    setMerchants(prev => [newMerchant, ...prev])
-    setForm(emptyForm)
-    setOnboardOpen(false)
+    })
+      .then(created => {
+        setMerchants(prev => [created, ...prev])
+        setForm(emptyForm)
+        setOnboardOpen(false)
+      })
+      .catch(() => {
+        const newMerchant: Merchant = {
+          id: `m${Date.now()}`,
+          name: form.name,
+          legalName: form.legalName,
+          category: form.category,
+          phone: form.phone,
+          address: form.address,
+          status: 'PENDING',
+          totalApplications: 0,
+          approvedApplications: 0,
+          joinedAt: new Date().toISOString().split('T')[0],
+        }
+        setMerchants(prev => [newMerchant, ...prev])
+        setForm(emptyForm)
+        setOnboardOpen(false)
+      })
+      .finally(() => setSaving(false))
   }
 
   const tabs: TabFilter[] = ['ALL', 'ACTIVE', 'SUSPENDED', 'PENDING']
@@ -78,7 +101,6 @@ export default function MFOMerchants() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -100,7 +122,6 @@ export default function MFOMerchants() {
         </Button>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 rounded-xl bg-gray-100 p-1 w-fit">
         {tabs.map(t => (
           <button
@@ -116,7 +137,6 @@ export default function MFOMerchants() {
         ))}
       </div>
 
-      {/* Cards Grid */}
       {filtered.length === 0 ? (
         <div className="rounded-xl bg-white border border-gray-100 p-12 text-center">
           <p className="text-sm text-gray-400">No merchants match your search or filter.</p>
@@ -183,7 +203,6 @@ export default function MFOMerchants() {
         </div>
       )}
 
-      {/* Onboard Modal */}
       <Modal open={onboardOpen} onClose={() => setOnboardOpen(false)} title="Onboard New Merchant" size="md">
         <div className="space-y-4">
           <div>
@@ -247,9 +266,9 @@ export default function MFOMerchants() {
               color="emerald"
               className="flex-1"
               onClick={handleOnboard}
-              disabled={!form.name || !form.category}
+              disabled={!form.name || !form.category || saving}
             >
-              Onboard Merchant
+              {saving ? 'Saving…' : 'Onboard Merchant'}
             </Button>
           </div>
         </div>

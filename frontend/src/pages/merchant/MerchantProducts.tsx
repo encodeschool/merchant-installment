@@ -1,13 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
-import { mockProducts } from '../../data/mockData'
+import { mockProducts, mockMerchants } from '../../data/mockData'
 import { Product } from '../../types'
+import { apiProducts, apiMerchants } from '../../api'
+import { useAuthStore } from '../../store/authStore'
 import clsx from 'clsx'
-
-const MERCHANT_ID = 'm1'
 
 function formatUZS(n: number): string {
   return n.toLocaleString() + ' UZS'
@@ -35,16 +35,32 @@ interface ProductForm {
 const emptyForm: ProductForm = { name: '', category: '', price: '', description: '', available: true, downPaymentPercent: '10' }
 
 export default function MerchantProducts() {
-  const [products, setProducts] = useState<Product[]>(mockProducts.filter(p => p.merchantId === MERCHANT_ID))
+  const { user } = useAuthStore()
+  const [merchantId, setMerchantId] = useState('')
+  const [products, setProducts] = useState<Product[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
+  const [saving, setSaving] = useState(false)
 
-  const openCreate = () => {
-    setForm(emptyForm)
-    setCreateOpen(true)
-  }
+  useEffect(() => {
+    apiMerchants.my()
+      .then(m => setMerchantId(m.id))
+      .catch(() => {
+        const mock = mockMerchants.find(m => m.name === user?.organization)
+        if (mock) setMerchantId(mock.id)
+      })
+
+    apiProducts.list()
+      .then(setProducts)
+      .catch(() => {
+        const mock = mockMerchants.find(m => m.name === user?.organization)
+        setProducts(mockProducts.filter(p => p.merchantId === (mock?.id ?? 'm1')))
+      })
+  }, [user])
+
+  const openCreate = () => { setForm(emptyForm); setCreateOpen(true) }
 
   const openEdit = (p: Product) => {
     setForm({
@@ -59,42 +75,73 @@ export default function MerchantProducts() {
   }
 
   const handleCreate = () => {
-    const newProduct: Product = {
-      id: `p${Date.now()}`,
-      merchantId: MERCHANT_ID,
+    setSaving(true)
+    apiProducts.create({
+      merchant_id: merchantId,
       name: form.name,
       category: form.category,
       price: parseInt(form.price),
       description: form.description,
       available: form.available,
-      downPaymentPercent: parseInt(form.downPaymentPercent) || 0,
-    }
-    setProducts(prev => [newProduct, ...prev])
-    setCreateOpen(false)
+      down_payment_percent: parseInt(form.downPaymentPercent) || 0,
+    })
+      .then(created => { setProducts(prev => [created, ...prev]); setCreateOpen(false) })
+      .catch(() => {
+        const newProduct: Product = {
+          id: `p${Date.now()}`,
+          merchantId,
+          name: form.name,
+          category: form.category,
+          price: parseInt(form.price),
+          description: form.description,
+          available: form.available,
+          downPaymentPercent: parseInt(form.downPaymentPercent) || 0,
+        }
+        setProducts(prev => [newProduct, ...prev])
+        setCreateOpen(false)
+      })
+      .finally(() => setSaving(false))
   }
 
   const handleEdit = () => {
     if (!editTarget) return
-    setProducts(prev => prev.map(p => p.id === editTarget.id ? {
-      ...p,
+    setSaving(true)
+    apiProducts.update(editTarget.id, {
       name: form.name,
       category: form.category,
       price: parseInt(form.price),
       description: form.description,
       available: form.available,
-      downPaymentPercent: parseInt(form.downPaymentPercent) || 0,
-    } : p))
-    setEditTarget(null)
+      down_payment_percent: parseInt(form.downPaymentPercent) || 0,
+    })
+      .then(updated => { setProducts(prev => prev.map(p => p.id === editTarget.id ? updated : p)); setEditTarget(null) })
+      .catch(() => {
+        setProducts(prev => prev.map(p => p.id === editTarget.id ? {
+          ...p,
+          name: form.name,
+          category: form.category,
+          price: parseInt(form.price),
+          description: form.description,
+          available: form.available,
+          downPaymentPercent: parseInt(form.downPaymentPercent) || 0,
+        } : p))
+        setEditTarget(null)
+      })
+      .finally(() => setSaving(false))
   }
 
   const handleDelete = () => {
     if (!deleteTarget) return
-    setProducts(prev => prev.filter(p => p.id !== deleteTarget.id))
-    setDeleteTarget(null)
+    apiProducts.remove(deleteTarget.id)
+      .then(() => setProducts(prev => prev.filter(p => p.id !== deleteTarget.id)))
+      .catch(() => setProducts(prev => prev.filter(p => p.id !== deleteTarget.id)))
+      .finally(() => setDeleteTarget(null))
   }
 
   const toggleAvailability = (id: string) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, available: !p.available } : p))
+    apiProducts.toggleAvailability(id)
+      .then(updated => setProducts(prev => prev.map(p => p.id === id ? updated : p)))
+      .catch(() => setProducts(prev => prev.map(p => p.id === id ? { ...p, available: !p.available } : p)))
   }
 
   const ProductFormFields = () => (
@@ -183,7 +230,6 @@ export default function MerchantProducts() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{products.length} products · {products.filter(p => p.available).length} available</p>
         <Button
@@ -196,7 +242,6 @@ export default function MerchantProducts() {
         </Button>
       </div>
 
-      {/* Product Grid */}
       {products.length === 0 ? (
         <div className="rounded-xl bg-white border border-dashed border-gray-300 p-16 text-center">
           <ShoppingBagPlaceholder />
@@ -206,7 +251,6 @@ export default function MerchantProducts() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map(product => (
             <div key={product.id} className="rounded-xl bg-white border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              {/* Image placeholder */}
               <div className="h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                 <div className="text-center">
                   <div className={clsx('inline-flex rounded-xl px-3 py-1.5 text-xs font-semibold mb-1', categoryColors[product.category] ?? categoryColors['Other'])}>
@@ -261,31 +305,30 @@ export default function MerchantProducts() {
         </div>
       )}
 
-      {/* Create Modal */}
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add New Product" size="md">
         <div className="space-y-5">
           <ProductFormFields />
           <div className="flex gap-3 pt-2 border-t border-gray-100">
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button variant="primary" color="blue" className="flex-1" onClick={handleCreate} disabled={!form.name || !form.price}>
-              Add Product
+            <Button variant="primary" color="blue" className="flex-1" onClick={handleCreate} disabled={!form.name || !form.price || saving}>
+              {saving ? 'Saving…' : 'Add Product'}
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Edit Modal */}
       <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Product" size="md">
         <div className="space-y-5">
           <ProductFormFields />
           <div className="flex gap-3 pt-2 border-t border-gray-100">
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setEditTarget(null)}>Cancel</Button>
-            <Button variant="primary" color="blue" className="flex-1" onClick={handleEdit}>Save Changes</Button>
+            <Button variant="primary" color="blue" className="flex-1" onClick={handleEdit} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Changes'}
+            </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Delete Modal */}
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Product" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
