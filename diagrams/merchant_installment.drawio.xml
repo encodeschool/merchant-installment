@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" version="29.6.6">
+  <diagram id="rassrochka-arch-uzhack2026" name="Installment Platform — Architecture">
+    <mxGraphModel dx="1901" dy="1001" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=15;fontStyle=1;fontColor=#1a1a1a;" value="merchant-installment-platform — System Architecture (UzHack 2026 · Central Bank Challenge)" vertex="1">
+          <mxGeometry height="36" width="1100" x="440" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f4ff;strokeColor=#ccbbee;arcSize=3;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="150" width="1220" x="380" y="357" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffdf0;strokeColor=#ddd0a0;arcSize=3;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="115" width="1220" x="380" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f4fbf4;strokeColor=#b0d4b0;arcSize=3;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="185" width="1220" x="380" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#cccccc;arcSize=3;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="165" width="1220" x="380" y="962" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-6" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontStyle=1;fontColor=#9673a6;rotation=-90;" value="1 · FRONTEND" vertex="1">
+          <mxGeometry height="14" width="80" x="348" y="447" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-7" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontStyle=1;fontColor=#d6b656;rotation=-90;" value="2 · API GATEWAY" vertex="1">
+          <mxGeometry height="14" width="100" x="348" y="622" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-8" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontStyle=1;fontColor=#639922;rotation=-90;" value="3 · SERVICES" vertex="1">
+          <mxGeometry height="14" width="80" x="348" y="822" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-9" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontStyle=1;fontColor=#666666;rotation=-90;" value="4 · DATA" vertex="1">
+          <mxGeometry height="14" width="80" x="348" y="1052" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e6ff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;align=left;spacingLeft=10;verticalAlign=top;arcSize=8;" value="&lt;b&gt;Central Bank Panel&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#6c3d99&quot; style=&quot;font-size:10px&quot;&gt;Role: CENTRAL_BANK&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;System-wide risk overview&lt;br/&gt;Approve / reject tariff plans&lt;br/&gt;MFO performance monitoring&lt;br/&gt;Audit logs &amp; compliance reports" vertex="1">
+          <mxGeometry height="125" width="260" x="490" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f4f1;strokeColor=#1d9e75;strokeWidth=2;fontSize=11;align=left;spacingLeft=10;verticalAlign=top;arcSize=8;" value="&lt;b&gt;MFO Panel&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#1d6b4e&quot; style=&quot;font-size:10px&quot;&gt;Role: MFO_ADMIN&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;Create &amp; manage tariff plans&lt;br/&gt;Define scoring rules&lt;br/&gt;Onboard &amp; manage merchants&lt;br/&gt;Review &amp; approve applications" vertex="1">
+          <mxGeometry height="125" width="260" x="870" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f1fb;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;align=left;spacingLeft=10;verticalAlign=top;arcSize=8;" value="&lt;b&gt;Merchant Panel&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#185fa5&quot; style=&quot;font-size:10px&quot;&gt;Role: MERCHANT&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;Product catalogue&lt;br/&gt;Submit client application (POS)&lt;br/&gt;Track active installments&lt;br/&gt;View &amp; download contracts" vertex="1">
+          <mxGeometry height="125" width="260" x="1250" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.5;fontSize=11;arcSize=8;" value="&lt;b&gt;Rate Limiter&lt;/b&gt;&lt;br/&gt;DoS protection&lt;br/&gt;Request throttling" vertex="1">
+          <mxGeometry height="70" width="200" x="416" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-14" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.5;fontSize=11;arcSize=8;" value="&lt;b&gt;JWT Auth&lt;/b&gt;&lt;br/&gt;Token issuance&lt;br/&gt;Role verification" vertex="1">
+          <mxGeometry height="70" width="200" x="652" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-15" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.5;fontSize=11;arcSize=8;" value="&lt;b&gt;Input Validation&lt;/b&gt;&lt;br/&gt;Pydantic schemas&lt;br/&gt;Data sanitisation" vertex="1">
+          <mxGeometry height="70" width="200" x="888" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-16" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6a0;strokeColor=#c8a000;strokeWidth=2;fontSize=11;arcSize=8;" value="&lt;b&gt;Request Router&lt;/b&gt;&lt;br/&gt;/api/v1/* routing&lt;br/&gt;CORS &amp; Middleware" vertex="1">
+          <mxGeometry height="70" width="200" x="1124" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-17" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.5;fontSize=11;arcSize=8;" value="&lt;b&gt;Audit Logging&lt;/b&gt;&lt;br/&gt;All requests logged&lt;br/&gt;Structured JSON logs" vertex="1">
+          <mxGeometry height="70" width="200" x="1360" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-18" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#faece7;strokeColor=#D85A30;strokeWidth=2;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;arcSize=8;" value="&lt;b&gt;Merchant CRM Service&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#993c1d&quot; style=&quot;font-size:10px&quot;&gt;FastAPI Router | /api/v1/merchant&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;POST /merchants/register&lt;br/&gt;GET  /merchants/{id}/stats&lt;br/&gt;POST /products&lt;br/&gt;PUT  /products/{id}&lt;br/&gt;POST /applications/new&lt;br/&gt;GET  /applications/{id}/status" vertex="1">
+          <mxGeometry height="160" width="270" x="408" y="737" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-19" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#faeeda;strokeColor=#BA7517;strokeWidth=2;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;arcSize=8;" value="&lt;b&gt;Tariff Service&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#854f0b&quot; style=&quot;font-size:10px&quot;&gt;FastAPI Router | /api/v1/tariffs&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;POST /tariffs&lt;br/&gt;GET  /tariffs&lt;br/&gt;GET  /tariffs/{id}&lt;br/&gt;PUT  /tariffs/{id}&lt;br/&gt;PATCH /tariffs/{id}/approve&lt;br/&gt;DELETE /tariffs/{id}" vertex="1">
+          <mxGeometry height="160" width="270" x="708" y="737" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-20" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf3de;strokeColor=#639922;strokeWidth=2;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;arcSize=8;" value="&lt;b&gt;Scoring Engine&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#3b6d11&quot; style=&quot;font-size:10px&quot;&gt;FastAPI Router | /api/v1/score&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;POST /score/calculate&lt;br/&gt;GET  /score/{client_id}/history&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Factors (rule-based):&lt;/b&gt;&lt;br/&gt;Income (30%) + Credit history (30%)&lt;br/&gt;Age (20%) + Tariff match (20%)" vertex="1">
+          <mxGeometry height="160" width="270" x="1008" y="737" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-21" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f1fb;strokeColor=#378add;strokeWidth=2;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;arcSize=8;" value="&lt;b&gt;Contract Generator&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#0c447c&quot; style=&quot;font-size:10px&quot;&gt;FastAPI Router | /api/v1/contracts&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;POST /contracts/generate&lt;br/&gt;GET  /contracts/{id}&lt;br/&gt;GET  /contracts/{id}/pdf&lt;br/&gt;GET  /contracts/{id}/schedule&lt;br/&gt;&lt;br/&gt;Payment schedule calculation&lt;br/&gt;PDF generation (ReportLab)" vertex="1">
+          <mxGeometry height="160" width="270" x="1308" y="737" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-22" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#f5f5f5;strokeColor=#555555;strokeWidth=2;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;PostgreSQL&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#444&quot; style=&quot;font-size:10px&quot;&gt;Primary database&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;central_bank_users&lt;br/&gt;mfo_users&lt;br/&gt;merchants&lt;br/&gt;products&lt;br/&gt;tariffs&lt;br/&gt;clients&lt;br/&gt;applications&lt;br/&gt;installments&lt;br/&gt;contracts&lt;br/&gt;scoring_logs" vertex="1">
+          <mxGeometry height="155" width="240" x="408" y="975" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-23" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#fcebeb;strokeColor=#E24B4A;strokeWidth=2;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;" value="&lt;b&gt;Redis Cache&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#a32d2d&quot; style=&quot;font-size:10px&quot;&gt;In-memory store&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;JWT tokens (TTL)&lt;br/&gt;Tariff cache&lt;br/&gt;Scoring results&lt;br/&gt;Rate limit counters" vertex="1">
+          <mxGeometry height="130" width="240" x="695" y="975" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-24" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;arcSize=8;" value="&lt;b&gt;File Storage&lt;/b&gt;&lt;br/&gt;&lt;font color=&quot;#444&quot; style=&quot;font-size:10px&quot;&gt;MinIO / Local (hackathon)&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;PDF contracts&lt;br/&gt;Scanned documents&lt;br/&gt;QR code images" vertex="1">
+          <mxGeometry height="120" width="240" x="982" y="975" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-25" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f9f9f9;strokeColor=#aaaaaa;strokeWidth=1.5;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;arcSize=8;dashed=1;" value="&lt;b&gt;External Services (Optional)&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;SMS Gateway&lt;/b&gt; — Eskiz / Playmobile&lt;br/&gt;OTP verification, payment reminders&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Credit Bureau&lt;/b&gt; — Mock API&lt;br/&gt;Credit history, blacklist check&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Email&lt;/b&gt; — Contract copy delivery" vertex="1">
+          <mxGeometry height="145" width="300" x="1270" y="975" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-26" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#9673a6;fontColor=#9673a6;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-14" value="HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-27" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#1d9e75;fontColor=#1d9e75;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-15" value="HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-28" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#6c8ebf;fontColor=#6c8ebf;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-16" value="HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-29" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#c8a000;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-30" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#c8a000;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-31" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#c8a000;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-32" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#c8a000;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-33" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#D85A30;fontColor=#D85A30;exitX=0.1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-18" value="/merchant">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-34" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#BA7517;fontColor=#BA7517;exitX=0.35;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-19" value="/tariffs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-35" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#639922;fontColor=#639922;exitX=0.6;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-20" value="/score">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-36" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#378add;fontColor=#378add;exitX=0.9;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-21" value="/contracts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-37" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-18" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=9;strokeColor=#639922;fontColor=#639922;dashed=1;strokeWidth=1.5;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.6;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-20" value="score request">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-38" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-20" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=9;strokeColor=#378add;fontColor=#378add;dashed=1;strokeWidth=1.5;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.6;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-21" value="approved">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-39" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=9;strokeColor=#BA7517;fontColor=#BA7517;dashed=1;strokeWidth=1.5;exitX=1;exitY=0.4;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-20" value="tariff rules">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-40" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#555555;exitX=0.2;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-22" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-41" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#555555;exitX=0.2;exitY=1;exitDx=0;exitDy=0;entryX=0.7;entryY=0;entryDx=0;entryDy=0;" target="DH2qdvHqY3OZKK8PY5nD-22" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-42" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#555555;" target="DH2qdvHqY3OZKK8PY5nD-22" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-43" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#555555;" target="DH2qdvHqY3OZKK8PY5nD-22" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-44" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#E24B4A;fontColor=#E24B4A;dashed=1;" target="DH2qdvHqY3OZKK8PY5nD-23" value="cache">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-45" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#378add;fontColor=#378add;dashed=1;" target="DH2qdvHqY3OZKK8PY5nD-24" value="save PDF">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-46" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#E24B4A;fontColor=#E24B4A;dashed=1;" target="DH2qdvHqY3OZKK8PY5nD-23" value="token TTL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-47" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#aaaaaa;dashed=1;" target="DH2qdvHqY3OZKK8PY5nD-25" value="SMS / Email">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-48" edge="1" parent="1" source="DH2qdvHqY3OZKK8PY5nD-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=9;strokeColor=#aaaaaa;dashed=1;" target="DH2qdvHqY3OZKK8PY5nD-25" value="credit check">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-49" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontStyle=1;fontColor=#333333;" value="Core flow: Installment application lifecycle" vertex="1">
+          <mxGeometry height="18" width="380" x="440" y="1162" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-50" parent="1" style="text;html=1;strokeColor=#cccccc;fillColor=#fafafa;align=left;fontSize=10;fontColor=#555555;spacingLeft=8;verticalAlign=middle;rounded=1;arcSize=5;" value="1) MFO creates tariff (Central Bank approves)  →  2) MFO onboards merchant  →  3) Merchant submits client application at POS  →  4) Scoring Engine evaluates risk  →  5) MFO approves / rejects  →  6) PDF contract generated &amp; stored" vertex="1">
+          <mxGeometry height="30" width="1100" x="440" y="1184" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-51" parent="1" style="text;html=1;strokeColor=#9673a6;fillColor=#f3e6ff;align=left;fontSize=10;fontColor=#6c3d99;rounded=1;arcSize=10;spacingLeft=6;" value="CENTRAL_BANK — read-only oversight + tariff approval" vertex="1">
+          <mxGeometry height="22" width="310" x="440" y="1226" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-52" parent="1" style="text;html=1;strokeColor=#1d9e75;fillColor=#e6f4f1;align=left;fontSize=10;fontColor=#1d6b4e;rounded=1;arcSize=10;spacingLeft=6;" value="MFO_ADMIN — full CRUD on tariffs, merchants, decisions" vertex="1">
+          <mxGeometry height="22" width="340" x="764" y="1226" as="geometry" />
+        </mxCell>
+        <mxCell id="DH2qdvHqY3OZKK8PY5nD-53" parent="1" style="text;html=1;strokeColor=#6c8ebf;fillColor=#e6f1fb;align=left;fontSize=10;fontColor=#185fa5;rounded=1;arcSize=10;spacingLeft=6;" value="MERCHANT — submit applications, view own data only" vertex="1">
+          <mxGeometry height="22" width="320" x="1118" y="1226" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
