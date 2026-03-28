@@ -1,5 +1,5 @@
 import api from './client'
-import { Application, AuditLog, Contract, Merchant, MFOStats, Product, Tariff } from '../types'
+import { Application, AuditLog, Contract, Merchant, MFOStats, Product, Tariff, User } from '../types'
 
 export interface Installment {
   id: string
@@ -60,6 +60,10 @@ export const apiScoringConfig = {
 export const apiScore = {
   calculate: (b: object) =>
     api.post('/api/v1/score/calculate', b).then(r => r.data),
+}
+
+export const apiProfile = {
+  update: (b: object) => api.patch<User>('/api/v1/auth/profile', b).then(r => r.data),
 }
 
 export const apiFaceVerify = {
