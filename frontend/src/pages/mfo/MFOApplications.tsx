@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { CheckCircleIcon, XCircleIcon, PhotoIcon, PencilSquareIcon } from '@heroicons/react/24/outline'
+import { PhotoIcon, PencilSquareIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
-import Button from '../../components/ui/Button'
 import ApplicationItemsCell from '../../components/ui/ApplicationItemsCell'
 import FraudGateBadge from '../../components/ui/FraudGateBadge'
 import ScoreFactorBars from '../../components/ui/ScoreFactorBars'
@@ -39,11 +38,8 @@ export default function MFOApplications() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
-  const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' | 'partial' } | null>(null)
   const [detailApp, setDetailApp] = useState<Application | null>(null)
   const [detailTab, setDetailTab] = useState<DetailTab>('overview')
-  const [overrideReason, setOverrideReason] = useState('')
-  const [deciding, setDeciding] = useState(false)
   const { t } = useTranslation()
 
   useEffect(() => {
@@ -55,13 +51,12 @@ export default function MFOApplications() {
     }).catch(() => {}).finally(() => setLoading(false))
   }, [page])
 
-  // When opening detail, fetch full version (with score_breakdown)
   const openDetail = (app: Application) => {
     setDetailApp(app)
     setDetailTab('overview')
     apiApplications.get(app.id)
       .then(full => setDetailApp(full))
-      .catch(() => {}) // keep partial data if detail fetch fails
+      .catch(() => {})
   }
 
   const filtered = applications.filter(a => tab === 'ALL' || a.status === tab)
@@ -79,36 +74,8 @@ export default function MFOApplications() {
     ACTIVE:   applications.filter(a => a.status === 'ACTIVE').length,
   }
 
-  const executeAction = () => {
-    if (!confirmApp) return
-    const { app, action } = confirmApp
-    const body: Record<string, unknown> = {
-      action: action === 'approve' ? 'APPROVED' : action === 'reject' ? 'REJECTED' : 'PARTIAL',
-    }
-    if (overrideReason.trim()) body.override_reason = overrideReason.trim()
-
-    setDeciding(true)
-    apiApplications.decide(app.id, body)
-      .then(updated => {
-        setApplications(prev => prev.map(a => a.id === app.id ? updated : a))
-        setConfirmApp(null)
-        setOverrideReason('')
-      })
-      .catch(() => {
-        // Optimistic fallback
-        setApplications(prev => prev.map(a =>
-          a.id === app.id
-            ? { ...a, status: body.action as Application['status'], decidedAt: new Date().toISOString().split('T')[0] }
-            : a
-        ))
-        setConfirmApp(null)
-        setOverrideReason('')
-      })
-      .finally(() => setDeciding(false))
-  }
 
   if (loading) return <MFOApplicationsSkeleton />
-
   return (
     <div className="space-y-5">
       {/* Tab bar */}
@@ -127,7 +94,7 @@ export default function MFOApplications() {
         ))}
       </div>
 
-      {/* Main table */}
+      {/* Main table — read-only, clicking a row opens detail */}
       <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100">
@@ -140,7 +107,6 @@ export default function MFOApplications() {
                   t('applications.colMonths'), t('applications.colMonthly'),
                   t('applications.colScore'), 'Fraud',
                   t('applications.colStatus'), t('applications.colDate'),
-                  t('applications.colActions'),
                 ].map(h => (
                   <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
@@ -149,7 +115,7 @@ export default function MFOApplications() {
             <tbody className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-4 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={12} className="px-4 py-12 text-center text-sm text-gray-400">
                     {t('applications.noApplications')}
                   </td>
                 </tr>
@@ -174,47 +140,19 @@ export default function MFOApplications() {
                   <td className="px-3 py-3"><FraudGateBadge gate={app.fraudGate} /></td>
                   <td className="px-3 py-3">{statusBadge(app.status)}</td>
                   <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">{app.createdAt?.split('T')[0]}</td>
-                  <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                    <div className="flex flex-col gap-1">
-                      {app.status === 'PENDING' && (
-                        <>
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() => { setConfirmApp({ app, action: 'approve' }); setOverrideReason('') }}
-                              className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
-                            >
-                              <CheckCircleIcon className="h-3.5 w-3.5" />
-                              {t('applications.approve')}
-                            </button>
-                            <button
-                              onClick={() => { setConfirmApp({ app, action: 'reject' }); setOverrideReason('') }}
-                              className="flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
-                            >
-                              <XCircleIcon className="h-3.5 w-3.5" />
-                              {t('applications.reject')}
-                            </button>
-                          </div>
-                          <button
-                            onClick={() => { setConfirmApp({ app, action: 'partial' }); setOverrideReason('') }}
-                            className="flex items-center gap-1 rounded-lg bg-yellow-50 px-2 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-100 w-full justify-center"
-                          >
-                            {t('applications.partial')}
-                          </button>
-                        </>
-                      )}
-                      {app.contractId && (
-                        <button
-                          onClick={() => apiContracts.downloadPdf(app.contractId!)}
-                          className="flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 w-full justify-center"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                          </svg>
-                          PDF
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                  {app.contractId && (
+                    <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => apiContracts.downloadPdf(app.contractId!)}
+                        className="flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                        </svg>
+                        PDF
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -254,88 +192,6 @@ export default function MFOApplications() {
         </div>
       )}
 
-      {/* ── Confirm Decision Modal ──────────────────────────────────────────── */}
-      <Modal
-        open={!!confirmApp}
-        onClose={() => { setConfirmApp(null); setOverrideReason('') }}
-        title={confirmApp?.action === 'approve' ? t('applications.approveTitle') : confirmApp?.action === 'partial' ? t('applications.partialTitle') : t('applications.rejectTitle')}
-        size="md"
-      >
-        {confirmApp && (
-          <div className="space-y-5">
-            <div className="rounded-xl bg-gray-50 p-4 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">{t('applications.colClient')}</span>
-                <span className="font-medium">{confirmApp.app.client.fullName}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Items</span>
-                <span className="font-medium text-right max-w-xs">
-                  {confirmApp.app.items.map(i => `${i.productName} ×${i.quantity}`).join(', ') || '—'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">{t('applications.totalAmount')}</span>
-                <span className="font-medium">{formatUZS(confirmApp.app.totalAmount)}</span>
-              </div>
-              {confirmApp.app.monthlyPayment != null && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">{t('applications.monthlyPayment')}</span>
-                  <span className="font-medium">{formatUZS(confirmApp.app.monthlyPayment)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">{t('applications.creditScore')}</span>
-                <span className={clsx('font-bold',
-                  confirmApp.app.score >= 70 ? 'text-emerald-600' :
-                  confirmApp.app.score >= 50 ? 'text-yellow-600' : 'text-red-600')}>
-                  {confirmApp.app.score}/100
-                </span>
-              </div>
-            </div>
-
-            {confirmApp.action === 'partial' && (
-              <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-700">
-                {t('applications.partialNote')}
-              </div>
-            )}
-
-            {/* Override reason */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Override Reason
-                {confirmApp.action !== 'reject' && <span className="text-gray-400 font-normal ml-1">(optional)</span>}
-              </label>
-              <textarea
-                value={overrideReason}
-                onChange={e => setOverrideReason(e.target.value)}
-                rows={2}
-                placeholder="Add a note or reason for this decision…"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-2 border-t border-gray-100">
-              <Button variant="secondary" color="gray" className="flex-1" onClick={() => { setConfirmApp(null); setOverrideReason('') }}>
-                {t('common.cancel')}
-              </Button>
-              <Button
-                variant="primary"
-                color={confirmApp.action === 'approve' ? 'emerald' : confirmApp.action === 'partial' ? 'gray' : 'red'}
-                className={clsx('flex-1', confirmApp.action === 'partial' && 'bg-yellow-500 hover:bg-yellow-600 text-white')}
-                onClick={executeAction}
-                disabled={deciding || (confirmApp.action === 'reject' && !overrideReason.trim())}
-              >
-                {deciding ? t('common.saving') :
-                  confirmApp.action === 'approve' ? t('applications.confirmApproval') :
-                  confirmApp.action === 'partial' ? t('applications.confirmPartial') :
-                  t('applications.confirmRejection')}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
       {/* ── Detail Modal ────────────────────────────────────────────────────── */}
       <Modal open={!!detailApp} onClose={() => setDetailApp(null)} title="Application Details" size="lg">
         {detailApp && (
@@ -370,17 +226,16 @@ export default function MFOApplications() {
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Client Information</h3>
                     <div className="space-y-2">
                       {[
-                        ['Full Name',        detailApp.client.fullName || '—'],
-                        ['Passport',         maskPassport(detailApp.client.passportNumber)],
-                        ['Phone',            detailApp.client.phone || '—'],
-                        ['Age',              detailApp.client.age ? `${detailApp.client.age} years` : '—'],
-                        ['Employment',       detailApp.client.employmentType],
-                        ['Monthly Income',   detailApp.client.monthlyIncome ? formatUZS(detailApp.client.monthlyIncome) : '—'],
-                        ['PINFL',            detailApp.client.pinfl ?? '—'],
-                        ['Open Loans',       String(detailApp.client.openLoans)],
-                        ['Overdue Days',     String(detailApp.client.overdueDays)],
-                        ['Bankruptcy',       detailApp.client.hasBankruptcy ? 'Yes' : 'No'],
-                        ['Credit History',   detailApp.client.creditHistory],
+                        ['Full Name',      detailApp.client.fullName || '—'],
+                        ['Passport',       maskPassport(detailApp.client.passportNumber)],
+                        ['Phone',          detailApp.client.phone || '—'],
+                        ['Age',            detailApp.client.age ? `${detailApp.client.age} years` : '—'],
+                        ['Employment',     detailApp.client.employmentType],
+                        ['Monthly Income', detailApp.client.monthlyIncome ? formatUZS(detailApp.client.monthlyIncome) : '—'],
+                        ['Open Loans',     String(detailApp.client.openLoans)],
+                        ['Overdue Days',   String(detailApp.client.overdueDays)],
+                        ['Bankruptcy',     detailApp.client.hasBankruptcy ? 'Yes' : 'No'],
+                        ['Credit History', detailApp.client.creditHistory],
                       ].map(([label, value]) => (
                         <div key={label} className="flex justify-between text-sm">
                           <span className="text-gray-500 shrink-0">{label}</span>
@@ -397,23 +252,19 @@ export default function MFOApplications() {
                         <span className="text-gray-500">Status</span>
                         <span>{statusBadge(detailApp.status)}</span>
                       </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Decision Source</span>
+                        <span className="font-medium text-gray-900">Automated Scoring</span>
+                      </div>
                       {[
                         ['Merchant',   detailApp.merchantName],
                         ['Submitted',  detailApp.createdAt?.split('T')[0] ?? '—'],
-                        ['Decided',    detailApp.decidedAt?.split('T')[0] ?? '—'],
-                        ['Decided By', detailApp.decidedBy ?? '—'],
                       ].map(([label, value]) => (
                         <div key={label} className="flex justify-between text-sm">
                           <span className="text-gray-500">{label}</span>
                           <span className="font-medium text-gray-900">{value}</span>
                         </div>
                       ))}
-                      {detailApp.overrideReason && (
-                        <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 mt-2">
-                          <p className="text-xs font-semibold text-yellow-800 mb-1">Override Reason</p>
-                          <p className="text-xs text-yellow-700">{detailApp.overrideReason}</p>
-                        </div>
-                      )}
                     </div>
                   </section>
                 </div>
@@ -536,7 +387,7 @@ export default function MFOApplications() {
 
                   {detailApp.scoreBreakdown.reason_codes.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
-                      {detailApp.scoreBreakdown.reason_codes.map(code => (
+                      {detailApp.scoreBreakdown.reason_codes.map((code: string) => (
                         <span key={code} className="rounded-full bg-gray-100 text-gray-500 px-2.5 py-0.5 text-xs">{code}</span>
                       ))}
                     </div>
@@ -548,16 +399,11 @@ export default function MFOApplications() {
             {/* ── TAB: Verification ──────────────────────────────────────────── */}
             {detailTab === 'verification' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Face photo */}
                 <div>
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Face Verification Photo</h3>
                   <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center" style={{ height: 200 }}>
                     {detailApp.faceImageUrl ? (
-                      <img
-                        src={detailApp.faceImageUrl}
-                        alt="Face verification"
-                        className="w-full h-full object-contain"
-                      />
+                      <img src={detailApp.faceImageUrl} alt="Face verification" className="w-full h-full object-contain" />
                     ) : (
                       <div className="text-center text-gray-400 space-y-2">
                         <PhotoIcon className="h-10 w-10 mx-auto text-gray-300" />
@@ -573,16 +419,11 @@ export default function MFOApplications() {
                   )}
                 </div>
 
-                {/* Signature */}
                 <div>
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Client Signature</h3>
                   <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center" style={{ height: 200 }}>
                     {detailApp.signatureUrl ? (
-                      <img
-                        src={detailApp.signatureUrl}
-                        alt="Client signature"
-                        className="w-full h-full object-contain p-4"
-                      />
+                      <img src={detailApp.signatureUrl} alt="Client signature" className="w-full h-full object-contain p-4" />
                     ) : (
                       <div className="text-center text-gray-400 space-y-2">
                         <PencilSquareIcon className="h-10 w-10 mx-auto text-gray-300" />

@@ -150,12 +150,23 @@ export default function MerchantInstallments() {
                     </td>
                     <td className="px-4 py-4">{statusBadge(contract.status)}</td>
                     <td className="px-4 py-4">
-                      <button
-                        onClick={() => openSchedule(contract)}
-                        className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
-                      >
-                        {t('installments.viewSchedule')}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openSchedule(contract)}
+                          className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+                        >
+                          {t('installments.viewSchedule')}
+                        </button>
+                        <button
+                          onClick={() => apiContracts.downloadPdf(contract.id)}
+                          className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                          </svg>
+                          PDF
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )

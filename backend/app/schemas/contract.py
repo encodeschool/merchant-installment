@@ -18,7 +18,9 @@ class ContractOut(BaseModel):
     applicationId: str
     clientName: str
     merchantName: str
-    productName: str
+    productName: Optional[str] = None
+    itemsSummary: str = ""
+    itemCount: int = 1
     totalAmount: int
     months: int
     monthlyPayment: int

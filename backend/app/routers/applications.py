@@ -19,12 +19,11 @@ from ..schemas.application import (
     ConfirmRequest,
     ConfirmResponse,
 )
+from ..services.contract import generate_payment_schedule
 from ..services.scoring import (
-    calculate_score,
     calculate_score_full,
     monthly_payment as calc_monthly_payment,
 )
-from ..services.contract import generate_payment_schedule
 from ..services.audit import log_action
 from ..services.fraud import check_fraud_gate
 
@@ -118,6 +117,15 @@ def _build_score_breakdown(application_id: str, db: Client) -> dict | None:
         }
         if isinstance(weights, str):
             weights = json.loads(weights)
+
+        outcome = sl.get("outcome", "REJECTED")
+        if outcome == "APPROVED":
+            approved_ratio = 1.0
+        elif outcome == "PARTIAL":
+            approved_ratio = 0.7
+        else:
+            approved_ratio = 0.0
+
         return {
             "f1_affordability": sl.get("income_score", 0),
             "f2_credit": sl.get("credit_score", 0),
@@ -125,8 +133,8 @@ def _build_score_breakdown(application_id: str, db: Client) -> dict | None:
             "f4_demographic": sl.get("age_score", 0),
             "weights": weights,
             "total_score": sl.get("total_score", 0),
-            "decision": sl.get("outcome", "REJECTED"),
-            "approved_ratio": 1.0,
+            "decision": outcome,
+            "approved_ratio": approved_ratio,
             "hard_reject": bool(sl.get("hard_reject", False)),
             "hard_reject_reason": sl.get("hard_reject_reason"),
             "reason_codes": sl.get("reason_codes") or [],
@@ -209,6 +217,9 @@ def _app_to_out(app: dict, db: Client, include_score: bool = True) -> Applicatio
         if sd:
             score_breakdown_out = ScoreBreakdownOut(**sd)
 
+    contract_rows = db.table("contracts").select("id").eq("application_id", app["id"]).execute().data
+    contract_id = contract_rows[0]["id"] if contract_rows else None
+
     return _AppOut(
         id=app["id"],
         merchant_id=app["merchant_id"],
@@ -235,6 +246,7 @@ def _app_to_out(app: dict, db: Client, include_score: bool = True) -> Applicatio
         decided_at=app.get("decided_at"),
         decided_by=app.get("decided_by"),
         override_reason=app.get("override_reason"),
+        contract_id=contract_id,
     )
 
 
@@ -316,7 +328,7 @@ def create_application(
     mp = calc_monthly_payment(financed_amount, body.months, tariff["interest_rate"])
     total = int(mp * body.months)
 
-    score_result = calculate_score(
+    score_result = calculate_score_full(
         monthly_income=client["monthly_income"],
         monthly_payment=mp,
         age=client["age"],
@@ -453,6 +465,10 @@ def list_applications(
     products_map  = {p["id"]: p for p in products_data}
     tariffs_map   = {t["id"]: t for t in tariffs_data}
 
+    app_ids = [a["id"] for a in apps]
+    contracts_rows = db.table("contracts").select("id, application_id").in_("application_id", app_ids).execute().data if app_ids else []
+    contracts_map = {c["application_id"]: c["id"] for c in contracts_rows}
+
     result = []
     for app in apps:
         merchant = merchants_map.get(app.get("merchant_id", ""), {})
@@ -528,6 +544,7 @@ def list_applications(
             decided_at=app.get("decided_at"),
             decided_by=app.get("decided_by"),
             override_reason=app.get("override_reason"),
+            contract_id=contracts_map.get(app["id"]),
         ))
 
     return ApplicationPage(
@@ -815,14 +832,24 @@ def create_multi_product_application(
     )
 
     # 5. Find eligible tariffs
-    all_tariffs = (
-        db.table("tariffs").select("*").eq("status", "APPROVED").execute().data or []
-    )
-    eligible_tariffs = [
-        t
-        for t in all_tariffs
-        if t.get("min_amount", 0) <= total_price <= t.get("max_amount", 999_999_999)
-    ]
+    try:
+        eligible_tariffs = (
+            db.table("tariffs")
+            .select("*")
+            .eq("status", "APPROVED")
+            .lte("min_amount", total_price)
+            .gte("max_amount", total_price)
+            .execute()
+            .data
+            or []
+        )
+        count = len(eligible_tariffs)
+        print(
+            f"[multi-product] total_price={total_price}, " f"eligible_tariffs={count}"
+        )  # noqa: E501
+    except Exception as e:
+        print(f"[multi-product] tariff query error: {e}")
+        eligible_tariffs = []
 
     # 6. Compute age
     age = body.client.age
@@ -948,7 +975,15 @@ def create_multi_product_application(
         raise HTTPException(400, "No approved tariffs found in the system")
 
     primary_product_id = products[0]["product"]["id"]
-    app_status = "REJECTED" if fraud_gate == "BLOCK" else "PENDING"
+    # Status is set automatically by the scoring engine
+    if fraud_gate == "BLOCK" or score_result.get("hard_reject", False):
+        app_status = "REJECTED"
+    elif score_result.get("decision") == "APPROVED":
+        app_status = "APPROVED"
+    elif score_result.get("decision") == "PARTIAL":
+        app_status = "PARTIAL"
+    else:
+        app_status = "REJECTED"
     estimated_mp = calc_monthly_payment(
         financed,
         body.months if body.months in (3, 6, 9, 12) else 12,
@@ -973,14 +1008,13 @@ def create_multi_product_application(
     items_json = json.dumps(
         [{"product_id": it.product_id, "quantity": it.quantity} for it in body.items]
     )
+    app_data["application_items"] = items_json
     try:
-        application = (
-            db.table("applications")
-            .insert({**app_data, "application_items": items_json})
-            .execute()
-            .data[0]
-        )
-    except Exception:
+        application = db.table("applications").insert(app_data).execute().data[0]
+    except Exception as e:
+        msg = "[multi-product] insert with application_items failed"
+        print(f"{msg}: {e}")
+        del app_data["application_items"]
         application = db.table("applications").insert(app_data).execute().data[0]
 
     # 12. Scoring log

@@ -50,8 +50,7 @@ export const apiApplications = {
     api.get<PagedResponse<any>>('/api/v1/applications', { params: { page, page_size: pageSize } })
       .then(r => ({ ...r.data, items: r.data.items.map(normalizeApplication) })),
   get: (id: string) =>
-    api.get<any>(`/api/v1/applications/${id}/detail`)
-      .then(r => normalizeApplication(r.data)),
+    api.get<Application>(`/api/v1/applications/${id}`).then(r => r.data),
   submit: (b: object) =>
     api.post<any>('/api/v1/applications', b)
       .then(r => normalizeApplication(r.data)),
@@ -84,6 +83,8 @@ export const apiContracts = {
       })
       .catch(err => console.error('PDF download failed:', err))
   },
+  get: (id: string) =>
+    api.get<Contract>(`/api/v1/contracts/${id}`).then(r => r.data),
 }
 
 export const apiScoringConfig = {

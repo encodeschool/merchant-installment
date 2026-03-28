@@ -6,7 +6,6 @@
 -- CLIENTS: identity fields added by new wizard Step 2
 ALTER TABLE clients
     ADD COLUMN IF NOT EXISTS employment_type TEXT NOT NULL DEFAULT 'EMPLOYED',
-    ADD COLUMN IF NOT EXISTS pinfl           TEXT,
     ADD COLUMN IF NOT EXISTS birth_date      TEXT;
 
 -- APPLICATIONS: multi-product + fraud + override fields

@@ -83,11 +83,25 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
       )}
     >
       {/* Logo / header */}
-      <div className={clsx('flex items-center border-b border-gray-100 shrink-0', config.bg, collapsed ? 'justify-center px-0 py-4' : 'justify-between px-5 py-4')}>
+      <div className={clsx('flex items-center border-b border-gray-100 shrink-0 bg-white', collapsed ? 'justify-center px-0 py-4' : 'justify-between px-5 py-4')}>
         {!collapsed && (
-          <div>
-            <p className={clsx('text-sm font-bold tracking-wide', config.color)}>Installment Platform</p>
-            <p className="text-xs text-gray-500 mt-0.5">UzHack 2026</p>
+          <div className="flex flex-col gap-1">
+            <img
+              src="https://cbu.uz/bitrix/templates/main/img/logo-en.svg"
+              alt="Central Bank of Uzbekistan"
+              className="h-8 w-auto object-contain"
+              onError={(e) => {
+                // Fallback to text if SVG fails to load
+                e.currentTarget.style.display = 'none'
+                e.currentTarget.nextElementSibling?.removeAttribute('style')
+              }}
+            />
+            <span
+              className="text-xs text-gray-400 hidden"
+              style={{ display: 'none' }}
+            >
+              Central Bank of Uzbekistan
+            </span>
           </div>
         )}
         {/* Mobile close */}

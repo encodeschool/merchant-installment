@@ -1,16 +1,9 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, Literal
+from typing import Literal, Optional
 from ..schemas.client import ClientCreate
 
 
 # ── Existing create / decision schemas (unchanged) ────────────────────────────
-
-class ApplicationCreate(BaseModel):
-    merchant_id: str
-    product_id: str
-    tariff_id: str
-    months: int
-    client: ClientCreate
 
 
 class DecisionRequest(BaseModel):
@@ -20,7 +13,16 @@ class DecisionRequest(BaseModel):
     override_reason: Optional[str] = None
 
 
+class ApplicationCreate(BaseModel):
+    merchant_id: str
+    product_id: str
+    tariff_id: str
+    months: int
+    client: ClientCreate
+
+
 # ── Multi-product flow ─────────────────────────────────────────────────────────
+
 
 class MultiProductItem(BaseModel):
     product_id: str
@@ -88,6 +90,7 @@ class ConfirmResponse(BaseModel):
 
 # ── New detailed output schemas ────────────────────────────────────────────────
 
+
 class ApplicationItemOut(BaseModel):
     product_id: str
     product_name: str
@@ -104,7 +107,7 @@ class ClientDetailOut(BaseModel):
     age: int
     monthly_income: int
     employment_type: str
-    pinfl: Optional[str]
+    pinfl: Optional[str] = None
     open_loans: int
     overdue_days: int
     has_bankruptcy: bool
@@ -127,7 +130,7 @@ class ScoreBreakdownOut(BaseModel):
 
 class FraudSignalOut(BaseModel):
     code: str
-    severity: str        # 'block' | 'warning' | 'info'
+    severity: str  # 'block' | 'warning' | 'info'
     score_impact: int
     description: str
 
@@ -161,10 +164,12 @@ class ApplicationOut(BaseModel):
     signature_url: Optional[str]
 
     status: str
+    decision_source: str = "AUTOMATED"
     created_at: str
-    decided_at: Optional[str]
-    decided_by: Optional[str]
-    override_reason: Optional[str]
+    decided_at: Optional[str] = None
+    decided_by: Optional[str] = None
+    override_reason: Optional[str] = None
+    contract_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 

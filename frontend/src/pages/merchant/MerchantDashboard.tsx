@@ -47,7 +47,7 @@ export default function MerchantDashboard() {
   const pendingApps = applications.filter(a => a.status === 'PENDING').length
   const revenueThisMonth = applications
     .filter(a => a.status === 'ACTIVE')
-    .reduce((sum, a) => sum + a.monthlyPayment, 0)
+    .reduce((sum, a) => sum + (a.monthlyPayment ?? 0), 0)
 
   const recentApps = [...applications]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -118,8 +118,8 @@ export default function MerchantDashboard() {
             ) : recentApps.map(app => (
               <div key={app.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{app.clientName}</p>
-                  <p className="text-xs text-gray-500 truncate">{app.productName} · {formatUZS(app.totalAmount)}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{app.client?.fullName ?? '—'}</p>
+                  <p className="text-xs text-gray-500 truncate">{app.items?.[0]?.productName ?? '—'} · {formatUZS(app.totalAmount)}</p>
                 </div>
                 <div className="ml-3 flex flex-col items-end gap-1">
                   {statusBadge(app.status)}
@@ -146,7 +146,7 @@ export default function MerchantDashboard() {
                   <p className="text-sm font-medium text-gray-900">{contract.clientName}</p>
                   {statusBadge(contract.status)}
                 </div>
-                <p className="text-xs text-gray-500 mb-2">{contract.productName}</p>
+                <p className="text-xs text-gray-500 mb-2">{contract.itemsSummary ?? contract.productName ?? '—'}</p>
                 <div className="flex items-center gap-4 text-xs">
                   <span className="text-gray-500">
                     {t('merchantDashboard.paid')}: <span className="font-medium text-gray-700">{contract.paidInstallments}/{contract.months}</span>
