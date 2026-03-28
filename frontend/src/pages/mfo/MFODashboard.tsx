@@ -23,6 +23,8 @@ export default function MFODashboard() {
     totalMerchants: 0,
     pendingApplications: 0,
     approvedThisMonth: 0,
+    totalTurnover: 0,
+    unpaidAmount: 0,
     monthlyTrend: [] as { month: string; applications: number }[],
   })
   const [recentApps, setRecentApps] = useState<Application[]>([])
@@ -32,6 +34,8 @@ export default function MFODashboard() {
       totalMerchants: d.totalMerchants,
       pendingApplications: d.pendingApplications,
       approvedThisMonth: d.approvedThisMonth,
+      totalTurnover: d.totalTurnover,
+      unpaidAmount: d.unpaidAmount,
       monthlyTrend: d.monthlyTrend,
     })).catch(() => {})
 
@@ -48,14 +52,20 @@ export default function MFODashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
-          title="Total Merchants"
-          value={stats.totalMerchants}
-          subtitle="Registered merchants"
-          icon={<UserGroupIcon className="h-5 w-5" />}
+          title="Total turnover"
+          value={formatUZS(stats.totalTurnover)}
+          subtitle="Barcha shartnomalar bo'yicha"
+          icon={<BanknotesIcon className="h-5 w-5" />}
           color="emerald"
-          trend={5}
+        />
+        <StatCard
+          title="Unpaid"
+          value={formatUZS(stats.unpaidAmount)}
+          subtitle="Muddatli va muddati o'tgan"
+          icon={<BanknotesIcon className="h-5 w-5" />}
+          color="orange"
         />
         <StatCard
           title="Pending Applications"
