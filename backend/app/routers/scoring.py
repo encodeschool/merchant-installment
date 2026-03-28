@@ -5,7 +5,7 @@ from typing import Optional
 
 from ..core.database import get_supabase
 from ..core.deps import get_current_user, require_role
-from ..services.scoring import calculate_score
+from ..services.scoring import calculate_score_full
 
 router = APIRouter()
 
@@ -109,7 +109,7 @@ def score_calculate(
     }
     cfg.update({k: v for k, v in overrides.items() if v is not None})
 
-    result = calculate_score(
+    result = calculate_score_full(
         monthly_income=body.monthly_income,
         monthly_payment=body.monthly_payment,
         age=body.age,
