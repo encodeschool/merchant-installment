@@ -3,6 +3,7 @@ import { FunnelIcon } from '@heroicons/react/24/outline'
 import Badge from '../../components/ui/Badge'
 import { AuditLog, Role } from '../../types'
 import { apiDashboard } from '../../api'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 
 function actionBadge(action: string) {
@@ -40,6 +41,7 @@ function roleBadge(role: Role) {
 const PAGE_SIZE = 20
 
 export default function CBAuditLogs() {
+  const { t } = useTranslation()
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [roleFilter, setRoleFilter] = useState<string>('ALL')
   const [actionFilter, setActionFilter] = useState<string>('ALL')
@@ -69,7 +71,7 @@ export default function CBAuditLogs() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <FunnelIcon className="h-4 w-4 text-gray-400" />
-          <span className="text-sm text-gray-500">Filter:</span>
+          <span className="text-sm text-gray-500">{t('cbAudit.filter')}:</span>
         </div>
 
         <select
@@ -77,10 +79,10 @@ export default function CBAuditLogs() {
           onChange={(e) => { setRoleFilter(e.target.value); setPage(1) }}
           className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-purple-400 focus:outline-none"
         >
-          <option value="ALL">All Roles</option>
-          <option value="CENTRAL_BANK">Central Bank</option>
-          <option value="MFO_ADMIN">MFO Admin</option>
-          <option value="MERCHANT">Merchant</option>
+          <option value="ALL">{t('cbAudit.allRoles')}</option>
+          <option value="CENTRAL_BANK">{t('cbAudit.centralBank')}</option>
+          <option value="MFO_ADMIN">{t('cbAudit.mfoAdmin')}</option>
+          <option value="MERCHANT">{t('cbAudit.merchant')}</option>
         </select>
 
         <select
@@ -88,13 +90,13 @@ export default function CBAuditLogs() {
           onChange={(e) => { setActionFilter(e.target.value); setPage(1) }}
           className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-purple-400 focus:outline-none"
         >
-          <option value="ALL">All Actions</option>
+          <option value="ALL">{t('cbAudit.allActions')}</option>
           {uniqueActions.map(a => (
             <option key={a} value={a}>{a}</option>
           ))}
         </select>
 
-        <span className="ml-auto text-xs text-gray-400">{filtered.length} records</span>
+        <span className="ml-auto text-xs text-gray-400">{t('cbAudit.records', { count: filtered.length })}</span>
       </div>
 
       <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
@@ -102,7 +104,7 @@ export default function CBAuditLogs() {
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
-                {['Timestamp', 'User', 'Role', 'Action', 'Resource', 'Resource ID', 'IP Address'].map(h => (
+                {[t('cbAudit.colTimestamp'), t('cbAudit.colUser'), t('cbAudit.colRole'), t('cbAudit.colAction'), t('cbAudit.colResource'), t('cbAudit.colResourceId'), t('cbAudit.colIP')].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -111,7 +113,7 @@ export default function CBAuditLogs() {
               {paginated.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
-                    No audit logs match your filters.
+                    {t('cbAudit.noLogs')}
                   </td>
                 </tr>
               ) : paginated.map((log: AuditLog) => (
@@ -134,7 +136,7 @@ export default function CBAuditLogs() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
             <p className="text-xs text-gray-500">
-              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+              {t('cbAudit.showing', { from: (page - 1) * PAGE_SIZE + 1, to: Math.min(page * PAGE_SIZE, filtered.length), total: filtered.length })}
             </p>
             <div className="flex gap-1">
               <button
@@ -142,7 +144,7 @@ export default function CBAuditLogs() {
                 disabled={page === 1}
                 className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Previous
+                {t('cbAudit.previous')}
               </button>
               {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(p => (
                 <button
@@ -161,7 +163,7 @@ export default function CBAuditLogs() {
                 disabled={page === totalPages}
                 className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Next
+                {t('cbAudit.next')}
               </button>
             </div>
           </div>

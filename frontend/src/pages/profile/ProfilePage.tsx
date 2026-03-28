@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { UserCircleIcon, KeyIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '../../store/authStore'
 import { apiProfile } from '../../api'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 
 const roleColors: Record<string, string> = {
@@ -20,6 +21,7 @@ const inputCls = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm foc
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuthStore()
+  const { t } = useTranslation()
 
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
@@ -43,15 +45,15 @@ export default function ProfilePage() {
         setSaved(true)
         setTimeout(() => setSaved(false), 3000)
       })
-      .catch(err => setError(err?.response?.data?.detail ?? 'Failed to save. Please try again.'))
+      .catch(err => setError(err?.response?.data?.detail ?? t('profile.failedSave')))
       .finally(() => setSaving(false))
   }
 
   const handleChangePassword = () => {
     setPwError(null)
-    if (!currentPassword) { setPwError('Enter your current password.'); return }
-    if (newPassword.length < 6) { setPwError('New password must be at least 6 characters.'); return }
-    if (newPassword !== confirmPassword) { setPwError('Passwords do not match.'); return }
+    if (!currentPassword) { setPwError(t('profile.enterCurrentPassword')); return }
+    if (newPassword.length < 6) { setPwError(t('profile.passwordTooShort')); return }
+    if (newPassword !== confirmPassword) { setPwError(t('profile.passwordMismatch')); return }
 
     setSaving(true)
     apiProfile.update({ current_password: currentPassword, new_password: newPassword })
@@ -62,7 +64,7 @@ export default function ProfilePage() {
         setSaved(true)
         setTimeout(() => setSaved(false), 3000)
       })
-      .catch(err => setPwError(err?.response?.data?.detail ?? 'Failed to change password.'))
+      .catch(err => setPwError(err?.response?.data?.detail ?? t('profile.failedPassword')))
       .finally(() => setSaving(false))
   }
 
@@ -90,7 +92,7 @@ export default function ProfilePage() {
       {saved && (
         <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 font-medium">
           <CheckCircleIcon className="h-4 w-4 shrink-0" />
-          Changes saved successfully.
+          {t('profile.savedSuccess')}
         </div>
       )}
 
@@ -98,51 +100,48 @@ export default function ProfilePage() {
       <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <UserCircleIcon className="h-5 w-5 text-gray-400" />
-          <h2 className="text-base font-semibold text-gray-900">Profile Information</h2>
+          <h2 className="text-base font-semibold text-gray-900">{t('profile.info')}</h2>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.fullName')}</label>
           <input
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
             className={inputCls}
-            placeholder="Your full name"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.email')}</label>
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             className={inputCls}
-            placeholder="you@example.com"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.organization')}</label>
           <input
             type="text"
             value={organization}
             onChange={e => setOrganization(e.target.value)}
             className={inputCls}
-            placeholder="Your organization name"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.role')}</label>
           <input
             type="text"
             value={user?.role?.replace('_', ' ') ?? ''}
             disabled
             className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
           />
-          <p className="mt-1 text-xs text-gray-400">Role cannot be changed.</p>
+          <p className="mt-1 text-xs text-gray-400">{t('profile.roleHint')}</p>
         </div>
 
         {error && (
@@ -155,7 +154,7 @@ export default function ProfilePage() {
             disabled={saving || !name || !email}
             className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {saving ? 'Saving…' : 'Save Changes'}
+            {saving ? t('profile.saving') : t('profile.saveChanges')}
           </button>
         </div>
       </div>
@@ -164,11 +163,11 @@ export default function ProfilePage() {
       <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <KeyIcon className="h-5 w-5 text-gray-400" />
-          <h2 className="text-base font-semibold text-gray-900">Change Password</h2>
+          <h2 className="text-base font-semibold text-gray-900">{t('profile.changePassword')}</h2>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.currentPassword')}</label>
           <input
             type="password"
             value={currentPassword}
@@ -179,18 +178,18 @@ export default function ProfilePage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.newPassword')}</label>
           <input
             type="password"
             value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
             className={inputCls}
-            placeholder="Min. 6 characters"
+            placeholder={t('profile.minChars')}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.confirmPassword')}</label>
           <input
             type="password"
             value={confirmPassword}
@@ -210,7 +209,7 @@ export default function ProfilePage() {
             disabled={saving || !currentPassword || !newPassword || !confirmPassword}
             className="rounded-xl bg-gray-800 px-6 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {saving ? 'Updating…' : 'Update Password'}
+            {saving ? t('profile.updating') : t('profile.updatePassword')}
           </button>
         </div>
       </div>

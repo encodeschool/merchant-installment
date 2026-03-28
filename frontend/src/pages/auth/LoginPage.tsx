@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 
 const DEMO_PASSWORD = 'demo1234'
@@ -11,13 +12,11 @@ const DEMO_ACCOUNTS = [
 ]
 
 const roleColors = {
-  // CENTRAL_BANK: { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', light: 'bg-purple-50 border-purple-200 text-purple-700', ring: 'ring-purple-400' },
   MFO_ADMIN: { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700', light: 'bg-emerald-50 border-emerald-200 text-emerald-700', ring: 'ring-emerald-400' },
   MERCHANT: { bg: 'bg-blue-600', hover: 'hover:bg-blue-700', light: 'bg-blue-50 border-blue-200 text-blue-700', ring: 'ring-blue-400' },
 }
 
 const roleLabels = {
-  // CENTRAL_BANK: 'Central Bank',
   MFO_ADMIN: 'MFO Admin',
   MERCHANT: 'Merchant',
 }
@@ -29,6 +28,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const { login } = useAuthStore()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,7 +37,7 @@ export default function LoginPage() {
     const ok = await login(email, password || DEMO_PASSWORD)
     setLoading(false)
     if (!ok) {
-      setError('Invalid email. Use one of the demo accounts below.')
+      setError(t('login.invalidEmail'))
       return
     }
     const role = useAuthStore.getState().user?.role
@@ -60,9 +60,9 @@ export default function LoginPage() {
             <span className="text-emerald-400">Platform</span>
           </div>
           <p className="text-slate-300 text-lg leading-relaxed">
-            Microcredit & installment management for merchants, MFOs, and Central Bank oversight.
+            {t('login.brandSubtitle')}
           </p>
-          <p className="mt-4 text-slate-500 text-sm">UzHack 2026 · Central Bank of Uzbekistan</p>
+          <p className="mt-4 text-slate-500 text-sm">{t('login.brandTagline')}</p>
         </div>
       </div>
 
@@ -74,12 +74,12 @@ export default function LoginPage() {
             <p className="text-gray-500 text-sm mt-1">UzHack 2026</p>
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Sign in</h2>
-          <p className="text-gray-500 text-sm mb-8">Access your panel</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('login.signIn')}</h2>
+          <p className="text-gray-500 text-sm mb-8">{t('login.accessPanel')}</p>
 
           {/* Demo accounts */}
           <div className="mb-6">
-            <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Demo accounts</p>
+            <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">{t('login.demoAccounts')}</p>
             <div className="grid grid-cols-2 gap-2">
               {DEMO_ACCOUNTS.map((u) => {
                 const colors = roleColors[u.role]
@@ -105,23 +105,23 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('login.email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Select a demo account above"
+                placeholder={t('login.emailPlaceholder')}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('login.password')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={`Password (demo: ${DEMO_PASSWORD})`}
+                placeholder={t('login.passwordPlaceholder', { pwd: DEMO_PASSWORD })}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             </div>
@@ -135,7 +135,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-lg bg-slate-800 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? t('login.signingIn') : t('login.signIn')}
             </button>
           </form>
         </div>

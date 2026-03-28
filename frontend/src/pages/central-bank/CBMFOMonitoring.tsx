@@ -6,6 +6,7 @@ import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
 import { MFOStats } from '../../types'
 import { apiDashboard } from '../../api'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 
 function formatUZS(n: number): string {
@@ -27,6 +28,7 @@ function defaultRateBg(rate: number) {
 }
 
 export default function CBMFOMonitoring() {
+  const { t } = useTranslation()
   const [mfos, setMfos] = useState<MFOStats[]>([])
 
   useEffect(() => {
@@ -44,28 +46,28 @@ export default function CBMFOMonitoring() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Active MFOs"
+          title={t('cbMonitoring.activeMFOs')}
           value={activeMFOs}
           icon={<BuildingLibraryIcon className="h-5 w-5" />}
           color="purple"
         />
         <StatCard
-          title="Suspended MFOs"
+          title={t('cbMonitoring.suspendedMFOs')}
           value={suspendedMFOs}
           icon={<ExclamationCircleIcon className="h-5 w-5" />}
           color="red"
         />
         <StatCard
-          title="Avg Approval Rate"
+          title={t('cbMonitoring.avgApproval')}
           value={`${avgApproval}%`}
-          subtitle="Across all MFOs"
+          subtitle={t('cbMonitoring.acrossAllMFOs')}
           icon={<CheckBadgeIcon className="h-5 w-5" />}
           color="emerald"
         />
         <StatCard
-          title="Total Disbursed"
+          title={t('cbMonitoring.totalDisbursed')}
           value={formatUZS(totalDisbursed)}
-          subtitle="All MFOs combined"
+          subtitle={t('cbMonitoring.allMFOsCombined')}
           icon={<BanknotesIcon className="h-5 w-5" />}
           color="purple"
         />
@@ -73,14 +75,14 @@ export default function CBMFOMonitoring() {
 
       <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Registered MFOs</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Monitor performance and manage status</p>
+          <h2 className="text-base font-semibold text-gray-900">{t('cbMonitoring.registeredMFOs')}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{t('cbMonitoring.monitorPerf')}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
-                {['MFO Name', 'Merchants', 'Applications', 'Approval Rate', 'Total Disbursed', 'Default Rate', 'Status'].map(h => (
+                {[t('cbMonitoring.colMFOName'), t('cbMonitoring.colMerchants'), t('cbMonitoring.colApplications'), t('cbMonitoring.colApprovalRate'), t('cbMonitoring.colTotalDisbursed'), t('cbMonitoring.colDefaultRate'), t('cbMonitoring.colStatus')].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -95,7 +97,7 @@ export default function CBMFOMonitoring() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-gray-900">{mfo.name}</p>
-                        <p className="text-xs text-gray-400">ID: {mfo.id}</p>
+                        <p className="text-xs text-gray-400">{t('cbMonitoring.id')}: {mfo.id}</p>
                       </div>
                     </div>
                   </td>
@@ -131,18 +133,18 @@ export default function CBMFOMonitoring() {
       </div>
 
       <div className="flex items-center gap-6 text-xs text-gray-500">
-        <span className="font-medium">Default Rate:</span>
+        <span className="font-medium">{t('cbMonitoring.defaultRateLabel')}:</span>
         <div className="flex items-center gap-1.5">
           <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-          <span>{'<3% (Good)'}</span>
+          <span>{t('cbMonitoring.good')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
-          <span>3–5% (Moderate)</span>
+          <span>{t('cbMonitoring.moderate')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
-          <span>{'>5% (High Risk)'}</span>
+          <span>{t('cbMonitoring.highRisk')}</span>
         </div>
       </div>
     </div>

@@ -17,7 +17,10 @@
     "recharts": "^2.12.0",
     "@heroicons/react": "^2.1.1",
     "clsx": "^2.1.0",
-    "date-fns": "^3.3.1"
+    "date-fns": "^3.3.1",
+    "i18next": "^23.11.5",
+    "react-i18next": "^14.1.2",
+    "i18next-browser-languagedetector": "^8.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

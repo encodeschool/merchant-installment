@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button'
 import { Product } from '../../types'
 import { apiProducts, apiMerchants } from '../../api'
 import { useAuthStore } from '../../store/authStore'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 
 function formatUZS(n: number): string {
@@ -34,6 +35,7 @@ interface ProductForm {
 const emptyForm: ProductForm = { name: '', category: '', price: '', description: '', available: true, downPaymentPercent: '10' }
 
 export default function MerchantProducts() {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
   const [merchantId, setMerchantId] = useState('')
   const [products, setProducts] = useState<Product[]>([])
@@ -140,7 +142,7 @@ export default function MerchantProducts() {
   const productFormFields = (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('merchantProducts.name')}</label>
         <input
           type="text"
           value={form.name}
@@ -150,18 +152,18 @@ export default function MerchantProducts() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('merchantProducts.category')}</label>
         <select
           value={form.category}
           onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
         >
-          <option value="">Select category</option>
+          <option value="">{t('merchantProducts.selectCategory')}</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Price (UZS)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('merchantProducts.price')}</label>
         <input
           type="number"
           value={form.price}
@@ -171,18 +173,18 @@ export default function MerchantProducts() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('merchantProducts.description')}</label>
         <textarea
           value={form.description}
           onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-          placeholder="Brief product description"
+          placeholder={t('merchantProducts.descPlaceholder')}
           rows={2}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none"
         />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Down Payment <span className="text-gray-400 font-normal">(% of price, 0–50%)</span>
+          {t('merchantProducts.downPayment')} <span className="text-gray-400 font-normal">{t('merchantProducts.downPaymentRange')}</span>
         </label>
         <div className="flex items-center gap-3">
           <input
@@ -196,12 +198,15 @@ export default function MerchantProducts() {
         </div>
         {form.price && (
           <p className="mt-1 text-xs text-gray-400">
-            Upfront: {formatUZS(Math.round(parseInt(form.price || '0') * (parseInt(form.downPaymentPercent) / 100)))} · Financed: {formatUZS(Math.round(parseInt(form.price || '0') * (1 - parseInt(form.downPaymentPercent) / 100)))}
+            {t('merchantProducts.upfrontFinanced', {
+              upfront: formatUZS(Math.round(parseInt(form.price || '0') * (parseInt(form.downPaymentPercent) / 100))),
+              financed: formatUZS(Math.round(parseInt(form.price || '0') * (1 - parseInt(form.downPaymentPercent) / 100))),
+            })}
           </p>
         )}
       </div>
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-gray-700">Available for installment</label>
+        <label className="text-sm font-medium text-gray-700">{t('merchantProducts.availableForInstallment')}</label>
         <button
           type="button"
           onClick={() => setForm(f => ({ ...f, available: !f.available }))}
@@ -224,21 +229,21 @@ export default function MerchantProducts() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">{products.length} products · {products.filter(p => p.available).length} available</p>
+        <p className="text-sm text-gray-500">{t('merchantProducts.count', { count: products.length, available: products.filter(p => p.available).length })}</p>
         <Button
           variant="primary"
           color="blue"
           icon={<PlusIcon className="h-4 w-4" />}
           onClick={openCreate}
         >
-          Add Product
+          {t('merchantProducts.addProduct')}
         </Button>
       </div>
 
       {products.length === 0 ? (
         <div className="rounded-xl bg-white border border-dashed border-gray-300 p-16 text-center">
           <ShoppingBagPlaceholder />
-          <p className="text-sm text-gray-400 mt-3">No products yet. Add your first product.</p>
+          <p className="text-sm text-gray-400 mt-3">{t('merchantProducts.noProducts')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -257,15 +262,15 @@ export default function MerchantProducts() {
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-sm font-semibold text-gray-900 leading-tight">{product.name}</h3>
                   <Badge variant={product.available ? 'success' : 'neutral'} className="ml-2 shrink-0">
-                    {product.available ? 'Available' : 'Unavailable'}
+                    {product.available ? t('merchantProducts.availableBadge') : t('merchantProducts.unavailableBadge')}
                   </Badge>
                 </div>
                 <p className="text-xs text-gray-500 mb-3 line-clamp-2">{product.description}</p>
                 <p className="text-base font-bold text-blue-700">{formatUZS(product.price)}</p>
                 {product.downPaymentPercent > 0 && (
-                  <p className="text-xs text-gray-400 mb-3">Down payment: {product.downPaymentPercent}% ({formatUZS(Math.round(product.price * product.downPaymentPercent / 100))})</p>
+                  <p className="text-xs text-gray-400 mb-3">{t('merchantProducts.downPaymentInfo', { pct: product.downPaymentPercent, amount: formatUZS(Math.round(product.price * product.downPaymentPercent / 100)) })}</p>
                 )}
-                {product.downPaymentPercent === 0 && <p className="text-xs text-gray-400 mb-3">No down payment</p>}
+                {product.downPaymentPercent === 0 && <p className="text-xs text-gray-400 mb-3">{t('merchantProducts.noDownPayment')}</p>}
 
                 <div className="flex items-center gap-2">
                   <button
@@ -277,7 +282,7 @@ export default function MerchantProducts() {
                         : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                     )}
                   >
-                    {product.available ? 'Mark Unavailable' : 'Mark Available'}
+                    {product.available ? t('merchantProducts.markUnavailable') : t('merchantProducts.markAvailable')}
                   </button>
                   <button
                     onClick={() => openEdit(product)}
@@ -298,38 +303,38 @@ export default function MerchantProducts() {
         </div>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add New Product" size="md">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('merchantProducts.addNewTitle')} size="md">
         <div className="space-y-5">
           {productFormFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
-            <Button variant="secondary" color="gray" className="flex-1" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="secondary" color="gray" className="flex-1" onClick={() => setCreateOpen(false)}>{t('common.cancel')}</Button>
             <Button variant="primary" color="blue" className="flex-1" onClick={handleCreate} disabled={!form.name || !form.price || saving}>
-              {saving ? 'Saving…' : 'Add Product'}
+              {saving ? t('merchantProducts.saving') : t('merchantProducts.addProduct')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Product" size="md">
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title={t('merchantProducts.editProduct')} size="md">
         <div className="space-y-5">
           {productFormFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
-            <Button variant="secondary" color="gray" className="flex-1" onClick={() => setEditTarget(null)}>Cancel</Button>
+            <Button variant="secondary" color="gray" className="flex-1" onClick={() => setEditTarget(null)}>{t('common.cancel')}</Button>
             <Button variant="primary" color="blue" className="flex-1" onClick={handleEdit} disabled={saving}>
-              {saving ? 'Saving…' : 'Save Changes'}
+              {saving ? t('merchantProducts.saving') : t('common.saveChanges')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Product" size="sm">
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={t('merchantProducts.deleteProduct')} size="sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.
+            {t('merchantProducts.deleteConfirm', { name: deleteTarget?.name })}
           </p>
           <div className="flex gap-3">
-            <Button variant="secondary" color="gray" className="flex-1" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button variant="primary" color="red" className="flex-1" onClick={handleDelete}>Delete</Button>
+            <Button variant="secondary" color="gray" className="flex-1" onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
+            <Button variant="primary" color="red" className="flex-1" onClick={handleDelete}>{t('common.delete')}</Button>
           </div>
         </div>
       </Modal>

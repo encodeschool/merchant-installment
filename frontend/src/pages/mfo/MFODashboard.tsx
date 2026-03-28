@@ -12,6 +12,7 @@ import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
 import { Application } from '../../types'
 import { apiDashboard, apiApplications } from '../../api'
+import { useTranslation } from 'react-i18next'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M UZS'
@@ -19,6 +20,7 @@ function formatUZS(n: number): string {
 }
 
 export default function MFODashboard() {
+  const { t } = useTranslation()
   const [stats, setStats] = useState({
     totalMerchants: 0,
     pendingApplications: 0,
@@ -54,38 +56,38 @@ export default function MFODashboard() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
-          title="Total turnover"
+          title={t('mfoDashboard.totalTurnover')}
           value={formatUZS(stats.totalTurnover)}
-          subtitle="Barcha shartnomalar bo'yicha"
+          subtitle={t('mfoDashboard.allContracts')}
           icon={<BanknotesIcon className="h-5 w-5" />}
           color="emerald"
         />
         <StatCard
-          title="Unpaid"
+          title={t('mfoDashboard.unpaid')}
           value={formatUZS(stats.unpaidAmount)}
-          subtitle="Muddatli va muddati o'tgan"
+          subtitle={t('mfoDashboard.unpaidSubtitle')}
           icon={<BanknotesIcon className="h-5 w-5" />}
           color="orange"
         />
         <StatCard
-          title="Pending Applications"
+          title={t('mfoDashboard.pendingApps')}
           value={stats.pendingApplications}
-          subtitle="Awaiting review"
+          subtitle={t('mfoDashboard.awaitingReview')}
           icon={<ClockIcon className="h-5 w-5" />}
           color="orange"
         />
         <StatCard
-          title="Approved This Month"
+          title={t('mfoDashboard.approvedMonth')}
           value={stats.approvedThisMonth}
-          subtitle="Active + recently approved"
+          subtitle={t('mfoDashboard.activeApproved')}
           icon={<DocumentCheckIcon className="h-5 w-5" />}
           color="emerald"
           trend={12}
         />
         <StatCard
-          title="Interest Revenue Est."
+          title={t('mfoDashboard.interestRevenue')}
           value={formatUZS(revenueEstimate)}
-          subtitle="From active loans"
+          subtitle={t('mfoDashboard.fromActiveLoans')}
           icon={<BanknotesIcon className="h-5 w-5" />}
           color="emerald"
           trend={8}
@@ -96,8 +98,8 @@ export default function MFODashboard() {
         <div className="lg:col-span-2 rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Monthly Applications</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Applications submitted vs approved</p>
+              <h2 className="text-base font-semibold text-gray-900">{t('mfoDashboard.monthlyApplications')}</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{t('mfoDashboard.submittedVsApproved')}</p>
             </div>
             <ChartBarIcon className="h-5 w-5 text-emerald-400" />
           </div>
@@ -108,14 +110,14 @@ export default function MFODashboard() {
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="applications" name="Submitted" fill="#10b981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="approved" name="Approved" fill="#6ee7b7" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="applications" name={t('mfoDashboard.submitted')} fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="approved" name={t('mfoDashboard.approved')} fill="#6ee7b7" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="space-y-3">
-          <h2 className="text-base font-semibold text-gray-900">Quick Actions</h2>
+          <h2 className="text-base font-semibold text-gray-900">{t('mfoDashboard.quickActions')}</h2>
           <Link
             to="/mfo/tariffs"
             className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-100 p-4 hover:bg-emerald-100 transition-colors"
@@ -123,8 +125,8 @@ export default function MFODashboard() {
             <div className="flex items-center gap-3">
               <ChartBarIcon className="h-5 w-5 text-emerald-600" />
               <div>
-                <p className="text-sm font-semibold text-emerald-900">Manage Tariffs</p>
-                <p className="text-xs text-emerald-600">Create & edit tariff plans</p>
+                <p className="text-sm font-semibold text-emerald-900">{t('mfoDashboard.manageTariffs')}</p>
+                <p className="text-xs text-emerald-600">{t('mfoDashboard.manageTariffsDesc')}</p>
               </div>
             </div>
             <ArrowRightIcon className="h-4 w-4 text-emerald-500" />
@@ -136,8 +138,8 @@ export default function MFODashboard() {
             <div className="flex items-center gap-3">
               <UserGroupIcon className="h-5 w-5 text-emerald-600" />
               <div>
-                <p className="text-sm font-semibold text-emerald-900">Manage Merchants</p>
-                <p className="text-xs text-emerald-600">Onboard & monitor merchants</p>
+                <p className="text-sm font-semibold text-emerald-900">{t('mfoDashboard.manageMerchants')}</p>
+                <p className="text-xs text-emerald-600">{t('mfoDashboard.manageMerchantsDesc')}</p>
               </div>
             </div>
             <ArrowRightIcon className="h-4 w-4 text-emerald-500" />
@@ -149,8 +151,8 @@ export default function MFODashboard() {
             <div className="flex items-center gap-3">
               <DocumentCheckIcon className="h-5 w-5 text-emerald-600" />
               <div>
-                <p className="text-sm font-semibold text-emerald-900">Review Applications</p>
-                <p className="text-xs text-emerald-600">{stats.pendingApplications} pending decision</p>
+                <p className="text-sm font-semibold text-emerald-900">{t('mfoDashboard.reviewApplications')}</p>
+                <p className="text-xs text-emerald-600">{t('mfoDashboard.reviewApplicationsDesc', { count: stats.pendingApplications })}</p>
               </div>
             </div>
             <ArrowRightIcon className="h-4 w-4 text-emerald-500" />
@@ -160,14 +162,14 @@ export default function MFODashboard() {
 
       <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Recent Applications</h2>
-          <Link to="/mfo/applications" className="text-xs text-emerald-600 hover:underline">View all</Link>
+          <h2 className="text-base font-semibold text-gray-900">{t('mfoDashboard.recentApplications')}</h2>
+          <Link to="/mfo/applications" className="text-xs text-emerald-600 hover:underline">{t('common.viewAll')}</Link>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-50">
             <thead className="bg-gray-50">
               <tr>
-                {['Client', 'Merchant', 'Product', 'Amount', 'Score', 'Status', 'Date'].map(h => (
+                {[t('common.client'), t('common.merchant'), t('common.product'), t('applications.totalAmount'), t('applications.colScore'), t('common.status'), t('common.date')].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
