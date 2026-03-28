@@ -42,7 +42,7 @@ export const apiApplications = {
     api.get<any[]>('/api/v1/applications')
       .then(r => r.data.map(normalizeApplication)),
   get: (id: string) =>
-    api.get<Application>(`/api/v1/applications/${id}`).then(r => r.data),
+    api.get<Application>(`/api/v1/applications/${id}/detail`).then(r => r.data),
   submit: (b: object) =>
     api.post<any>('/api/v1/applications', b)
       .then(r => normalizeApplication(r.data)),
