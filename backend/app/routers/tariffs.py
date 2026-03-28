@@ -1,31 +1,30 @@
+import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from supabase import Client
 
-from ..core.database import get_db
+from ..core.database import get_supabase
 from ..core.deps import get_current_user, require_role
-from ..models.user import User
-from ..models.tariff import Tariff
 from ..schemas.tariff import TariffCreate, TariffUpdate, TariffOut
 from ..services.audit import log_action
 
 router = APIRouter()
 
 
-def _tariff_to_out(tariff: Tariff, mfo_name: str) -> TariffOut:
+def _tariff_to_out(t: dict, mfo_name: str) -> TariffOut:
     return TariffOut(
-        id=tariff.id,
-        name=tariff.name,
+        id=t["id"],
+        name=t["name"],
         mfoName=mfo_name,
-        interestRate=tariff.interest_rate,
-        minAmount=tariff.min_amount,
-        maxAmount=tariff.max_amount,
-        minMonths=tariff.min_months,
-        maxMonths=tariff.max_months,
-        minScore=tariff.min_score,
-        status=tariff.status,
-        createdAt=tariff.created_at.isoformat(),
-        approvedAt=tariff.approved_at.isoformat() if tariff.approved_at else None,
+        interestRate=t["interest_rate"],
+        minAmount=t["min_amount"],
+        maxAmount=t["max_amount"],
+        minMonths=t["min_months"],
+        maxMonths=t["max_months"],
+        minScore=t["min_score"],
+        status=t["status"],
+        createdAt=t["created_at"],
+        approvedAt=t.get("approved_at"),
     )
 
 
@@ -33,41 +32,40 @@ def _tariff_to_out(tariff: Tariff, mfo_name: str) -> TariffOut:
 def create_tariff(
     body: TariffCreate,
     request: Request,
-    current_user: User = Depends(require_role("MFO_ADMIN")),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
 ):
-    tariff = Tariff(
-        name=body.name,
-        mfo_user_id=current_user.id,
-        interest_rate=body.interest_rate,
-        min_amount=body.min_amount,
-        max_amount=body.max_amount,
-        min_months=body.min_months,
-        max_months=body.max_months,
-        min_score=body.min_score,
-        status="PENDING",
-    )
-    db.add(tariff)
-    db.commit()
-    db.refresh(tariff)
-    log_action(db, current_user.id, "CREATE", "tariff", tariff.id, request.client.host if request.client else "")
-    return _tariff_to_out(tariff, current_user.organization)
+    data = {
+        "id": str(uuid.uuid4()),
+        "name": body.name,
+        "mfo_user_id": current_user["id"],
+        "interest_rate": body.interest_rate,
+        "min_amount": body.min_amount,
+        "max_amount": body.max_amount,
+        "min_months": body.min_months,
+        "max_months": body.max_months,
+        "min_score": body.min_score,
+        "status": "PENDING",
+    }
+    tariff = db.table("tariffs").insert(data).execute().data[0]
+    log_action(db, current_user["id"], "CREATE", "tariff", tariff["id"], request.client.host if request.client else "")
+    return _tariff_to_out(tariff, current_user["organization"])
 
 
 @router.get("", response_model=list[TariffOut])
 def list_tariffs(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Client = Depends(get_supabase),
 ):
-    query = db.query(Tariff)
-    if current_user.role == "MFO_ADMIN":
-        query = query.filter(Tariff.mfo_user_id == current_user.id)
+    query = db.table("tariffs").select("*").order("created_at", desc=True)
+    if current_user["role"] == "MFO_ADMIN":
+        query = query.eq("mfo_user_id", current_user["id"])
+    tariffs = query.execute().data
 
-    tariffs = query.order_by(Tariff.created_at.desc()).all()
     result = []
     for t in tariffs:
-        owner = db.query(User).filter(User.id == t.mfo_user_id).first()
-        mfo_name = owner.organization if owner else ""
+        owner = db.table("users").select("organization").eq("id", t["mfo_user_id"]).execute().data
+        mfo_name = owner[0]["organization"] if owner else ""
         result.append(_tariff_to_out(t, mfo_name))
     return result
 
@@ -75,14 +73,16 @@ def list_tariffs(
 @router.get("/{tariff_id}", response_model=TariffOut)
 def get_tariff(
     tariff_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Client = Depends(get_supabase),
 ):
-    tariff = db.query(Tariff).filter(Tariff.id == tariff_id).first()
-    if not tariff:
+    rows = db.table("tariffs").select("*").eq("id", tariff_id).execute().data
+    if not rows:
         raise HTTPException(status_code=404, detail="Tariff not found")
-    owner = db.query(User).filter(User.id == tariff.mfo_user_id).first()
-    return _tariff_to_out(tariff, owner.organization if owner else "")
+    t = rows[0]
+    owner = db.table("users").select("organization").eq("id", t["mfo_user_id"]).execute().data
+    mfo_name = owner[0]["organization"] if owner else ""
+    return _tariff_to_out(t, mfo_name)
 
 
 @router.put("/{tariff_id}", response_model=TariffOut)
@@ -90,73 +90,68 @@ def update_tariff(
     tariff_id: str,
     body: TariffUpdate,
     request: Request,
-    current_user: User = Depends(require_role("MFO_ADMIN")),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
 ):
-    tariff = db.query(Tariff).filter(Tariff.id == tariff_id, Tariff.mfo_user_id == current_user.id).first()
-    if not tariff:
+    rows = db.table("tariffs").select("*").eq("id", tariff_id).eq("mfo_user_id", current_user["id"]).execute().data
+    if not rows:
         raise HTTPException(status_code=404, detail="Tariff not found")
-    if tariff.status != "PENDING":
+    if rows[0]["status"] != "PENDING":
         raise HTTPException(status_code=400, detail="Only PENDING tariffs can be updated")
 
-    for field, value in body.model_dump(exclude_none=True).items():
-        setattr(tariff, field, value)
-    db.commit()
-    db.refresh(tariff)
-    log_action(db, current_user.id, "UPDATE", "tariff", tariff.id, request.client.host if request.client else "")
-    return _tariff_to_out(tariff, current_user.organization)
+    updates = body.model_dump(exclude_none=True)
+    tariff = db.table("tariffs").update(updates).eq("id", tariff_id).execute().data[0]
+    log_action(db, current_user["id"], "UPDATE", "tariff", tariff_id, request.client.host if request.client else "")
+    return _tariff_to_out(tariff, current_user["organization"])
 
 
 @router.delete("/{tariff_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_tariff(
     tariff_id: str,
     request: Request,
-    current_user: User = Depends(require_role("MFO_ADMIN")),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
 ):
-    tariff = db.query(Tariff).filter(Tariff.id == tariff_id, Tariff.mfo_user_id == current_user.id).first()
-    if not tariff:
+    rows = db.table("tariffs").select("*").eq("id", tariff_id).eq("mfo_user_id", current_user["id"]).execute().data
+    if not rows:
         raise HTTPException(status_code=404, detail="Tariff not found")
-    if tariff.status == "APPROVED":
+    if rows[0]["status"] == "APPROVED":
         raise HTTPException(status_code=400, detail="Approved tariffs cannot be deleted")
-    log_action(db, current_user.id, "DELETE", "tariff", tariff.id, request.client.host if request.client else "")
-    db.delete(tariff)
-    db.commit()
+    log_action(db, current_user["id"], "DELETE", "tariff", tariff_id, request.client.host if request.client else "")
+    db.table("tariffs").delete().eq("id", tariff_id).execute()
 
 
 @router.patch("/{tariff_id}/approve", response_model=TariffOut)
 def approve_tariff(
     tariff_id: str,
     request: Request,
-    current_user: User = Depends(require_role("CENTRAL_BANK")),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
 ):
-    tariff = db.query(Tariff).filter(Tariff.id == tariff_id).first()
-    if not tariff:
+    rows = db.table("tariffs").select("*").eq("id", tariff_id).execute().data
+    if not rows:
         raise HTTPException(status_code=404, detail="Tariff not found")
-    tariff.status = "APPROVED"
-    tariff.approved_at = datetime.now(timezone.utc)
-    tariff.approved_by = current_user.id
-    db.commit()
-    db.refresh(tariff)
-    log_action(db, current_user.id, "APPROVE", "tariff", tariff.id, request.client.host if request.client else "")
-    owner = db.query(User).filter(User.id == tariff.mfo_user_id).first()
-    return _tariff_to_out(tariff, owner.organization if owner else "")
+    tariff = db.table("tariffs").update({
+        "status": "APPROVED",
+        "approved_at": datetime.now(timezone.utc).isoformat(),
+        "approved_by": current_user["id"],
+    }).eq("id", tariff_id).execute().data[0]
+    log_action(db, current_user["id"], "APPROVE", "tariff", tariff_id, request.client.host if request.client else "")
+    owner = db.table("users").select("organization").eq("id", tariff["mfo_user_id"]).execute().data
+    return _tariff_to_out(tariff, owner[0]["organization"] if owner else "")
 
 
 @router.patch("/{tariff_id}/reject", response_model=TariffOut)
 def reject_tariff(
     tariff_id: str,
     request: Request,
-    current_user: User = Depends(require_role("CENTRAL_BANK")),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
 ):
-    tariff = db.query(Tariff).filter(Tariff.id == tariff_id).first()
-    if not tariff:
+    rows = db.table("tariffs").select("*").eq("id", tariff_id).execute().data
+    if not rows:
         raise HTTPException(status_code=404, detail="Tariff not found")
-    tariff.status = "REJECTED"
-    db.commit()
-    db.refresh(tariff)
-    log_action(db, current_user.id, "REJECT", "tariff", tariff.id, request.client.host if request.client else "")
-    owner = db.query(User).filter(User.id == tariff.mfo_user_id).first()
-    return _tariff_to_out(tariff, owner.organization if owner else "")
+    tariff = db.table("tariffs").update({"status": "REJECTED"}).eq("id", tariff_id).execute().data[0]
+    log_action(db, current_user["id"], "REJECT", "tariff", tariff_id, request.client.host if request.client else "")
+    owner = db.table("users").select("organization").eq("id", tariff["mfo_user_id"]).execute().data
+    return _tariff_to_out(tariff, owner[0]["organization"] if owner else "")

@@ -1,4 +1,7 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings
+
+_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -10,7 +13,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     class Config:
-        env_file = ".env"
+        env_file = str(_ENV_FILE)
 
 
 settings = Settings()

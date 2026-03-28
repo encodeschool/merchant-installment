@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends
+from supabase import Client
 from pydantic import BaseModel
 
-from ..core.database import get_db
+from ..core.database import get_supabase
 from ..core.deps import get_current_user, require_role
-from ..models.user import User
-from ..models.scoring import ScoringLog
 from ..services.scoring import calculate_score, get_outcome, monthly_payment as calc_monthly_payment
 
 router = APIRouter()
@@ -34,7 +32,7 @@ class ScoreCalculateResponse(BaseModel):
 @router.post("/calculate", response_model=ScoreCalculateResponse)
 def score_calculate(
     body: ScoreCalculateRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     mp = calc_monthly_payment(body.principal, body.months, body.annual_rate)
     breakdown = calculate_score(body.monthly_income, mp, body.age, body.credit_history)
@@ -53,27 +51,27 @@ def score_calculate(
 @router.get("/{client_id}/history")
 def score_history(
     client_id: str,
-    current_user: User = Depends(require_role("MFO_ADMIN", "CENTRAL_BANK")),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
 ):
     logs = (
-        db.query(ScoringLog)
-        .filter(ScoringLog.client_id == client_id)
-        .order_by(ScoringLog.created_at.desc())
-        .all()
+        db.table("scoring_logs").select("*")
+        .eq("client_id", client_id)
+        .order("created_at", desc=True)
+        .execute().data
     )
     return [
         {
-            "id": log.id,
-            "applicationId": log.application_id,
-            "clientId": log.client_id,
-            "incomeScore": log.income_score,
-            "creditScore": log.credit_score,
-            "ageScore": log.age_score,
-            "tariffScore": log.tariff_score,
-            "totalScore": log.total_score,
-            "outcome": log.outcome,
-            "createdAt": log.created_at.isoformat(),
+            "id": log["id"],
+            "applicationId": log["application_id"],
+            "clientId": log["client_id"],
+            "incomeScore": log["income_score"],
+            "creditScore": log["credit_score"],
+            "ageScore": log["age_score"],
+            "tariffScore": log["tariff_score"],
+            "totalScore": log["total_score"],
+            "outcome": log["outcome"],
+            "createdAt": log["created_at"],
         }
         for log in logs
     ]

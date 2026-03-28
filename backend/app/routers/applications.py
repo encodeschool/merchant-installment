@@ -1,17 +1,10 @@
+import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from supabase import Client
 
-from ..core.database import get_db
+from ..core.database import get_supabase
 from ..core.deps import get_current_user, require_role
-from ..models.user import User
-from ..models.merchant import Merchant
-from ..models.product import Product
-from ..models.tariff import Tariff
-from ..models.client import Client
-from ..models.application import Application
-from ..models.contract import Contract
-from ..models.scoring import ScoringLog
 from ..schemas.application import ApplicationCreate, DecisionRequest, ApplicationOut
 from ..services.scoring import calculate_score, get_outcome, monthly_payment as calc_monthly_payment
 from ..services.contract import generate_payment_schedule
@@ -20,30 +13,30 @@ from ..services.audit import log_action
 router = APIRouter()
 
 
-def _app_to_out(app: Application, db: Session) -> ApplicationOut:
-    merchant = db.query(Merchant).filter(Merchant.id == app.merchant_id).first()
-    client = db.query(Client).filter(Client.id == app.client_id).first()
-    product = db.query(Product).filter(Product.id == app.product_id).first()
-    tariff = db.query(Tariff).filter(Tariff.id == app.tariff_id).first()
+def _app_to_out(app: dict, db: Client) -> ApplicationOut:
+    merchant = db.table("merchants").select("name").eq("id", app["merchant_id"]).execute().data
+    client = db.table("clients").select("full_name, phone").eq("id", app["client_id"]).execute().data
+    product = db.table("products").select("name, price").eq("id", app["product_id"]).execute().data
+    tariff = db.table("tariffs").select("name").eq("id", app["tariff_id"]).execute().data
 
     return ApplicationOut(
-        id=app.id,
-        merchantId=app.merchant_id,
-        merchantName=merchant.name if merchant else "",
-        clientName=client.full_name if client else "",
-        clientPhone=client.phone if client else "",
-        productName=product.name if product else "",
-        productPrice=product.price if product else 0,
-        tariffId=app.tariff_id,
-        tariffName=tariff.name if tariff else "",
-        months=app.months,
-        monthlyPayment=app.monthly_payment,
-        totalAmount=app.total_amount,
-        score=app.score,
-        status=app.status,
-        approvedAmount=app.approved_amount,
-        createdAt=app.created_at.isoformat(),
-        decidedAt=app.decided_at.isoformat() if app.decided_at else None,
+        id=app["id"],
+        merchantId=app["merchant_id"],
+        merchantName=merchant[0]["name"] if merchant else "",
+        clientName=client[0]["full_name"] if client else "",
+        clientPhone=client[0]["phone"] if client else "",
+        productName=product[0]["name"] if product else "",
+        productPrice=product[0]["price"] if product else 0,
+        tariffId=app["tariff_id"],
+        tariffName=tariff[0]["name"] if tariff else "",
+        months=app["months"],
+        monthlyPayment=app["monthly_payment"],
+        totalAmount=app["total_amount"],
+        score=app["score"],
+        status=app["status"],
+        approvedAmount=app.get("approved_amount"),
+        createdAt=app["created_at"],
+        decidedAt=app.get("decided_at"),
     )
 
 
@@ -51,118 +44,117 @@ def _app_to_out(app: Application, db: Session) -> ApplicationOut:
 def create_application(
     body: ApplicationCreate,
     request: Request,
-    current_user: User = Depends(require_role("MERCHANT")),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("MERCHANT")),
+    db: Client = Depends(get_supabase),
 ):
-    merchant = db.query(Merchant).filter(Merchant.id == body.merchant_id).first()
-    if not merchant:
+    merchant_rows = db.table("merchants").select("*").eq("id", body.merchant_id).execute().data
+    if not merchant_rows:
         raise HTTPException(status_code=404, detail="Merchant not found")
 
-    product = db.query(Product).filter(Product.id == body.product_id).first()
-    if not product:
+    product_rows = db.table("products").select("*").eq("id", body.product_id).execute().data
+    if not product_rows:
         raise HTTPException(status_code=404, detail="Product not found")
-    if not product.available:
+    product = product_rows[0]
+    if not product["available"]:
         raise HTTPException(status_code=400, detail="Product is not available")
 
-    tariff = db.query(Tariff).filter(Tariff.id == body.tariff_id).first()
-    if not tariff:
+    tariff_rows = db.table("tariffs").select("*").eq("id", body.tariff_id).execute().data
+    if not tariff_rows:
         raise HTTPException(status_code=404, detail="Tariff not found")
-    if tariff.status != "APPROVED":
+    tariff = tariff_rows[0]
+    if tariff["status"] != "APPROVED":
         raise HTTPException(status_code=400, detail="Tariff is not approved")
 
     if body.months not in {3, 6, 9, 12}:
         raise HTTPException(status_code=422, detail="Months must be one of 3, 6, 9, 12")
-    if not (tariff.min_months <= body.months <= tariff.max_months):
+    if not (tariff["min_months"] <= body.months <= tariff["max_months"]):
         raise HTTPException(status_code=422, detail="Months out of tariff range")
 
-    client = db.query(Client).filter(Client.passport_number == body.client.passport_number).first()
-    if client:
-        client.full_name = body.client.full_name
-        client.phone = body.client.phone
-        client.monthly_income = body.client.monthly_income
-        client.age = body.client.age
-        client.credit_history = body.client.credit_history
-        db.commit()
+    existing_client = db.table("clients").select("*").eq("passport_number", body.client.passport_number).execute().data
+    if existing_client:
+        client_id = existing_client[0]["id"]
+        db.table("clients").update({
+            "full_name": body.client.full_name,
+            "phone": body.client.phone,
+            "monthly_income": body.client.monthly_income,
+            "age": body.client.age,
+            "credit_history": body.client.credit_history,
+        }).eq("id", client_id).execute()
+        client = db.table("clients").select("*").eq("id", client_id).execute().data[0]
     else:
-        client = Client(
-            full_name=body.client.full_name,
-            passport_number=body.client.passport_number,
-            phone=body.client.phone,
-            monthly_income=body.client.monthly_income,
-            age=body.client.age,
-            credit_history=body.client.credit_history,
-        )
-        db.add(client)
-        db.commit()
-        db.refresh(client)
+        client_data = {
+            "id": str(uuid.uuid4()),
+            "full_name": body.client.full_name,
+            "passport_number": body.client.passport_number,
+            "phone": body.client.phone,
+            "monthly_income": body.client.monthly_income,
+            "age": body.client.age,
+            "credit_history": body.client.credit_history,
+        }
+        client = db.table("clients").insert(client_data).execute().data[0]
 
-    down_payment = int(product.price * product.down_payment_percent / 100)
-    financed_amount = product.price - down_payment
-
-    mp = calc_monthly_payment(financed_amount, body.months, tariff.interest_rate)
+    down_payment = int(product["price"] * product["down_payment_percent"] / 100)
+    financed_amount = product["price"] - down_payment
+    mp = calc_monthly_payment(financed_amount, body.months, tariff["interest_rate"])
     total = int(mp * body.months)
+    score_breakdown = calculate_score(client["monthly_income"], mp, client["age"], client["credit_history"])
 
-    score_breakdown = calculate_score(client.monthly_income, mp, client.age, client.credit_history)
+    app_data = {
+        "id": str(uuid.uuid4()),
+        "merchant_id": body.merchant_id,
+        "client_id": client["id"],
+        "product_id": body.product_id,
+        "tariff_id": body.tariff_id,
+        "months": body.months,
+        "monthly_payment": int(mp),
+        "total_amount": total,
+        "score": score_breakdown["total"],
+        "status": "PENDING",
+    }
+    application = db.table("applications").insert(app_data).execute().data[0]
 
-    application = Application(
-        merchant_id=body.merchant_id,
-        client_id=client.id,
-        product_id=body.product_id,
-        tariff_id=body.tariff_id,
-        months=body.months,
-        monthly_payment=int(mp),
-        total_amount=total,
-        score=score_breakdown["total"],
-        status="PENDING",
-    )
-    db.add(application)
-    db.commit()
-    db.refresh(application)
+    outcome = get_outcome(score_breakdown["total"], tariff["min_score"])
+    db.table("scoring_logs").insert({
+        "id": str(uuid.uuid4()),
+        "application_id": application["id"],
+        "client_id": client["id"],
+        "income_score": score_breakdown["income_score"],
+        "credit_score": score_breakdown["credit_score"],
+        "age_score": score_breakdown["age_score"],
+        "tariff_score": score_breakdown["tariff_score"],
+        "total_score": score_breakdown["total"],
+        "outcome": outcome,
+    }).execute()
 
-    outcome = get_outcome(score_breakdown["total"], tariff.min_score)
-    scoring_log = ScoringLog(
-        application_id=application.id,
-        client_id=client.id,
-        income_score=score_breakdown["income_score"],
-        credit_score=score_breakdown["credit_score"],
-        age_score=score_breakdown["age_score"],
-        tariff_score=score_breakdown["tariff_score"],
-        total_score=score_breakdown["total"],
-        outcome=outcome,
-    )
-    db.add(scoring_log)
-    db.commit()
-
-    log_action(db, current_user.id, "CREATE", "application", application.id, request.client.host if request.client else "")
+    log_action(db, current_user["id"], "CREATE", "application", application["id"], request.client.host if request.client else "")
     return _app_to_out(application, db)
 
 
 @router.get("", response_model=list[ApplicationOut])
 def list_applications(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Client = Depends(get_supabase),
 ):
-    query = db.query(Application)
-    if current_user.role == "MERCHANT":
-        merchant = db.query(Merchant).filter(Merchant.name == current_user.organization).first()
-        if merchant:
-            query = query.filter(Application.merchant_id == merchant.id)
-        else:
+    if current_user["role"] == "MERCHANT":
+        merchants = db.table("merchants").select("id").eq("name", current_user["organization"]).execute().data
+        if not merchants:
             return []
-    apps = query.order_by(Application.created_at.desc()).all()
+        apps = db.table("applications").select("*").eq("merchant_id", merchants[0]["id"]).order("created_at", desc=True).execute().data
+    else:
+        apps = db.table("applications").select("*").order("created_at", desc=True).execute().data
     return [_app_to_out(a, db) for a in apps]
 
 
 @router.get("/{application_id}", response_model=ApplicationOut)
 def get_application(
     application_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Client = Depends(get_supabase),
 ):
-    app = db.query(Application).filter(Application.id == application_id).first()
-    if not app:
+    rows = db.table("applications").select("*").eq("id", application_id).execute().data
+    if not rows:
         raise HTTPException(status_code=404, detail="Application not found")
-    return _app_to_out(app, db)
+    return _app_to_out(rows[0], db)
 
 
 @router.patch("/{application_id}/decide", response_model=ApplicationOut)
@@ -170,60 +162,60 @@ def decide_application(
     application_id: str,
     body: DecisionRequest,
     request: Request,
-    current_user: User = Depends(require_role("MFO_ADMIN")),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
 ):
-    app = db.query(Application).filter(Application.id == application_id).first()
-    if not app:
+    rows = db.table("applications").select("*").eq("id", application_id).execute().data
+    if not rows:
         raise HTTPException(status_code=404, detail="Application not found")
-    if app.status != "PENDING":
+    app = rows[0]
+    if app["status"] != "PENDING":
         raise HTTPException(status_code=400, detail="Application is not in PENDING status")
 
-    app.status = body.action
-    app.decided_by = current_user.id
-    app.decided_at = datetime.now(timezone.utc)
+    updates = {
+        "status": body.action,
+        "decided_by": current_user["id"],
+        "decided_at": datetime.now(timezone.utc).isoformat(),
+    }
 
     if body.action in ("APPROVED", "PARTIAL"):
+        product_rows = db.table("products").select("*").eq("id", app["product_id"]).execute().data
+        product = product_rows[0] if product_rows else {}
+        tariff_rows = db.table("tariffs").select("*").eq("id", app["tariff_id"]).execute().data
+        tariff = tariff_rows[0] if tariff_rows else {}
+
         if body.action == "PARTIAL":
-            product = db.query(Product).filter(Product.id == app.product_id).first()
-            down = int(product.price * product.down_payment_percent / 100) if product else 0
-            financed = (product.price - down) if product else app.total_amount
+            down = int(product.get("price", 0) * product.get("down_payment_percent", 0) / 100)
+            financed = product.get("price", 0) - down
             approved_amount = body.approved_amount if body.approved_amount else int(financed * 0.70)
-            tariff = db.query(Tariff).filter(Tariff.id == app.tariff_id).first()
-            mp = calc_monthly_payment(approved_amount, app.months, tariff.interest_rate if tariff else 0)
-            app.monthly_payment = int(mp)
-            app.total_amount = int(mp * app.months)
+            mp = calc_monthly_payment(approved_amount, app["months"], tariff.get("interest_rate", 0))
+            updates["monthly_payment"] = int(mp)
+            updates["total_amount"] = int(mp * app["months"])
         else:
-            approved_amount = body.approved_amount if body.approved_amount else app.total_amount
-        app.approved_amount = approved_amount
+            approved_amount = body.approved_amount if body.approved_amount else app["total_amount"]
+        updates["approved_amount"] = approved_amount
 
-        db.commit()
-        db.refresh(app)
+    application = db.table("applications").update(updates).eq("id", application_id).execute().data[0]
 
-        contract = Contract(
-            application_id=app.id,
-            total_amount=app.total_amount,
-            months=app.months,
-            monthly_payment=app.monthly_payment,
-            paid_installments=0,
-            status="ACTIVE",
-        )
-        db.add(contract)
-        db.commit()
-        db.refresh(contract)
+    if body.action in ("APPROVED", "PARTIAL"):
+        contract_data = {
+            "id": str(uuid.uuid4()),
+            "application_id": application["id"],
+            "total_amount": application["total_amount"],
+            "months": application["months"],
+            "monthly_payment": application["monthly_payment"],
+            "paid_installments": 0,
+            "status": "ACTIVE",
+        }
+        contract = db.table("contracts").insert(contract_data).execute().data[0]
 
         schedule = generate_payment_schedule(
-            contract.id,
+            contract["id"],
             datetime.now(timezone.utc).date(),
-            app.monthly_payment,
-            app.months,
+            application["monthly_payment"],
+            application["months"],
         )
-        for inst in schedule:
-            db.add(inst)
-        db.commit()
-    else:
-        db.commit()
-        db.refresh(app)
+        db.table("installments").insert(schedule).execute()
 
-    log_action(db, current_user.id, f"DECIDE_{body.action}", "application", app.id, request.client.host if request.client else "")
-    return _app_to_out(app, db)
+    log_action(db, current_user["id"], f"DECIDE_{body.action}", "application", application_id, request.client.host if request.client else "")
+    return _app_to_out(application, db)
