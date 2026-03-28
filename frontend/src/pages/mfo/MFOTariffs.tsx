@@ -118,7 +118,7 @@ export default function MFOTariffs() {
       .finally(() => setDeleteTarget(null))
   }
 
-  const TariffFormFields = () => (
+  const formFields = (
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Tariff Name</label>
@@ -271,7 +271,7 @@ export default function MFOTariffs() {
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Tariff Plan" size="md">
         <div className="space-y-5">
-          <TariffFormFields />
+          {formFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setCreateOpen(false)}>
               Cancel
@@ -291,7 +291,7 @@ export default function MFOTariffs() {
 
       <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Tariff" size="md">
         <div className="space-y-5">
-          <TariffFormFields />
+          {formFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setEditTarget(null)}>
               Cancel

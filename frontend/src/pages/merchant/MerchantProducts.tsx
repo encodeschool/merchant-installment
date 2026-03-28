@@ -137,7 +137,7 @@ export default function MerchantProducts() {
       .catch(() => setProducts(prev => prev.map(p => p.id === id ? { ...p, available: !p.available } : p)))
   }
 
-  const ProductFormFields = () => (
+  const productFormFields = (
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
@@ -300,7 +300,7 @@ export default function MerchantProducts() {
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add New Product" size="md">
         <div className="space-y-5">
-          <ProductFormFields />
+          {productFormFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button variant="primary" color="blue" className="flex-1" onClick={handleCreate} disabled={!form.name || !form.price || saving}>
@@ -312,7 +312,7 @@ export default function MerchantProducts() {
 
       <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Product" size="md">
         <div className="space-y-5">
-          <ProductFormFields />
+          {productFormFields}
           <div className="flex gap-3 pt-2 border-t border-gray-100">
             <Button variant="secondary" color="gray" className="flex-1" onClick={() => setEditTarget(null)}>Cancel</Button>
             <Button variant="primary" color="blue" className="flex-1" onClick={handleEdit} disabled={saving}>
