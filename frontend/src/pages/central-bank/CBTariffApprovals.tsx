@@ -3,7 +3,6 @@ import { MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/re
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
-import { mockTariffs } from '../../data/mockData'
 import { Tariff } from '../../types'
 import { apiTariffs } from '../../api'
 import clsx from 'clsx'
@@ -15,7 +14,7 @@ function formatUZS(n: number): string {
 type FilterTab = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
 
 export default function CBTariffApprovals() {
-  const [tariffs, setTariffs] = useState<Tariff[]>(mockTariffs)
+  const [tariffs, setTariffs] = useState<Tariff[]>([])
   const [tab, setTab] = useState<FilterTab>('ALL')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Tariff | null>(null)

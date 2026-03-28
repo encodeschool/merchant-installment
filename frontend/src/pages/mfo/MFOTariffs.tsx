@@ -3,7 +3,6 @@ import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outli
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
-import { mockTariffs } from '../../data/mockData'
 import { Tariff } from '../../types'
 import { apiTariffs } from '../../api'
 
@@ -36,7 +35,7 @@ export default function MFOTariffs() {
   useEffect(() => {
     apiTariffs.list()
       .then(setTariffs)
-      .catch(() => setTariffs(mockTariffs.filter(t => t.mfoName === 'Ipoteka Bank MFO')))
+      .catch(() => {})
   }, [])
 
   const openCreate = () => { setForm(emptyForm); setCreateOpen(true) }

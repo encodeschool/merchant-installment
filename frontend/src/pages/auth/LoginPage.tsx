@@ -1,10 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
-import { mockUsers } from '../../data/mockData'
 import clsx from 'clsx'
 
 const DEMO_PASSWORD = 'demo1234'
+
+const DEMO_ACCOUNTS = [
+  { id: 'u2', name: 'Dilnoza Yusupova', email: 'dilnoza@ipoteka.uz', role: 'MFO_ADMIN' as const },
+  { id: 'u3', name: 'Bobur Rahimov', email: 'bobur@techmart.uz', role: 'MERCHANT' as const },
+]
 
 const roleColors = {
   // CENTRAL_BANK: { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', light: 'bg-purple-50 border-purple-200 text-purple-700', ring: 'ring-purple-400' },
@@ -36,7 +40,7 @@ export default function LoginPage() {
       setError('Invalid email. Use one of the demo accounts below.')
       return
     }
-    const role = useAuthStore.getState().user?.role ?? mockUsers.find(u => u.email === email)?.role
+    const role = useAuthStore.getState().user?.role
     const map: Record<string, string> = { CENTRAL_BANK: '/cb', MFO_ADMIN: '/mfo', MERCHANT: '/merchant' }
     navigate(map[role ?? ''] ?? '/')
   }
@@ -77,7 +81,7 @@ export default function LoginPage() {
           <div className="mb-6">
             <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Demo accounts</p>
             <div className="grid grid-cols-2 gap-2">
-              {mockUsers.map((u) => {
+              {DEMO_ACCOUNTS.map((u) => {
                 const colors = roleColors[u.role]
                 return (
                   <button

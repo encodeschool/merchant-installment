@@ -3,7 +3,6 @@ import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
-import { mockMerchants } from '../../data/mockData'
 import { Merchant } from '../../types'
 import { apiMerchants } from '../../api'
 import clsx from 'clsx'
@@ -23,7 +22,7 @@ const emptyForm: MerchantForm = { name: '', legalName: '', category: '', phone: 
 const categories = ['Electronics', 'Mobile & Gadgets', 'Home Appliances', 'Furniture', 'Sports & Fitness', 'Fashion', 'Auto Parts', 'Other']
 
 export default function MFOMerchants() {
-  const [merchants, setMerchants] = useState<Merchant[]>(mockMerchants)
+  const [merchants, setMerchants] = useState<Merchant[]>([])
   const [tab, setTab] = useState<TabFilter>('ALL')
   const [search, setSearch] = useState('')
   const [onboardOpen, setOnboardOpen] = useState(false)

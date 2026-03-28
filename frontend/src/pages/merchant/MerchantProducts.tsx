@@ -3,7 +3,6 @@ import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outli
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
-import { mockProducts, mockMerchants } from '../../data/mockData'
 import { Product } from '../../types'
 import { apiProducts, apiMerchants } from '../../api'
 import { useAuthStore } from '../../store/authStore'
@@ -47,17 +46,11 @@ export default function MerchantProducts() {
   useEffect(() => {
     apiMerchants.my()
       .then(m => setMerchantId(m.id))
-      .catch(() => {
-        const mock = mockMerchants.find(m => m.name === user?.organization)
-        if (mock) setMerchantId(mock.id)
-      })
+      .catch(() => {})
 
     apiProducts.list()
       .then(setProducts)
-      .catch(() => {
-        const mock = mockMerchants.find(m => m.name === user?.organization)
-        setProducts(mockProducts.filter(p => p.merchantId === (mock?.id ?? 'm1')))
-      })
+      .catch(() => {})
   }, [user])
 
   const openCreate = () => { setForm(emptyForm); setCreateOpen(true) }

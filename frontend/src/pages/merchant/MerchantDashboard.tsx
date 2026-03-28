@@ -5,7 +5,6 @@ import {
 } from '@heroicons/react/24/outline'
 import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
-import { mockApplications, mockContracts, mockProducts, mockMerchants } from '../../data/mockData'
 import { Application, Contract, Product } from '../../types'
 import { apiApplications, apiContracts, apiProducts } from '../../api'
 import { useAuthStore } from '../../store/authStore'
@@ -17,18 +16,10 @@ function formatUZS(n: number): string {
 
 export default function MerchantDashboard() {
   const { user } = useAuthStore()
-  const mockMerchant = mockMerchants.find(m => m.name === user?.organization)
-  const fallbackMerchantId = mockMerchant?.id ?? 'm1'
 
-  const [applications, setApplications] = useState<Application[]>(
-    mockApplications.filter(a => a.merchantId === fallbackMerchantId)
-  )
-  const [contracts, setContracts] = useState<Contract[]>(
-    mockContracts.filter(c => c.merchantName === user?.organization)
-  )
-  const [products, setProducts] = useState<Product[]>(
-    mockProducts.filter(p => p.merchantId === fallbackMerchantId)
-  )
+  const [applications, setApplications] = useState<Application[]>([])
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [products, setProducts] = useState<Product[]>([])
 
   useEffect(() => {
     apiApplications.list().then(setApplications).catch(() => {})

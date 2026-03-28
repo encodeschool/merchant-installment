@@ -4,7 +4,6 @@ import {
 } from '@heroicons/react/24/outline'
 import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
-import { mockMFOStats } from '../../data/mockData'
 import { MFOStats } from '../../types'
 import { apiDashboard } from '../../api'
 import clsx from 'clsx'
@@ -28,7 +27,7 @@ function defaultRateBg(rate: number) {
 }
 
 export default function CBMFOMonitoring() {
-  const [mfos, setMfos] = useState<MFOStats[]>(mockMFOStats)
+  const [mfos, setMfos] = useState<MFOStats[]>([])
 
   useEffect(() => {
     apiDashboard.mfoList().then(setMfos).catch(() => {})

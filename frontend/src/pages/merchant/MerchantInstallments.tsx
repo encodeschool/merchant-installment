@@ -4,7 +4,6 @@ import { addMonths, format } from 'date-fns'
 import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
-import { mockContracts } from '../../data/mockData'
 import { Contract } from '../../types'
 import { apiContracts, Installment } from '../../api'
 import clsx from 'clsx'
@@ -15,7 +14,7 @@ function formatUZS(n: number): string {
 }
 
 export default function MerchantInstallments() {
-  const [contracts, setContracts] = useState<Contract[]>(mockContracts)
+  const [contracts, setContracts] = useState<Contract[]>([])
   const [scheduleContract, setScheduleContract] = useState<Contract | null>(null)
   const [schedule, setSchedule] = useState<Installment[]>([])
   const [loadingSchedule, setLoadingSchedule] = useState(false)

@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { User } from '../types'
-import { mockUsers } from '../data/mockData'
 import api from '../api/client'
 
 interface AuthState {
@@ -28,10 +27,7 @@ export const useAuthStore = create<AuthState>()(
           set({ user: me, token: data.access_token, isAuthenticated: true })
           return true
         } catch {
-          const user = mockUsers.find(u => u.email === email)
-          if (!user) return false
-          set({ user, token: `mock-${user.role}-${Date.now()}`, isAuthenticated: true })
-          return true
+          return false
         }
       },
 

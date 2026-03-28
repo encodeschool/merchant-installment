@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { FunnelIcon } from '@heroicons/react/24/outline'
 import Badge from '../../components/ui/Badge'
-import { mockAuditLogs } from '../../data/mockData'
 import { AuditLog, Role } from '../../types'
 import { apiDashboard } from '../../api'
 import clsx from 'clsx'
@@ -41,7 +40,7 @@ function roleBadge(role: Role) {
 const PAGE_SIZE = 20
 
 export default function CBAuditLogs() {
-  const [logs, setLogs] = useState<AuditLog[]>(mockAuditLogs)
+  const [logs, setLogs] = useState<AuditLog[]>([])
   const [roleFilter, setRoleFilter] = useState<string>('ALL')
   const [actionFilter, setActionFilter] = useState<string>('ALL')
   const [page, setPage] = useState(1)

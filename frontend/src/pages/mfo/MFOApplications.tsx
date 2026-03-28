@@ -3,7 +3,6 @@ import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
-import { mockApplications } from '../../data/mockData'
 import { Application } from '../../types'
 import { apiApplications } from '../../api'
 import clsx from 'clsx'
@@ -29,7 +28,7 @@ function ScoreBar({ score }: { score: number }) {
 type TabFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'PARTIAL' | 'REJECTED' | 'ACTIVE'
 
 export default function MFOApplications() {
-  const [applications, setApplications] = useState<Application[]>(mockApplications)
+  const [applications, setApplications] = useState<Application[]>([])
   const [tab, setTab] = useState<TabFilter>('ALL')
   const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' | 'partial' } | null>(null)
   const [detailApp, setDetailApp] = useState<Application | null>(null)

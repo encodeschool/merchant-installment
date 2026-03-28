@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
-import { mockProducts, mockTariffs, mockMerchants } from '../../data/mockData'
 import { Product, Tariff } from '../../types'
 import { apiProducts, apiTariffs, apiApplications, apiMerchants } from '../../api'
 import { useAuthStore } from '../../store/authStore'
@@ -84,21 +83,15 @@ export default function MerchantNewApplication() {
   useEffect(() => {
     apiMerchants.my()
       .then(m => setMerchantId(m.id))
-      .catch(() => {
-        const mock = mockMerchants.find(m => m.name === user?.organization)
-        if (mock) setMerchantId(mock.id)
-      })
+      .catch(() => {})
 
     apiProducts.list()
       .then(data => setAvailableProducts(data.filter(p => p.available)))
-      .catch(() => {
-        const mock = mockMerchants.find(m => m.name === user?.organization)
-        setAvailableProducts(mockProducts.filter(p => p.merchantId === (mock?.id ?? 'm1') && p.available))
-      })
+      .catch(() => {})
 
     apiTariffs.list()
       .then(data => setApprovedTariffs(data.filter(t => t.status === 'APPROVED')))
-      .catch(() => setApprovedTariffs(mockTariffs.filter(t => t.status === 'APPROVED')))
+      .catch(() => {})
   }, [user])
 
   const eligibleTariffs = selectedProduct

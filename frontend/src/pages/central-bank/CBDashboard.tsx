@@ -10,8 +10,8 @@ import {
 } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
-import { mockMFOStats, mockMonthlyTrend, mockTariffs } from '../../data/mockData'
 import { apiDashboard } from '../../api'
+import { MFOStats } from '../../types'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B UZS'
@@ -21,14 +21,14 @@ function formatUZS(n: number): string {
 
 export default function CBDashboard() {
   const [stats, setStats] = useState({
-    totalMFOs: mockMFOStats.length,
-    totalApplications: mockMFOStats.reduce((s, m) => s + m.totalApplications, 0),
-    totalDisbursed: mockMFOStats.reduce((s, m) => s + m.totalDisbursed, 0),
-    avgDefaultRate: Number((mockMFOStats.reduce((s, m) => s + m.defaultRate, 0) / mockMFOStats.length).toFixed(1)),
-    monthlyTrend: mockMonthlyTrend,
+    totalMFOs: 0,
+    totalApplications: 0,
+    totalDisbursed: 0,
+    avgDefaultRate: 0,
+    monthlyTrend: [] as { month: string; applications: number }[],
   })
-  const [pendingTariffs, setPendingTariffs] = useState(mockTariffs.filter(t => t.status === 'PENDING').length)
-  const [mfoList, setMfoList] = useState(mockMFOStats)
+  const [pendingTariffs, setPendingTariffs] = useState(0)
+  const [mfoList, setMfoList] = useState<MFOStats[]>([])
 
   useEffect(() => {
     apiDashboard.cb().then(d => setStats({

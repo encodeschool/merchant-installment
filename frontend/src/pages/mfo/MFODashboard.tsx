@@ -10,7 +10,6 @@ import {
 } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
-import { mockApplications, mockMerchants, mockMonthlyTrend } from '../../data/mockData'
 import { Application } from '../../types'
 import { apiDashboard, apiApplications } from '../../api'
 
@@ -21,14 +20,12 @@ function formatUZS(n: number): string {
 
 export default function MFODashboard() {
   const [stats, setStats] = useState({
-    totalMerchants: mockMerchants.length,
-    pendingApplications: mockApplications.filter(a => a.status === 'PENDING').length,
-    approvedThisMonth: mockApplications.filter(a => a.status === 'APPROVED' || a.status === 'ACTIVE').length,
-    monthlyTrend: mockMonthlyTrend,
+    totalMerchants: 0,
+    pendingApplications: 0,
+    approvedThisMonth: 0,
+    monthlyTrend: [] as { month: string; applications: number }[],
   })
-  const [recentApps, setRecentApps] = useState<Application[]>(
-    [...mockApplications].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)
-  )
+  const [recentApps, setRecentApps] = useState<Application[]>([])
 
   useEffect(() => {
     apiDashboard.mfo().then(d => setStats({

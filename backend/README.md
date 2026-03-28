@@ -297,7 +297,7 @@ The backend needs two things before it can run:
   Once the .env is ready, run these commands from D:/BUSINESS/MICROCREDIT/project/backend/:
 
   # Create virtual environment
-  python -m venv venv
+  python -m venv venv <br>
   venv\Scripts\activate
 
   # Install dependencies
