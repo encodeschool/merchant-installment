@@ -1213,13 +1213,25 @@ def confirm_application(
         "decided_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    updated = (
-        db.table("applications")
-        .update(updates)
-        .eq("id", application_id)
-        .execute()
-        .data[0]
-    )
+    # Try updating with face_image_b64; fall back without it if the column
+    # does not exist yet (migration 005 may not have been run).
+    try:
+        updated = (
+            db.table("applications")
+            .update(updates)
+            .eq("id", application_id)
+            .execute()
+            .data[0]
+        )
+    except Exception:
+        fallback = {k: v for k, v in updates.items() if k != "face_image_b64"}
+        updated = (
+            db.table("applications")
+            .update(fallback)
+            .eq("id", application_id)
+            .execute()
+            .data[0]
+        )
 
     # Auto-create contract + payment schedule
     contract_id = None
