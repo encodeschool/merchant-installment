@@ -577,7 +577,7 @@ export default function MerchantNewApplication() {
                     key={tariff.id}
                     onClick={() => {
                       setSelectedTariff(tariff)
-                      setSelectedMonths(tariff.minMonths)
+                      setSelectedMonths(tariff.months)
                     }}
                     className={clsx(
                       'rounded-xl border-2 p-4 cursor-pointer transition-all',
@@ -593,30 +593,16 @@ export default function MerchantNewApplication() {
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-gray-500">Duration</p>
-                        <p className="text-sm font-medium">{tariff.minMonths}–{tariff.maxMonths} months</p>
+                        <p className="text-sm font-medium">{tariff.months} months</p>
                       </div>
                     </div>
 
                     {selectedTariff?.id === tariff.id && selectedProduct && (
-                      <div className="mt-3 pt-3 border-t border-blue-200">
-                        <label className="block text-xs font-medium text-gray-700 mb-2">Select Duration</label>
-                        <div className="grid grid-cols-4 gap-2">
-                          {FIXED_MONTHS.filter(m => m >= tariff.minMonths && m <= tariff.maxMonths).map(m => (
-                            <button
-                              key={m}
-                              type="button"
-                              onClick={e => { e.stopPropagation(); setSelectedMonths(m) }}
-                              className={clsx(
-                                'rounded-lg py-1.5 text-xs font-semibold transition-all border',
-                                selectedMonths === m
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-                              )}
-                            >
-                              {m} mo
-                            </button>
-                          ))}
-                        </div>
+                      <div className="mt-3 pt-3 border-t border-blue-200 flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-700">Duration:</span>
+                        <span className="rounded-lg bg-blue-600 text-white border border-blue-600 px-3 py-1 text-xs font-semibold">
+                          {tariff.months} mo
+                        </span>
                       </div>
                     )}
                   </div>

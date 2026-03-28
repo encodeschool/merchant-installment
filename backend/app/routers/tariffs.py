@@ -19,8 +19,7 @@ def _tariff_to_out(t: dict, mfo_name: str) -> TariffOut:
         interestRate=t["interest_rate"],
         minAmount=t["min_amount"],
         maxAmount=t["max_amount"],
-        minMonths=t["min_months"],
-        maxMonths=t["max_months"],
+        months=t["min_months"],
         minScore=t["min_score"],
         status=t["status"],
         createdAt=t["created_at"],
@@ -42,8 +41,8 @@ def create_tariff(
         "interest_rate": body.interest_rate,
         "min_amount": body.min_amount,
         "max_amount": body.max_amount,
-        "min_months": body.min_months,
-        "max_months": body.max_months,
+        "min_months": body.months,
+        "max_months": body.months,
         "min_score": body.min_score,
         "status": "PENDING",
     }
@@ -100,6 +99,10 @@ def update_tariff(
         raise HTTPException(status_code=400, detail="Only PENDING tariffs can be updated")
 
     updates = body.model_dump(exclude_none=True)
+    if "months" in updates:
+        months_val = updates.pop("months")
+        updates["min_months"] = months_val
+        updates["max_months"] = months_val
     tariff = db.table("tariffs").update(updates).eq("id", tariff_id).execute().data[0]
     log_action(db, current_user["id"], "UPDATE", "tariff", tariff_id, request.client.host if request.client else "")
     return _tariff_to_out(tariff, current_user["organization"])

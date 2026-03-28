@@ -16,13 +16,12 @@ interface TariffForm {
   interestRate: string
   minAmount: string
   maxAmount: string
-  minMonths: string
-  maxMonths: string
+  months: string
   minScore: string
 }
 
 const emptyForm: TariffForm = {
-  name: '', interestRate: '', minAmount: '', maxAmount: '', minMonths: '', maxMonths: '', minScore: '60',
+  name: '', interestRate: '', minAmount: '', maxAmount: '', months: '', minScore: '60',
 }
 
 export default function MFOTariffs() {
@@ -48,8 +47,7 @@ export default function MFOTariffs() {
       interestRate: String(t.interestRate),
       minAmount: String(t.minAmount),
       maxAmount: String(t.maxAmount),
-      minMonths: String(t.minMonths),
-      maxMonths: String(t.maxMonths),
+      months: String(t.months),
       minScore: String(t.minScore),
     })
     setEditTarget(t)
@@ -62,8 +60,7 @@ export default function MFOTariffs() {
       interest_rate: parseFloat(form.interestRate),
       min_amount: parseInt(form.minAmount),
       max_amount: parseInt(form.maxAmount),
-      min_months: parseInt(form.minMonths),
-      max_months: parseInt(form.maxMonths),
+      months: parseInt(form.months),
       min_score: parseInt(form.minScore),
     })
       .then(created => { setTariffs(prev => [created, ...prev]); setCreateOpen(false) })
@@ -75,8 +72,7 @@ export default function MFOTariffs() {
           interestRate: parseFloat(form.interestRate),
           minAmount: parseInt(form.minAmount),
           maxAmount: parseInt(form.maxAmount),
-          minMonths: parseInt(form.minMonths),
-          maxMonths: parseInt(form.maxMonths),
+          months: parseInt(form.months),
           minScore: parseInt(form.minScore),
           status: 'PENDING',
           createdAt: new Date().toISOString().split('T')[0],
@@ -95,8 +91,7 @@ export default function MFOTariffs() {
       interest_rate: parseFloat(form.interestRate),
       min_amount: parseInt(form.minAmount),
       max_amount: parseInt(form.maxAmount),
-      min_months: parseInt(form.minMonths),
-      max_months: parseInt(form.maxMonths),
+      months: parseInt(form.months),
       min_score: parseInt(form.minScore),
     })
       .then(updated => { setTariffs(prev => prev.map(t => t.id === editTarget.id ? updated : t)); setEditTarget(null) })
@@ -107,8 +102,7 @@ export default function MFOTariffs() {
           interestRate: parseFloat(form.interestRate),
           minAmount: parseInt(form.minAmount),
           maxAmount: parseInt(form.maxAmount),
-          minMonths: parseInt(form.minMonths),
-          maxMonths: parseInt(form.maxMonths),
+          months: parseInt(form.months),
           minScore: parseInt(form.minScore),
         } : t))
         setEditTarget(null)
@@ -169,29 +163,16 @@ export default function MFOTariffs() {
           />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Min Months</label>
-          <select
-            value={form.minMonths}
-            onChange={e => setForm(f => ({ ...f, minMonths: e.target.value }))}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
-          >
-            <option value="">Select</option>
-            {[3, 6, 9, 12].map(m => <option key={m} value={m}>{m} months</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Max Months</label>
-          <select
-            value={form.maxMonths}
-            onChange={e => setForm(f => ({ ...f, maxMonths: e.target.value }))}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
-          >
-            <option value="">Select</option>
-            {[3, 6, 9, 12].map(m => <option key={m} value={m}>{m} months</option>)}
-          </select>
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Months</label>
+        <select
+          value={form.months}
+          onChange={e => setForm(f => ({ ...f, months: e.target.value }))}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
+        >
+          <option value="">Select</option>
+          {[3, 6, 9, 12].map(m => <option key={m} value={m}>{m} months</option>)}
+        </select>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -249,7 +230,7 @@ export default function MFOTariffs() {
                   <td className="px-4 py-3 text-sm font-bold text-emerald-700">{t.interestRate}%</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{formatUZS(t.minAmount)}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{formatUZS(t.maxAmount)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{t.minMonths}–{t.maxMonths} mo</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{t.months} mo</td>
                   <td className="px-4 py-3 text-sm font-semibold text-gray-700">{t.minScore}</td>
                   <td className="px-4 py-3">{statusBadge(t.status)}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{t.createdAt}</td>

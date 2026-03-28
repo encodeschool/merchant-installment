@@ -124,7 +124,7 @@ export default function CBTariffApprovals() {
                   <td className="px-4 py-3 text-xs text-gray-600">
                     {(t.minAmount / 1_000_000).toFixed(1)}M – {(t.maxAmount / 1_000_000).toFixed(1)}M UZS
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{t.minMonths}–{t.maxMonths} mo</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{t.months} mo</td>
                   <td className="px-4 py-3">{statusBadge(t.status)}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{t.createdAt}</td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -183,12 +183,8 @@ export default function CBTariffApprovals() {
                 <p className="text-sm font-semibold text-gray-900 mt-0.5">{formatUZS(selected.maxAmount)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Min Duration</p>
-                <p className="text-sm font-semibold text-gray-900 mt-0.5">{selected.minMonths} months</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Max Duration</p>
-                <p className="text-sm font-semibold text-gray-900 mt-0.5">{selected.maxMonths} months</p>
+                <p className="text-xs text-gray-500">Duration</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{selected.months} months</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Min Score</p>

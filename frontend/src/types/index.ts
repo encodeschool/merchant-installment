@@ -15,8 +15,7 @@ export interface Tariff {
   interestRate: number
   minAmount: number
   maxAmount: number
-  minMonths: number
-  maxMonths: number
+  months: number
   minScore: number
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   createdAt: string
