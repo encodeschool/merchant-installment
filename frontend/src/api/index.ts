@@ -42,18 +42,14 @@ export const apiApplications = {
     api.get<any[]>('/api/v1/applications')
       .then(r => r.data.map(normalizeApplication)),
   get: (id: string) =>
-    api.get<any>(`/api/v1/applications/${id}/detail`)
-      .then(r => normalizeApplication(r.data)),
+    api.get<Application>(`/api/v1/applications/${id}`).then(r => r.data),
   submit: (b: object) =>
     api.post<any>('/api/v1/applications', b)
       .then(r => normalizeApplication(r.data)),
   submitMulti: (b: object) =>
     api.post<MultiProductResponse>('/api/v1/applications/multi-product', b).then(r => r.data),
   confirm: (id: string, b: object) =>
-    api.post<any>(`/api/v1/applications/${id}/confirm`, b)
-      .then(r => normalizeApplication(r.data)).catch(() => r => r),
-  decide: (id: string, b: object) =>
-    api.patch<any>(`/api/v1/applications/${id}/decide`, b)
+    api.patch<any>(`/api/v1/applications/${id}/confirm`, b)
       .then(r => normalizeApplication(r.data)),
 }
 
@@ -61,6 +57,8 @@ export const apiContracts = {
   list: () => api.get<Contract[]>('/api/v1/contracts').then(r => r.data),
   schedule: (id: string) =>
     api.get<Installment[]>(`/api/v1/contracts/${id}/schedule`).then(r => r.data),
+  get: (id: string) =>
+    api.get<Contract>(`/api/v1/contracts/${id}`).then(r => r.data),
 }
 
 export const apiScoringConfig = {

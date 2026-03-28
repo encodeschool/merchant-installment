@@ -20,19 +20,60 @@ def _next_payment_date(installments: list) -> str | None:
 
 
 def _contract_to_out(contract: dict, db: Client) -> ContractOut:
+    import json
+
     app_rows = db.table("applications").select("*").eq("id", contract["application_id"]).execute().data
     app = app_rows[0] if app_rows else None
     client = db.table("clients").select("full_name").eq("id", app["client_id"]).execute().data if app else []
     merchant = db.table("merchants").select("name").eq("id", app["merchant_id"]).execute().data if app else []
-    product = db.table("products").select("name").eq("id", app["product_id"]).execute().data if app else []
     installments = db.table("installments").select("*").eq("contract_id", contract["id"]).execute().data
+
+    # Build itemsSummary from application_items JSON; fall back to single product_id
+    items_summary = ""
+    item_count = 1
+    product_name = None
+
+    if app:
+        raw_items = app.get("application_items")
+        if isinstance(raw_items, str):
+            try:
+                raw_items = json.loads(raw_items)
+            except Exception:
+                raw_items = None
+
+        if raw_items and isinstance(raw_items, list) and len(raw_items) > 0:
+            # Batch-fetch product names
+            product_ids = list({it.get("product_id") for it in raw_items if it.get("product_id")})
+            prod_rows = db.table("products").select("id,name").in_("id", product_ids).execute().data if product_ids else []
+            name_map = {p["id"]: p["name"] for p in prod_rows}
+
+            parts = []
+            for it in raw_items:
+                pid = it.get("product_id", "")
+                name = it.get("product_name") or name_map.get(pid, pid)
+                qty = it.get("quantity", 1)
+                parts.append(f"{name} ×{qty}")
+
+            items_summary = ", ".join(parts)
+            item_count = len(raw_items)
+            product_name = parts[0].split(" ×")[0] if parts else None
+        else:
+            # Legacy single-product application
+            pid = app.get("product_id")
+            if pid:
+                prod = db.table("products").select("name").eq("id", pid).execute().data
+                product_name = prod[0]["name"] if prod else ""
+            items_summary = product_name or ""
+            item_count = 1
 
     return ContractOut(
         id=contract["id"],
         applicationId=contract["application_id"],
         clientName=client[0]["full_name"] if client else "",
         merchantName=merchant[0]["name"] if merchant else "",
-        productName=product[0]["name"] if product else "",
+        productName=product_name,
+        itemsSummary=items_summary,
+        itemCount=item_count,
         totalAmount=contract["total_amount"],
         months=contract["months"],
         monthlyPayment=contract["monthly_payment"],

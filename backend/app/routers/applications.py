@@ -2,15 +2,13 @@ import uuid
 import base64
 import hashlib
 import json
-from datetime import datetime, timezone, date
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from datetime import date
+from fastapi import APIRouter, Depends, HTTPException, Request
 from supabase import Client
 
 from ..core.database import get_supabase
 from ..core.deps import get_current_user, require_role
 from ..schemas.application import (
-    ApplicationCreate,
-    DecisionRequest,
     ApplicationOut,
     MultiProductCreate,
     MultiProductResponse,
@@ -18,11 +16,9 @@ from ..schemas.application import (
     ConfirmResponse,
 )
 from ..services.scoring import (
-    calculate_score,
     calculate_score_full,
     monthly_payment as calc_monthly_payment,
 )
-from ..services.contract import generate_payment_schedule
 from ..services.audit import log_action
 from ..services.fraud import check_fraud_gate
 
@@ -116,6 +112,15 @@ def _build_score_breakdown(application_id: str, db: Client) -> dict | None:
         }
         if isinstance(weights, str):
             weights = json.loads(weights)
+
+        outcome = sl.get("outcome", "REJECTED")
+        if outcome == "APPROVED":
+            approved_ratio = 1.0
+        elif outcome == "PARTIAL":
+            approved_ratio = 0.7
+        else:
+            approved_ratio = 0.0
+
         return {
             "f1_affordability": sl.get("income_score", 0),
             "f2_credit": sl.get("credit_score", 0),
@@ -123,8 +128,8 @@ def _build_score_breakdown(application_id: str, db: Client) -> dict | None:
             "f4_demographic": sl.get("age_score", 0),
             "weights": weights,
             "total_score": sl.get("total_score", 0),
-            "decision": sl.get("outcome", "REJECTED"),
-            "approved_ratio": 1.0,
+            "decision": outcome,
+            "approved_ratio": approved_ratio,
             "hard_reject": bool(sl.get("hard_reject", False)),
             "hard_reject_reason": sl.get("hard_reject_reason"),
             "reason_codes": sl.get("reason_codes") or [],
@@ -234,148 +239,6 @@ def _app_to_out(app: dict, db: Client, include_score: bool = True) -> Applicatio
         decided_by=app.get("decided_by"),
         override_reason=app.get("override_reason"),
     )
-
-
-@router.post("", response_model=ApplicationOut, status_code=status.HTTP_201_CREATED)
-def create_application(
-    body: ApplicationCreate,
-    request: Request,
-    current_user: dict = Depends(require_role("MERCHANT")),
-    db: Client = Depends(get_supabase),
-):
-    merchant_rows = (
-        db.table("merchants").select("*").eq("id", body.merchant_id).execute().data
-    )
-    if not merchant_rows:
-        raise HTTPException(status_code=404, detail="Merchant not found")
-
-    product_rows = (
-        db.table("products").select("*").eq("id", body.product_id).execute().data
-    )
-    if not product_rows:
-        raise HTTPException(status_code=404, detail="Product not found")
-    product = product_rows[0]
-    if not product["available"]:
-        raise HTTPException(status_code=400, detail="Product is not available")
-
-    tariff_rows = (
-        db.table("tariffs").select("*").eq("id", body.tariff_id).execute().data
-    )
-    if not tariff_rows:
-        raise HTTPException(status_code=404, detail="Tariff not found")
-    tariff = tariff_rows[0]
-    if tariff["status"] != "APPROVED":
-        raise HTTPException(status_code=400, detail="Tariff is not approved")
-
-    if body.months not in {3, 6, 9, 12}:
-        raise HTTPException(status_code=422, detail="Months must be one of 3, 6, 9, 12")
-    if not (tariff["min_months"] <= body.months <= tariff["max_months"]):
-        raise HTTPException(status_code=422, detail="Months out of tariff range")
-
-    existing_client = (
-        db.table("clients")
-        .select("*")
-        .eq("passport_number", body.client.passport_number)
-        .execute()
-        .data
-    )
-    if existing_client:
-        client_id = existing_client[0]["id"]
-        db.table("clients").update(
-            {
-                "full_name": body.client.full_name,
-                "phone": body.client.phone,
-                "monthly_income": body.client.monthly_income,
-                "age": body.client.age,
-                "credit_history": body.client.credit_history,
-                "open_loans": body.client.open_loans,
-                "overdue_days": body.client.overdue_days,
-                "has_bankruptcy": body.client.has_bankruptcy,
-            }
-        ).eq("id", client_id).execute()
-        client = db.table("clients").select("*").eq("id", client_id).execute().data[0]
-    else:
-        client_data = {
-            "id": str(uuid.uuid4()),
-            "full_name": body.client.full_name,
-            "passport_number": body.client.passport_number,
-            "phone": body.client.phone,
-            "monthly_income": body.client.monthly_income,
-            "age": body.client.age,
-            "credit_history": body.client.credit_history,
-            "open_loans": body.client.open_loans,
-            "overdue_days": body.client.overdue_days,
-            "has_bankruptcy": body.client.has_bankruptcy,
-        }
-        client = db.table("clients").insert(client_data).execute().data[0]
-
-    down_payment = int(product["price"] * product["down_payment_percent"] / 100)
-    financed_amount = product["price"] - down_payment
-    mp = calc_monthly_payment(financed_amount, body.months, tariff["interest_rate"])
-    total = int(mp * body.months)
-
-    score_result = calculate_score(
-        monthly_income=client["monthly_income"],
-        monthly_payment=mp,
-        age=client["age"],
-        credit_history=client["credit_history"],
-        open_loans=client["open_loans"],
-        overdue_days=client["overdue_days"],
-        has_bankruptcy=client["has_bankruptcy"],
-        w_affordability=tariff["w_affordability"],
-        w_credit=tariff["w_credit_history"],
-        w_behavioral=tariff["w_behavioral"],
-        w_demographic=tariff["w_demographic"],
-        min_score=tariff["min_score"],
-        partial_threshold=tariff["partial_threshold"],
-        partial_ratio=tariff["partial_ratio"],
-        hard_dti_min=tariff["hard_dti_min"],
-        max_open_loans=tariff["max_open_loans"],
-        max_overdue_days=tariff["max_overdue_days"],
-        bankruptcy_reject=tariff["bankruptcy_reject"],
-    )
-
-    app_data = {
-        "id": str(uuid.uuid4()),
-        "merchant_id": body.merchant_id,
-        "client_id": client["id"],
-        "product_id": body.product_id,
-        "tariff_id": body.tariff_id,
-        "months": body.months,
-        "monthly_payment": int(mp),
-        "total_amount": total,
-        "score": score_result["total_score"],
-        "status": "PENDING",
-    }
-    application = db.table("applications").insert(app_data).execute().data[0]
-
-    db.table("scoring_logs").insert(
-        {
-            "id": str(uuid.uuid4()),
-            "application_id": application["id"],
-            "client_id": client["id"],
-            "income_score": score_result["f1_affordability"],
-            "credit_score": score_result["f2_credit"],
-            "age_score": score_result["f4_demographic"],
-            "tariff_score": score_result["f3_behavioral"],
-            "total_score": score_result["total_score"],
-            "outcome": score_result["decision"],
-            "weights_snapshot": score_result["weights"],
-            "hard_reject": score_result["hard_reject"],
-            "hard_reject_reason": score_result["hard_reject_reason"],
-            "reason_codes": score_result["reason_codes"],
-        }
-    ).execute()
-
-    log_action(
-        db,
-        current_user["id"],
-        "CREATE",
-        "application",
-        application["id"],
-        request.client.host if request.client else "",
-    )
-    return _app_to_out(application, db)
 
 
 @router.get("", response_model=list[ApplicationOut])
@@ -599,99 +462,6 @@ def get_application(
     return _app_to_out(rows[0], db, include_score=False)
 
 
-@router.patch("/{application_id}/decide", response_model=ApplicationOut)
-def decide_application(
-    application_id: str,
-    body: DecisionRequest,
-    request: Request,
-    current_user: dict = Depends(require_role("MFO_ADMIN")),
-    db: Client = Depends(get_supabase),
-):
-    rows = db.table("applications").select("*").eq("id", application_id).execute().data
-    if not rows:
-        raise HTTPException(status_code=404, detail="Application not found")
-    app = rows[0]
-    if app["status"] != "PENDING":
-        raise HTTPException(
-            status_code=400, detail="Application is not in PENDING status"
-        )
-
-    updates = {
-        "status": body.action,
-        "decided_by": current_user["id"],
-        "decided_at": datetime.now(timezone.utc).isoformat(),
-    }
-    if body.override_reason:
-        updates["override_reason"] = body.override_reason
-
-    if body.action in ("APPROVED", "PARTIAL"):
-        product_rows = (
-            db.table("products").select("*").eq("id", app["product_id"]).execute().data
-        )
-        product = product_rows[0] if product_rows else {}
-        tariff_rows = (
-            db.table("tariffs").select("*").eq("id", app["tariff_id"]).execute().data
-        )
-        tariff = tariff_rows[0] if tariff_rows else {}
-
-        if body.action == "PARTIAL":
-            down = int(
-                product.get("price", 0) * product.get("down_payment_percent", 0) / 100
-            )
-            financed = product.get("price", 0) - down
-            approved_amount = (
-                body.approved_amount if body.approved_amount else int(financed * 0.70)
-            )
-            mp = calc_monthly_payment(
-                approved_amount, app["months"], tariff.get("interest_rate", 0)
-            )
-            updates["monthly_payment"] = int(mp)
-            updates["total_amount"] = int(mp * app["months"])
-        else:
-            approved_amount = (
-                body.approved_amount if body.approved_amount else app["total_amount"]
-            )
-        updates["approved_amount"] = approved_amount
-
-    application = (
-        db.table("applications")
-        .update(updates)
-        .eq("id", application_id)
-        .execute()
-        .data[0]
-    )
-
-    if body.action in ("APPROVED", "PARTIAL"):
-        contract_data = {
-            "id": str(uuid.uuid4()),
-            "application_id": application["id"],
-            "total_amount": application["total_amount"],
-            "months": application["months"],
-            "monthly_payment": application["monthly_payment"],
-            "paid_installments": 0,
-            "status": "ACTIVE",
-        }
-        contract = db.table("contracts").insert(contract_data).execute().data[0]
-
-        schedule = generate_payment_schedule(
-            contract["id"],
-            datetime.now(timezone.utc).date(),
-            application["monthly_payment"],
-            application["months"],
-        )
-        db.table("installments").insert(schedule).execute()
-
-    log_action(
-        db,
-        current_user["id"],
-        f"DECIDE_{body.action}",
-        "application",
-        application_id,
-        request.client.host if request.client else "",
-    )
-    return _app_to_out(application, db)
-
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 _JPEG_MAGIC = b"\xff\xd8\xff"
@@ -850,14 +620,24 @@ def create_multi_product_application(
     )
 
     # 5. Find eligible tariffs
-    all_tariffs = (
-        db.table("tariffs").select("*").eq("status", "APPROVED").execute().data or []
-    )
-    eligible_tariffs = [
-        t
-        for t in all_tariffs
-        if t.get("min_amount", 0) <= total_price <= t.get("max_amount", 999_999_999)
-    ]
+    try:
+        eligible_tariffs = (
+            db.table("tariffs")
+            .select("*")
+            .eq("status", "APPROVED")
+            .lte("min_amount", total_price)
+            .gte("max_amount", total_price)
+            .execute()
+            .data
+            or []
+        )
+        count = len(eligible_tariffs)
+        print(
+            f"[multi-product] total_price={total_price}, " f"eligible_tariffs={count}"
+        )  # noqa: E501
+    except Exception as e:
+        print(f"[multi-product] tariff query error: {e}")
+        eligible_tariffs = []
 
     # 6. Compute age
     age = body.client.age
@@ -983,7 +763,15 @@ def create_multi_product_application(
         raise HTTPException(400, "No approved tariffs found in the system")
 
     primary_product_id = products[0]["product"]["id"]
-    app_status = "REJECTED" if fraud_gate == "BLOCK" else "PENDING"
+    # Status is set automatically by the scoring engine
+    if fraud_gate == "BLOCK" or score_result.get("hard_reject", False):
+        app_status = "REJECTED"
+    elif score_result.get("decision") == "APPROVED":
+        app_status = "APPROVED"
+    elif score_result.get("decision") == "PARTIAL":
+        app_status = "PARTIAL"
+    else:
+        app_status = "REJECTED"
     estimated_mp = calc_monthly_payment(
         financed,
         body.months if body.months in (3, 6, 9, 12) else 12,
@@ -1008,14 +796,13 @@ def create_multi_product_application(
     items_json = json.dumps(
         [{"product_id": it.product_id, "quantity": it.quantity} for it in body.items]
     )
+    app_data["application_items"] = items_json
     try:
-        application = (
-            db.table("applications")
-            .insert({**app_data, "application_items": items_json})
-            .execute()
-            .data[0]
-        )
-    except Exception:
+        application = db.table("applications").insert(app_data).execute().data[0]
+    except Exception as e:
+        msg = "[multi-product] insert with application_items failed"
+        print(f"{msg}: {e}")
+        del app_data["application_items"]
         application = db.table("applications").insert(app_data).execute().data[0]
 
     # 12. Scoring log

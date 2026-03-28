@@ -1,24 +1,24 @@
-def calculate_score_full(
+def calculate_score(
     # Client data
     monthly_income: int,
     monthly_payment: float,
     age: int,
     credit_history: str,  # "GOOD" | "FAIR" | "NONE" | "BAD"
-    open_loans: int,
-    overdue_days: int,
-    has_bankruptcy: bool,
+    open_loans: int = 0,
+    overdue_days: int = 0,
+    has_bankruptcy: bool = False,
     # MFO scoring config (read from tariff object)
-    w_affordability: float,
-    w_credit: float,
-    w_behavioral: float,
-    w_demographic: float,
-    min_score: int,
-    partial_threshold: int,
-    partial_ratio: float,
-    hard_dti_min: float,
-    max_open_loans: int,
-    max_overdue_days: int,
-    bankruptcy_reject: bool,
+    w_affordability: float = 0.4,
+    w_credit: float = 0.3,
+    w_behavioral: float = 0.2,
+    w_demographic: float = 0.1,
+    min_score: int = 70,
+    partial_threshold: int = 50,
+    partial_ratio: float = 0.7,
+    hard_dti_min: float = 1.5,
+    max_open_loans: int = 5,
+    max_overdue_days: int = 90,
+    bankruptcy_reject: bool = True,
 ) -> dict:
     # 1. HARD RULES
     if bankruptcy_reject and has_bankruptcy:
@@ -137,64 +137,3 @@ def monthly_payment(principal: int, months: int, annual_rate: float) -> float:
         return principal / months
     r = annual_rate / 100 / 12
     return principal * r * (1 + r) ** months / ((1 + r) ** months - 1)
-
-
-def get_outcome(total_score: int, min_score: int) -> str:
-    """Determine outcome based on total score and minimum required score."""
-    if total_score >= min_score:
-        return "APPROVED"
-    elif total_score >= min_score * 0.7:  # 70% threshold for partial approval
-        return "PARTIAL"
-    else:
-        return "REJECTED"
-
-
-def calculate_score(
-    monthly_income: int, monthly_payment: float, age: int, credit_history: str
-) -> dict:
-    """Simplified scoring for basic calculations."""
-    # Income score based on DTI
-    if monthly_payment > 0:
-        dti = monthly_income / monthly_payment
-        if dti >= 5:
-            income_score = 100
-        elif dti >= 3:
-            income_score = 80
-        elif dti >= 2:
-            income_score = 50
-        elif dti >= 1.5:
-            income_score = 30
-        else:
-            income_score = 0
-    else:
-        income_score = 100
-
-    # Credit score
-    credit_map = {"GOOD": 100, "FAIR": 65, "NONE": 25, "BAD": 0}
-    credit_score = credit_map.get(credit_history, 25)
-
-    # Age score
-    if 25 <= age <= 45:
-        age_score = 100
-    elif 18 <= age <= 55:
-        age_score = 70
-    elif 18 <= age <= 65:
-        age_score = 40
-    else:
-        age_score = 10
-
-    # Tariff score (placeholder)
-    tariff_score = 50
-
-    # Total (weighted average)
-    total = int(
-        (income_score * 0.4 + credit_score * 0.3 + age_score * 0.2 + tariff_score * 0.1)
-    )
-
-    return {
-        "income_score": income_score,
-        "credit_score": credit_score,
-        "age_score": age_score,
-        "tariff_score": tariff_score,
-        "total": total,
-    }

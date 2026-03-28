@@ -1,9 +1,10 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, Literal
+from typing import Optional
 from ..schemas.client import ClientCreate
 
 
 # ── Existing create / decision schemas (unchanged) ────────────────────────────
+
 
 class ApplicationCreate(BaseModel):
     merchant_id: str
@@ -13,14 +14,8 @@ class ApplicationCreate(BaseModel):
     client: ClientCreate
 
 
-class DecisionRequest(BaseModel):
-    action: Literal["APPROVED", "PARTIAL", "REJECTED"]
-    approved_amount: Optional[int] = None
-    note: Optional[str] = None
-    override_reason: Optional[str] = None
-
-
 # ── Multi-product flow ─────────────────────────────────────────────────────────
+
 
 class MultiProductItem(BaseModel):
     product_id: str
@@ -87,6 +82,7 @@ class ConfirmResponse(BaseModel):
 
 # ── New detailed output schemas ────────────────────────────────────────────────
 
+
 class ApplicationItemOut(BaseModel):
     product_id: str
     product_name: str
@@ -103,7 +99,6 @@ class ClientDetailOut(BaseModel):
     age: int
     monthly_income: int
     employment_type: str
-    pinfl: Optional[str]
     open_loans: int
     overdue_days: int
     has_bankruptcy: bool
@@ -126,7 +121,7 @@ class ScoreBreakdownOut(BaseModel):
 
 class FraudSignalOut(BaseModel):
     code: str
-    severity: str        # 'block' | 'warning' | 'info'
+    severity: str  # 'block' | 'warning' | 'info'
     score_impact: int
     description: str
 
@@ -160,9 +155,7 @@ class ApplicationOut(BaseModel):
     signature_url: Optional[str]
 
     status: str
+    decision_source: str  # always "AUTOMATED"
     created_at: str
-    decided_at: Optional[str]
-    decided_by: Optional[str]
-    override_reason: Optional[str]
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)

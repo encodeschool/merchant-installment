@@ -106,7 +106,6 @@ export interface Application {
     age: number
     monthlyIncome: number
     employmentType: string
-    pinfl: string | null
     openLoans: number
     overdueDays: number
     hasBankruptcy: boolean
@@ -140,10 +139,8 @@ export interface Application {
   signatureUrl: string | null
 
   status: 'PENDING' | 'APPROVED' | 'PARTIAL' | 'REJECTED' | 'ACTIVE' | 'COMPLETED' | 'BLOCKED' | 'DRAFT'
+  decisionSource: 'AUTOMATED'
   createdAt: string
-  decidedAt: string | null
-  decidedBy: string | null
-  overrideReason: string | null
 }
 
 // Normalize old flat API responses to the new Application shape
@@ -160,7 +157,6 @@ export function normalizeApplication(raw: any): Application {
         age:            c.age            ?? 0,
         monthlyIncome:  c.monthlyIncome  ?? c.monthly_income   ?? 0,
         employmentType: c.employmentType ?? c.employment_type  ?? 'EMPLOYED',
-        pinfl:          c.pinfl          ?? null,
         openLoans:      c.openLoans      ?? c.open_loans       ?? 0,
         overdueDays:    c.overdueDays    ?? c.overdue_days     ?? 0,
         hasBankruptcy:  c.hasBankruptcy  ?? c.has_bankruptcy   ?? false,
@@ -187,9 +183,7 @@ export function normalizeApplication(raw: any): Application {
       fraudSignals:   raw.fraudSignals    ?? raw.fraud_signals    ?? [],
       faceImageUrl:   raw.faceImageUrl    ?? raw.face_image_url   ?? null,
       signatureUrl:   raw.signatureUrl    ?? raw.signature_url    ?? null,
-      decidedAt:      raw.decidedAt       ?? raw.decided_at       ?? null,
-      decidedBy:      raw.decidedBy       ?? raw.decided_by       ?? null,
-      overrideReason: raw.overrideReason  ?? raw.override_reason  ?? null,
+      decisionSource: 'AUTOMATED' as const,
       createdAt:      raw.createdAt       ?? raw.created_at       ?? '',
     } as Application
   }
@@ -206,7 +200,6 @@ export function normalizeApplication(raw: any): Application {
       age:            raw.age             ?? 0,
       monthlyIncome:  raw.monthlyIncome   ?? 0,
       employmentType: 'EMPLOYED',
-      pinfl:          null,
       openLoans:      0,
       overdueDays:    0,
       hasBankruptcy:  false,
@@ -237,11 +230,9 @@ export function normalizeApplication(raw: any): Application {
     fraudSignals:      [],
     faceImageUrl:      null,
     signatureUrl:      null,
-    status:            raw.status,
-    createdAt:         raw.createdAt      ?? raw.created_at ?? '',
-    decidedAt:         raw.decidedAt      ?? raw.decided_at ?? null,
-    decidedBy:         raw.decidedBy      ?? null,
-    overrideReason:    null,
+    status:         raw.status,
+    decisionSource: 'AUTOMATED' as const,
+    createdAt:      raw.createdAt ?? raw.created_at ?? '',
   }
 }
 

@@ -34,10 +34,26 @@ function maskPassport(s: string): string {
   return s.slice(0, 2) + '***' + s.slice(-3)
 }
 
+function formatCardNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 16)
+  return digits.replace(/(.{4})/g, '$1 ').trim()
+}
+
+function maskCardNumber(formatted: string): string {
+  const digits = formatted.replace(/\s/g, '')
+  return digits.slice(0, 4) + ' **** **** ' + digits.slice(-4)
+}
+
+const INCOME_OPTIONS = [
+  1_500_000, 2_000_000, 2_500_000, 3_000_000,
+  3_500_000, 4_000_000, 5_000_000, 6_000_000,
+  7_500_000, 10_000_000,
+]
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface CartItem { product: Product; quantity: number }
-interface ClientForm { passportSeries: string; birthDate: string; pinfl: string; monthlyIncome: string }
+interface ClientForm { passportSeries: string; birthDate: string; monthlyIncome: string }
 interface SelectedOffer { tariff: EligibleOffer; months: number }
 
 // ── Step indicator ────────────────────────────────────────────────────────────
@@ -145,11 +161,16 @@ export default function MerchantNewApplication() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   // Step 2: Client form
-  const [subStep2, setSubStep2] = useState<'form' | 'camera'>('form')
-  const [clientForm, setClientForm] = useState<ClientForm>({ passportSeries: '', birthDate: '', pinfl: '', monthlyIncome: '' })
+  const [subStep2, setSubStep2] = useState<'form' | 'card' | 'camera'>('form')
+  const [clientForm, setClientForm] = useState<ClientForm>({ passportSeries: '', birthDate: '', monthlyIncome: '' })
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
   const [face1Image, setFace1Image] = useState<string | null>(null)
   const [face1Verified, setFace1Verified] = useState(false)
+  // Step 2B: Card scan
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardFetching, setCardFetching] = useState(false)
+  const [cardFetched, setCardFetched] = useState(false)
+  const [fetchedIncome, setFetchedIncome] = useState<number | null>(null)
 
   // Step 3: Scoring animation
   const [checkItems, setCheckItems] = useState([false, false, false, false])
@@ -221,19 +242,12 @@ export default function MerchantNewApplication() {
   function validateClientForm(): boolean {
     const errors: Record<string, string> = {}
     const ps = clientForm.passportSeries.toUpperCase()
-    if (!PASSPORT_RE.test(ps)) errors.passportSeries = 'Format: AA1234567'
+    if (!PASSPORT_RE.test(ps)) errors.passportSeries = 'Must be 2 letters followed by 7 digits (e.g. AB1234567)'
     if (!clientForm.birthDate) {
       errors.birthDate = 'Birth date required'
     } else {
       const age = calcAge(clientForm.birthDate)
       if (age < 18 || age > 75) errors.birthDate = 'Client must be between 18 and 75 years old'
-    }
-    if (clientForm.pinfl && !/^\d{14}$/.test(clientForm.pinfl)) {
-      errors.pinfl = 'PINFL must be exactly 14 digits'
-    }
-    const income = Number(clientForm.monthlyIncome.replace(/\s/g, ''))
-    if (!clientForm.monthlyIncome || isNaN(income) || income <= 0) {
-      errors.monthlyIncome = 'Monthly income must be greater than 0'
     }
     setClientErrors(errors)
     return Object.keys(errors).length === 0
@@ -255,9 +269,6 @@ export default function MerchantNewApplication() {
     if (!clientForm.birthDate) return false
     const age = calcAge(clientForm.birthDate)
     if (age < 18 || age > 75) return false
-    if (clientForm.pinfl && !/^\d{14}$/.test(clientForm.pinfl)) return false
-    const income = Number(clientForm.monthlyIncome.replace(/\s/g, ''))
-    if (!clientForm.monthlyIncome || isNaN(income) || income <= 0) return false
     return true
   })()
 
@@ -283,7 +294,6 @@ export default function MerchantNewApplication() {
       client: {
         passport_number: clientForm.passportSeries.toUpperCase(),
         birth_date: clientForm.birthDate,
-        pinfl: clientForm.pinfl || undefined,
         full_name: '',
         phone: '',
         monthly_income: Math.round(Number(clientForm.monthlyIncome.replace(/\s/g, ''))),
@@ -381,7 +391,8 @@ export default function MerchantNewApplication() {
   const handleReset = () => {
     setStep(1); setCart([]); setSearchQuery(''); setSelectedCategory(null)
     setSubStep2('form')
-    setClientForm({ passportSeries: '', birthDate: '', pinfl: '', monthlyIncome: '' }); setClientErrors({})
+    setClientForm({ passportSeries: '', birthDate: '', monthlyIncome: '' }); setClientErrors({})
+    setCardNumber(''); setCardFetching(false); setCardFetched(false); setFetchedIncome(null)
     setFace1Image(null); setFace1Verified(false)
     setCheckItems([false, false, false, false]); setAnimDone(false); setApiDone(false); setApiResult(null); setScoringError(false)
     setScoreResult(null); setEligibleOffers([]); setFraudGate('PASS'); setFraudSignals([]); setAppId(null)
@@ -397,7 +408,7 @@ export default function MerchantNewApplication() {
       {step < 7 && (
         <StepIndicator
           step={step}
-          stepLabelOverride={step === 2 ? `Identity (${subStep2 === 'form' ? '1' : '2'}/2)` : undefined}
+          stepLabelOverride={step === 2 ? `Identity (${subStep2 === 'form' ? '1' : subStep2 === 'card' ? '2' : '3'}/3)` : undefined}
         />
       )}
 
@@ -512,17 +523,33 @@ export default function MerchantNewApplication() {
             <input
               type="text"
               value={clientForm.passportSeries}
-              onChange={e => setClientForm(f => ({ ...f, passportSeries: e.target.value.toUpperCase() }))}
+              onChange={e => {
+                const raw = e.target.value.toUpperCase()
+                const letters = raw.slice(0, 2).replace(/[^A-Z]/g, '')
+                const digits  = raw.slice(2).replace(/[^0-9]/g, '')
+                const filtered = (letters + digits).slice(0, 9)
+                setClientForm(f => ({ ...f, passportSeries: filtered }))
+              }}
               onBlur={() => validateClientForm()}
-              placeholder="AA1234567"
+              placeholder="AB1234567"
               maxLength={9}
               className={clsx(
-                'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100',
-                clientErrors.passportSeries ? 'border-red-400' : 'border-gray-300 focus:border-blue-400'
+                'w-full rounded-lg border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-100',
+                clientErrors.passportSeries ? 'border-red-400' :
+                clientForm.passportSeries.length === 9 && PASSPORT_RE.test(clientForm.passportSeries) ? 'border-emerald-400' :
+                'border-gray-300 focus:border-blue-400'
               )}
             />
-            {clientErrors.passportSeries && (
+            {clientErrors.passportSeries ? (
               <p className="text-xs text-red-500 mt-1">{clientErrors.passportSeries}</p>
+            ) : clientForm.passportSeries.length === 0 ? (
+              <p className="text-xs text-gray-400 mt-1">Format: AB1234567 — 2 letters then 7 digits</p>
+            ) : clientForm.passportSeries.length < 9 ? (
+              <p className="text-xs text-amber-500 mt-1">{clientForm.passportSeries.length} of 9 characters</p>
+            ) : PASSPORT_RE.test(clientForm.passportSeries) ? (
+              <p className="text-xs text-emerald-600 mt-1">✓ Valid format</p>
+            ) : (
+              <p className="text-xs text-red-500 mt-1">Must be 2 letters followed by 7 digits (e.g. AB1234567)</p>
             )}
           </div>
 
@@ -544,53 +571,6 @@ export default function MerchantNewApplication() {
             )}
           </div>
 
-          {/* PINFL */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">PINFL <span className="text-gray-400 font-normal">(optional)</span></label>
-            <input
-              type="text"
-              value={clientForm.pinfl}
-              onChange={e => setClientForm(f => ({ ...f, pinfl: e.target.value.replace(/\D/g, '') }))}
-              onBlur={() => validateClientForm()}
-              placeholder="14-digit national ID"
-              maxLength={14}
-              className={clsx(
-                'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100',
-                clientErrors.pinfl ? 'border-red-400' : 'border-gray-300 focus:border-blue-400'
-              )}
-            />
-            {clientErrors.pinfl && (
-              <p className="text-xs text-red-500 mt-1">{clientErrors.pinfl}</p>
-            )}
-          </div>
-
-          {/* Monthly income */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Income <span className="text-gray-500 font-normal">(UZS)</span></label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={clientForm.monthlyIncome}
-              onChange={e => {
-                const raw = e.target.value.replace(/\D/g, '')
-                setClientForm(f => ({ ...f, monthlyIncome: raw }))
-              }}
-              onBlur={() => validateClientForm()}
-              placeholder="e.g. 3000000"
-              className={clsx(
-                'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100',
-                clientErrors.monthlyIncome ? 'border-red-400' : 'border-gray-300 focus:border-blue-400'
-              )}
-            />
-            {clientErrors.monthlyIncome ? (
-              <p className="text-xs text-red-500 mt-1">{clientErrors.monthlyIncome}</p>
-            ) : clientForm.monthlyIncome && Number(clientForm.monthlyIncome) > 0 ? (
-              <p className="text-xs text-gray-400 mt-1">
-                {Number(clientForm.monthlyIncome).toLocaleString('ru-RU')} UZS / month
-              </p>
-            ) : null}
-          </div>
-
           <div className="flex gap-3 justify-between pt-2">
             <button
               onClick={() => setStep(1)}
@@ -601,10 +581,7 @@ export default function MerchantNewApplication() {
             <button
               onClick={() => {
                 if (validateClientForm()) {
-                  // Reset face state in case passport changed since last camera session
-                  setFace1Image(null)
-                  setFace1Verified(false)
-                  setSubStep2('camera')
+                  setSubStep2('card')
                 }
               }}
               disabled={!clientFormValid}
@@ -616,12 +593,155 @@ export default function MerchantNewApplication() {
         </div>
       )}
 
-      {/* ── STEP 2B: Face Verification camera ────────────────────────────────── */}
+      {/* ── STEP 2B: Card Scan & Income Fetch ────────────────────────────────── */}
+      {step === 2 && subStep2 === 'card' && (
+        <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setSubStep2('form')
+                setCardNumber('')
+                setCardFetched(false)
+                setFetchedIncome(null)
+                setClientForm(f => ({ ...f, monthlyIncome: '' }))
+              }}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors shrink-0"
+            >
+              ← Back
+            </button>
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Bank Card</h2>
+              <p className="text-sm text-gray-500">Enter the client's Humo or UzCard number to retrieve income data</p>
+            </div>
+          </div>
+
+          {/* Card number input */}
+          {!cardFetched ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatCardNumber(cardNumber)}
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 16)
+                      setCardNumber(digits)
+                    }}
+                    placeholder="8600 0000 0000 0000"
+                    maxLength={19}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-20 text-sm font-mono focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                  {cardNumber.length >= 4 && (
+                    <span className={clsx(
+                      'absolute right-3 top-1/2 -translate-y-1/2 rounded px-1.5 py-0.5 text-xs font-bold',
+                      cardNumber.startsWith('9860') ? 'bg-orange-100 text-orange-700' :
+                      cardNumber.startsWith('8600') ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-500'
+                    )}>
+                      {cardNumber.startsWith('9860') ? 'Humo' : cardNumber.startsWith('8600') ? 'UzCard' : 'Card'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                disabled={cardNumber.length < 16 || cardFetching}
+                onClick={() => {
+                  setCardFetching(true)
+                  const delay = Math.random() * 1000 + 1500
+                  setTimeout(() => {
+                    const income = INCOME_OPTIONS[Math.floor(Math.random() * INCOME_OPTIONS.length)]
+                    setFetchedIncome(income)
+                    setCardFetching(false)
+                    setCardFetched(true)
+                    setClientForm(f => ({ ...f, monthlyIncome: String(income) }))
+                  }, delay)
+                }}
+                className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              >
+                {cardFetching ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Fetching data…
+                  </>
+                ) : (
+                  'Fetch Income Data'
+                )}
+              </button>
+
+              {cardFetching && (
+                <div className="rounded-lg bg-blue-50 px-4 py-3 flex items-center gap-3 animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-blue-400 shrink-0" />
+                  <p className="text-xs text-blue-700">
+                    Checking card with {cardNumber.startsWith('8600') ? 'Humo' : cardNumber.startsWith('9860') ? 'UzCard' : 'card'} network…
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ── Success card ── */
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                  <CheckCircleIcon className="h-4 w-4 text-white" />
+                </div>
+                <p className="text-sm font-semibold text-emerald-800">Income Retrieved</p>
+              </div>
+              <div className="space-y-1.5 pl-8">
+                {[
+                  ['Card', maskCardNumber(formatCardNumber(cardNumber))],
+                  ['Network', cardNumber.startsWith('8600') ? 'Humo' : cardNumber.startsWith('9860') ? 'UzCard' : 'Card'],
+                  ['Monthly Income', formatUZS(fetchedIncome ?? 0)],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between text-sm">
+                    <span className="text-emerald-700">{label}</span>
+                    <span className="font-semibold text-emerald-900 font-mono">{value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pl-8 pt-1">
+                <button
+                  onClick={() => {
+                    setCardNumber('')
+                    setCardFetched(false)
+                    setFetchedIncome(null)
+                    setClientForm(f => ({ ...f, monthlyIncome: '' }))
+                  }}
+                  className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
+                >
+                  Re-scan Card
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => {
+                setFace1Image(null)
+                setFace1Verified(false)
+                setSubStep2('camera')
+              }}
+              disabled={!cardFetched}
+              className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Continue →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 2C: Face Verification camera ────────────────────────────────── */}
       {step === 2 && subStep2 === 'camera' && (
         <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-5">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setSubStep2('form')}
+              onClick={() => setSubStep2('card')}
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors shrink-0"
             >
               ← Back
@@ -1035,17 +1155,39 @@ export default function MerchantNewApplication() {
 
           {/* Section 3: Signature */}
           {face2Verified && (
-            <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900">Client Signature</h3>
+            <div className="rounded-xl bg-slate-50 border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Client Signature</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Sign using finger or mouse — ink simulation enabled
+                  </p>
+                </div>
                 <button
                   onClick={() => { sigPadRef.current?.clear(); setHasSignature(false) }}
-                  className="text-xs text-gray-400 hover:text-gray-600 border border-gray-300 rounded-lg px-3 py-1"
-                >Clear</button>
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-red-500
+                             border border-gray-200 hover:border-red-200 rounded-lg px-3 py-1.5
+                             transition-colors"
+                >
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 4 21 4 19 6 19 20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z" />
+                    <line x1="10" y1="11" x2="10" y2="17" />
+                    <line x1="14" y1="11" x2="14" y2="17" />
+                  </svg>
+                  Clear
+                </button>
               </div>
               <SignaturePad ref={sigPadRef} onChange={setHasSignature} />
-              {!hasSignature && (
-                <p className="text-xs text-gray-400 mt-2 text-center">Sign in the box above</p>
+              {!hasSignature ? (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="h-2 w-2 rounded-full bg-gray-300" />
+                  <p className="text-xs text-gray-400">Draw your signature in the box above</p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <p className="text-xs text-emerald-600 font-medium">Signature captured ✓</p>
+                </div>
               )}
             </div>
           )}

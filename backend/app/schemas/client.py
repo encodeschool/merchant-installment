@@ -13,8 +13,9 @@ class ClientCreate(BaseModel):
     open_loans: int = 0
     overdue_days: int = 0
     has_bankruptcy: bool = False
-    employment_type: str = "EMPLOYED"  # EMPLOYED|SELF_EMPLOYED|BUSINESS_OWNER|PENSIONER|OTHER
-    pinfl: Optional[str] = None  # 14-digit national ID
+    employment_type: str = (
+        "EMPLOYED"  # EMPLOYED|SELF_EMPLOYED|BUSINESS_OWNER|PENSIONER|OTHER
+    )
 
 
 class ClientOut(BaseModel):

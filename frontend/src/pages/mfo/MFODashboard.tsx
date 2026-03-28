@@ -54,7 +54,7 @@ export default function MFODashboard() {
 
   const revenueEstimate = recentApps
     .filter(a => a.status === 'ACTIVE')
-    .reduce((sum, a) => sum + (a.totalAmount - a.productPrice), 0)
+    .reduce((sum, a) => sum + (a.totalAmount ?? 0), 0)
 
   if (loading) return <MFODashboardSkeleton />
 
@@ -183,9 +183,9 @@ export default function MFODashboard() {
             <tbody className="divide-y divide-gray-50">
               {recentApps.map(app => (
                 <tr key={app.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{app.clientName}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{app.client?.fullName ?? '—'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{app.merchantName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600 max-w-32 truncate">{app.productName}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 max-w-32 truncate">{app.items?.[0]?.productName ?? '—'}</td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatUZS(app.totalAmount)}</td>
                   <td className="px-4 py-3">
                     <span className={`text-sm font-bold ${app.score >= 70 ? 'text-emerald-600' : app.score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
