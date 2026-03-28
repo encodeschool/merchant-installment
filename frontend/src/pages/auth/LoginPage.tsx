@@ -7,13 +7,13 @@ import clsx from 'clsx'
 const DEMO_PASSWORD = 'demo1234'
 
 const roleColors = {
-  CENTRAL_BANK: { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', light: 'bg-purple-50 border-purple-200 text-purple-700', ring: 'ring-purple-400' },
+  // CENTRAL_BANK: { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', light: 'bg-purple-50 border-purple-200 text-purple-700', ring: 'ring-purple-400' },
   MFO_ADMIN: { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700', light: 'bg-emerald-50 border-emerald-200 text-emerald-700', ring: 'ring-emerald-400' },
   MERCHANT: { bg: 'bg-blue-600', hover: 'hover:bg-blue-700', light: 'bg-blue-50 border-blue-200 text-blue-700', ring: 'ring-blue-400' },
 }
 
 const roleLabels = {
-  CENTRAL_BANK: 'Central Bank',
+  // CENTRAL_BANK: 'Central Bank',
   MFO_ADMIN: 'MFO Admin',
   MERCHANT: 'Merchant',
 }
@@ -76,7 +76,7 @@ export default function LoginPage() {
           {/* Demo accounts */}
           <div className="mb-6">
             <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Demo accounts</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {mockUsers.map((u) => {
                 const colors = roleColors[u.role]
                 return (

@@ -1,7 +1,7 @@
 import { Tariff, Merchant, Product, Application, Contract, AuditLog, MFOStats, User } from '../types'
 
 export const mockUsers: User[] = [
-  { id: 'u1', name: 'Akbar Toshmatov', email: 'akbar@centralbank.uz', role: 'CENTRAL_BANK', organization: "O'zbekiston Markaziy Banki" },
+  // { id: 'u1', name: 'Akbar Toshmatov', email: 'akbar@centralbank.uz', role: 'CENTRAL_BANK', organization: "O'zbekiston Markaziy Banki" },
   { id: 'u2', name: 'Dilnoza Yusupova', email: 'dilnoza@ipoteka.uz', role: 'MFO_ADMIN', organization: 'Ipoteka Bank MFO' },
   { id: 'u3', name: 'Bobur Rahimov', email: 'bobur@techmart.uz', role: 'MERCHANT', organization: 'TechMart Savdo' },
 ]
@@ -46,12 +46,12 @@ export const mockContracts: Contract[] = [
 ]
 
 export const mockAuditLogs: AuditLog[] = [
-  { id: 'l1', userId: 'u1', userName: 'Akbar Toshmatov', role: 'CENTRAL_BANK', action: 'APPROVE', resource: 'tariff', resourceId: 't1', timestamp: '2026-01-12T09:30:00Z', ipAddress: '10.0.1.5' },
+  // { id: 'l1', userId: 'u1', userName: 'Akbar Toshmatov', role: 'CENTRAL_BANK', action: 'APPROVE', resource: 'tariff', resourceId: 't1', timestamp: '2026-01-12T09:30:00Z', ipAddress: '10.0.1.5' },
   { id: 'l2', userId: 'u2', userName: 'Dilnoza Yusupova', role: 'MFO_ADMIN', action: 'CREATE', resource: 'tariff', resourceId: 't3', timestamp: '2026-03-20T14:22:00Z', ipAddress: '10.0.2.12' },
   { id: 'l3', userId: 'u3', userName: 'Bobur Rahimov', role: 'MERCHANT', action: 'SUBMIT', resource: 'application', resourceId: 'a2', timestamp: '2026-03-26T11:05:00Z', ipAddress: '10.0.3.8' },
   { id: 'l4', userId: 'u2', userName: 'Dilnoza Yusupova', role: 'MFO_ADMIN', action: 'APPROVE', resource: 'application', resourceId: 'a3', timestamp: '2026-03-21T10:10:00Z', ipAddress: '10.0.2.12' },
   { id: 'l5', userId: 'u2', userName: 'Dilnoza Yusupova', role: 'MFO_ADMIN', action: 'REJECT', resource: 'application', resourceId: 'a4', timestamp: '2026-03-16T16:45:00Z', ipAddress: '10.0.2.12' },
-  { id: 'l6', userId: 'u1', userName: 'Akbar Toshmatov', role: 'CENTRAL_BANK', action: 'APPROVE', resource: 'tariff', resourceId: 't2', timestamp: '2026-01-17T11:00:00Z', ipAddress: '10.0.1.5' },
+  // { id: 'l6', userId: 'u1', userName: 'Akbar Toshmatov', role: 'CENTRAL_BANK', action: 'APPROVE', resource: 'tariff', resourceId: 't2', timestamp: '2026-01-17T11:00:00Z', ipAddress: '10.0.1.5' },
 ]
 
 export const mockMFOStats: MFOStats[] = [
