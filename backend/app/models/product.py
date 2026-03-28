@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, BigInteger, Integer, DateTime, ForeignKey
-from app.core.database import Base
+from ..core.database import Base
 
 
 class Product(Base):
