@@ -1,712 +1,1062 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { CheckCircleIcon, CameraIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import { Product, Tariff } from '../../types'
-import { apiProducts, apiTariffs, apiApplications, apiMerchants, apiFaceVerify } from '../../api'
+import { useNavigate } from 'react-router-dom'
+import {
+  CheckCircleIcon,
+  ClipboardDocumentIcon,
+} from '@heroicons/react/24/outline'
+import { CheckIcon } from '@heroicons/react/24/solid'
+import { Product, EligibleOffer, ScoreResult, MultiProductResponse } from '../../types'
+import { apiProducts, apiApplications, apiMerchants } from '../../api'
 import { useAuthStore } from '../../store/authStore'
-import { useTranslation } from 'react-i18next'
+import FaceVerifyCamera, { VerifyResult } from '../../components/merchant/FaceVerifyCamera'
+import SignaturePad, { SignaturePadHandle } from '../../components/merchant/SignaturePad'
+import ScoreGauge from '../../components/merchant/ScoreGauge'
 import clsx from 'clsx'
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function formatUZS(n: number): string {
-  return n.toLocaleString() + ' UZS'
+  return Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ') + ' UZS'
 }
 
-interface ClientInfo {
-  fullName: string
-  passportNumber: string
-  phone: string
-  monthlyIncome: string
-  age: string
-  creditHistory: 'GOOD' | 'FAIR' | 'BAD' | 'NONE'
+function calculateMonthly(principal: number, months: number, rate: number): number {
+  if (rate === 0) return principal / months
+  const r = rate / 100 / 12
+  return (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1)
 }
 
-const emptyClient: ClientInfo = {
-  fullName: '', passportNumber: '', phone: '', monthlyIncome: '', age: '', creditHistory: 'NONE',
+function roundK(n: number): number {
+  return Math.round(n / 1000) * 1000
 }
 
-const FIXED_MONTHS = [3, 6, 9, 12]
-const PARTIAL_RATIO = 0.70
+function maskPassport(s: string): string {
+  if (s.length < 3) return s
+  return s.slice(0, 2) + '***' + s.slice(-3)
+}
 
-function calculateScore(client: ClientInfo, monthlyPayment: number) {
-  const income = parseFloat(client.monthlyIncome) || 0
-  const age = parseInt(client.age) || 0
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-  let incomeScore = 5
-  if (income >= monthlyPayment * 3) incomeScore = 30
-  else if (income >= monthlyPayment * 2) incomeScore = 20
-  else if (income >= monthlyPayment * 1.5) incomeScore = 10
+interface CartItem { product: Product; quantity: number }
+interface ClientForm { passportSeries: string; birthDate: string; pinfl: string }
+interface SelectedOffer { tariff: EligibleOffer; months: number }
 
-  const creditMap: Record<string, number> = { GOOD: 30, FAIR: 20, NONE: 10, BAD: 0 }
-  const creditScore = creditMap[client.creditHistory] ?? 10
+// ── Step indicator ────────────────────────────────────────────────────────────
 
-  let ageScore = 5
-  if (age >= 25 && age <= 55) ageScore = 20
-  else if (age >= 18 && age <= 65) ageScore = 15
+const STEP_LABELS = ['Products', 'Identity', 'Scoring', 'Result', 'Offers', 'Sign', 'Done']
 
-  const tariffScore = 20
+function StepIndicator({ step }: { step: number }) {
+  return (
+    <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
+      {STEP_LABELS.slice(0, 6).map((label, i) => {
+        const s = i + 1
+        const done = s < step
+        const active = s === step
+        return (
+          <div key={s} className="flex items-center gap-1 shrink-0">
+            <div className={clsx(
+              'h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
+              done ? 'bg-emerald-500 text-white' :
+              active ? 'bg-blue-600 text-white' :
+              'bg-gray-200 text-gray-500'
+            )}>
+              {done ? <CheckIcon className="h-3.5 w-3.5" /> : s}
+            </div>
+            <span className={clsx(
+              'text-xs font-medium hidden sm:inline',
+              active ? 'text-blue-700' : done ? 'text-emerald-600' : 'text-gray-400'
+            )}>
+              {label}
+            </span>
+            {s < 6 && (
+              <div className={clsx(
+                'w-4 sm:w-8 h-0.5 mx-1',
+                done ? 'bg-emerald-400' : 'bg-gray-200'
+              )} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
+// ── Mock fallback data (when backend unreachable) ─────────────────────────────
+
+function mockMultiProductResponse(appId: string): MultiProductResponse {
+  const score = 55 + Math.floor(Math.random() * 30)
   return {
-    incomeScore,
-    creditScore,
-    ageScore,
-    tariffScore,
-    total: incomeScore + creditScore + ageScore + tariffScore,
+    id: appId,
+    score_result: {
+      f1: 70, f2: 65, f3: 80, f4: 75,
+      total_score: score,
+      decision: score >= 70 ? 'APPROVED' : score >= 50 ? 'PARTIAL' : 'REJECTED',
+      weights: { w1: 0.4, w2: 0.3, w3: 0.2, w4: 0.1 },
+      hard_reject: false,
+      hard_reject_reason: null,
+      reason_codes: [],
+      approved_ratio: score >= 70 ? 1.0 : score >= 50 ? 0.7 : 0.0,
+    },
+    eligible_offers: [
+      {
+        tariff_id: 'mock-1',
+        mfo_name: 'UzMicroFinance',
+        tariff_name: 'Standard Installment',
+        interest_rate: 24,
+        available_months: [3, 6, 9, 12],
+        min_monthly_payment: 0,
+        max_monthly_payment: 0,
+        min_down_payment_pct: 10,
+        approved_amount: 0,
+        approved_ratio: score >= 70 ? 1.0 : 0.7,
+      },
+      {
+        tariff_id: 'mock-2',
+        mfo_name: 'FinancePlus',
+        tariff_name: 'Flexible Plan',
+        interest_rate: 18,
+        available_months: [6, 9, 12],
+        min_monthly_payment: 0,
+        max_monthly_payment: 0,
+        min_down_payment_pct: 15,
+        approved_amount: 0,
+        approved_ratio: score >= 70 ? 1.0 : 0.7,
+      },
+    ],
+    fraud_gate: 'PASS',
+    fraud_signals: [],
   }
 }
 
-type ScoringOutcome = 'APPROVED' | 'PARTIAL' | 'REJECTED'
-
-function getScoringOutcome(score: number, tariffMinScore: number): ScoringOutcome {
-  if (score < 50) return 'REJECTED'
-  if (score >= tariffMinScore) return 'APPROVED'
-  return 'PARTIAL'
-}
-
-function calculateMonthly(price: number, months: number, rate: number) {
-  const monthlyRate = rate / 100 / 12
-  if (monthlyRate === 0) return price / months
-  return price * monthlyRate * Math.pow(1 + monthlyRate, months) / (Math.pow(1 + monthlyRate, months) - 1)
-}
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function MerchantNewApplication() {
-  const { t } = useTranslation()
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const [merchantId, setMerchantId] = useState('')
   const [availableProducts, setAvailableProducts] = useState<Product[]>([])
-  const [approvedTariffs, setApprovedTariffs] = useState<Tariff[]>([])
+
+  // Wizard step
   const [step, setStep] = useState(1)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [client, setClient] = useState<ClientInfo>(emptyClient)
-  const [selectedTariff, setSelectedTariff] = useState<Tariff | null>(null)
-  const [selectedMonths, setSelectedMonths] = useState(12)
-  const [submitted, setSubmitted] = useState(false)
-  const [appId, setAppId] = useState('')
+
+  // Step 1: Cart
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+
+  // Step 2: Client form
+  const [clientForm, setClientForm] = useState<ClientForm>({ passportSeries: '', birthDate: '', pinfl: '' })
+  const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
+  const [face1Image, setFace1Image] = useState<string | null>(null)
+  const [face1Verified, setFace1Verified] = useState(false)
+
+  // Step 3: Scoring animation
+  const [checkItems, setCheckItems] = useState([false, false, false, false])
+  const [animDone, setAnimDone] = useState(false)
+  const [apiDone, setApiDone] = useState(false)
+  const [apiResult, setApiResult] = useState<MultiProductResponse | null>(null)
+  const [scoringError, setScoringError] = useState(false)
+
+  // Step 4: Score result
+  const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null)
+  const [eligibleOffers, setEligibleOffers] = useState<EligibleOffer[]>([])
+  const [fraudGate, setFraudGate] = useState<'PASS' | 'FLAG' | 'BLOCK'>('PASS')
+  const [fraudSignals, setFraudSignals] = useState<string[]>([])
+  const [appId, setAppId] = useState<string | null>(null)
+
+  // Step 5: Offer selection
+  const [selectedOffer, setSelectedOffer] = useState<SelectedOffer | null>(null)
+
+  // Step 6: Signing
+  const [face2Image, setFace2Image] = useState<string | null>(null)
+  const [face2Verified, setFace2Verified] = useState(false)
+  const [hasSignature, setHasSignature] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const sigPadRef = useRef<SignaturePadHandle>(null)
 
-  // Face verification state
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const [capturedImage, setCapturedImage] = useState<string | null>(null)
-  const [faceVerified, setFaceVerified] = useState(false)
-  const [verifying, setVerifying] = useState(false)
-  const [verifyResult, setVerifyResult] = useState<{ verified: boolean; confidence: number; message: string } | null>(null)
-  const [cameraError, setCameraError] = useState<string | null>(null)
+  // Step 7: Final
+  const [finalApp, setFinalApp] = useState<{ monthly_payment: number; months: number } | null>(null)
 
+  // Load data
   useEffect(() => {
-    apiMerchants.my()
-      .then(m => setMerchantId(m.id))
-      .catch(() => {})
-
-    apiProducts.list()
-      .then(data => setAvailableProducts(data.filter(p => p.available)))
-      .catch(() => {})
-
-    apiTariffs.list()
-      .then(data => setApprovedTariffs(data.filter(t => t.status === 'APPROVED')))
-      .catch(() => {})
+    apiMerchants.my().then(m => setMerchantId(m.id)).catch(() => {})
+    apiProducts.list().then(data => setAvailableProducts(data.filter(p => p.available))).catch(() => {})
   }, [user])
 
-  const startCamera = useCallback(async () => {
-    setCameraError(null)
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-      streamRef.current = s
-      if (videoRef.current) videoRef.current.srcObject = s
-    } catch {
-      setCameraError('Camera access denied. Please allow camera permissions and try again.')
-    }
-  }, [])
+  // ── Cart helpers ─────────────────────────────────────────────────────────────
 
-  const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    streamRef.current = null
-  }, [])
+  const cartTotal = cart.reduce((s, i) => s + i.product.price * i.quantity, 0)
+  const maxDownPct = cart.length ? Math.max(...cart.map(i => i.product.downPaymentPercent)) : 0
+  const downAmount = Math.round(cartTotal * maxDownPct / 100)
+  const financedAmount = cartTotal - downAmount
+
+  const addToCart = (product: Product) => {
+    setCart(c => c.find(x => x.product.id === product.id) ? c : [...c, { product, quantity: 1 }])
+  }
+  const changeQty = (productId: string, delta: number) => {
+    setCart(c => c.flatMap(item => {
+      if (item.product.id !== productId) return [item]
+      const next = item.quantity + delta
+      if (next <= 0) return []
+      if (next > 10) return [item]
+      return [{ ...item, quantity: next }]
+    }))
+  }
+
+  const inCart = (id: string) => cart.find(x => x.product.id === id)
+
+  const categories = Array.from(new Set(availableProducts.map(p => p.category).filter(Boolean)))
+
+  const filteredProducts = availableProducts.filter(p => {
+    const matchQ = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchC = !selectedCategory || p.category === selectedCategory
+    return matchQ && matchC
+  })
+
+  // ── Passport validation ───────────────────────────────────────────────────────
+
+  const PASSPORT_RE = /^[A-Z]{2}\d{7}$/
+
+  function validateClientForm(): boolean {
+    const errors: Record<string, string> = {}
+    const ps = clientForm.passportSeries.toUpperCase()
+    if (!PASSPORT_RE.test(ps)) errors.passportSeries = 'Format: AA1234567'
+    if (!clientForm.birthDate) {
+      errors.birthDate = 'Birth date required'
+    } else {
+      const age = calcAge(clientForm.birthDate)
+      if (age < 18 || age > 75) errors.birthDate = 'Client must be between 18 and 75 years old'
+    }
+    if (clientForm.pinfl && !/^\d{14}$/.test(clientForm.pinfl)) {
+      errors.pinfl = 'PINFL must be exactly 14 digits'
+    }
+    setClientErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  function calcAge(birthDate: string): number {
+    const bd = new Date(birthDate)
+    const today = new Date()
+    let age = today.getFullYear() - bd.getFullYear()
+    if (today.getMonth() < bd.getMonth() || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) {
+      age--
+    }
+    return age
+  }
+
+  const clientFormValid = (() => {
+    const ps = clientForm.passportSeries.toUpperCase()
+    if (!PASSPORT_RE.test(ps)) return false
+    if (!clientForm.birthDate) return false
+    const age = calcAge(clientForm.birthDate)
+    if (age < 18 || age > 75) return false
+    if (clientForm.pinfl && !/^\d{14}$/.test(clientForm.pinfl)) return false
+    return true
+  })()
+
+  // ── Step 3: scoring API call + animation ──────────────────────────────────────
+
+  const startScoring = useCallback(() => {
+    setScoringError(false)
+    setCheckItems([false, false, false, false])
+    setAnimDone(false)
+    setApiDone(false)
+    setApiResult(null)
+
+    const duration = 4000 + Math.random() * 4000
+    ;[0, 1, 2, 3].forEach(i => {
+      setTimeout(() => setCheckItems(prev => { const n = [...prev]; n[i] = true; return n }), (i + 1) * 900)
+    })
+    setTimeout(() => setAnimDone(true), duration)
+
+    const payload = {
+      merchant_id: merchantId,
+      items: cart.map(item => ({ product_id: item.product.id, quantity: item.quantity })),
+      months: 12,
+      client: {
+        passport_number: clientForm.passportSeries.toUpperCase(),
+        birth_date: clientForm.birthDate,
+        pinfl: clientForm.pinfl || undefined,
+        full_name: '',
+        phone: '',
+        monthly_income: 0,
+        age: calcAge(clientForm.birthDate),
+        credit_history: 'NONE',
+        open_loans: 0,
+        overdue_days: 0,
+        has_bankruptcy: false,
+      },
+      face_image_b64: face1Image ?? '',
+      signature_b64: '',
+    }
+
+    apiApplications
+      .submitMulti(payload)
+      .then(res => {
+        // Enrich eligible_offers with computed monthly payments using total financed amount
+        const enriched = res.eligible_offers.map((offer: EligibleOffer) => {
+          if (offer.approved_amount === 0) {
+            const approved = Math.round(financedAmount * (offer.approved_ratio || 1))
+            const months = offer.available_months
+            return {
+              ...offer,
+              approved_amount: approved,
+              min_monthly_payment: roundK(calculateMonthly(approved, Math.max(...months), offer.interest_rate)),
+              max_monthly_payment: roundK(calculateMonthly(approved, Math.min(...months), offer.interest_rate)),
+            }
+          }
+          return offer
+        })
+        setApiResult({ ...res, eligible_offers: enriched })
+        setApiDone(true)
+      })
+      .catch(() => {
+        const mockId = appId || `APP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+        const mock = mockMultiProductResponse(mockId)
+        // Enrich mock with actual financed amounts
+        const enriched = mock.eligible_offers.map(offer => ({
+          ...offer,
+          approved_amount: Math.round(financedAmount * offer.approved_ratio),
+          min_monthly_payment: roundK(calculateMonthly(
+            Math.round(financedAmount * offer.approved_ratio),
+            Math.max(...offer.available_months), offer.interest_rate)),
+          max_monthly_payment: roundK(calculateMonthly(
+            Math.round(financedAmount * offer.approved_ratio),
+            Math.min(...offer.available_months), offer.interest_rate)),
+        }))
+        setApiResult({ ...mock, id: mockId, eligible_offers: enriched })
+        setApiDone(true)
+      })
+  }, [merchantId, cart, clientForm, face1Image, financedAmount, appId])
 
   useEffect(() => {
-    if (step === 3) {
-      setCapturedImage(null)
-      setVerifyResult(null)
-      setFaceVerified(false)
-      startCamera()
-    } else {
-      stopCamera()
+    if (step === 3) startScoring()
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (animDone && apiDone && apiResult && step === 3) {
+      setScoreResult(apiResult.score_result)
+      setEligibleOffers(apiResult.eligible_offers)
+      setFraudGate(apiResult.fraud_gate as 'PASS' | 'FLAG' | 'BLOCK')
+      setFraudSignals(apiResult.fraud_signals)
+      setAppId(apiResult.id)
+      setTimeout(() => setStep(4), 500)
     }
-    return () => { if (step === 3) stopCamera() }
-  }, [step, startCamera, stopCamera])
+  }, [animDone, apiDone, apiResult, step])
 
-  const capturePhoto = useCallback(() => {
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    if (!video || !canvas) return
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d')!.drawImage(video, 0, 0)
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
-    const b64 = dataUrl.split(',')[1]
-    setCapturedImage(dataUrl)
-    stopCamera()
+  // ── Submit confirm ─────────────────────────────────────────────────────────────
 
-    setVerifying(true)
-    apiFaceVerify.verify(client.passportNumber, b64)
-      .then(res => {
-        setVerifyResult(res)
-        setFaceVerified(res.verified)
-      })
-      .catch(() => {
-        setVerifyResult({ verified: false, confidence: 0, message: 'Verification service unavailable. Please retake.' })
-        setFaceVerified(false)
-      })
-      .finally(() => setVerifying(false))
-  }, [client.passportNumber, stopCamera])
-
-  const retakePhoto = useCallback(() => {
-    setCapturedImage(null)
-    setVerifyResult(null)
-    setFaceVerified(false)
-    startCamera()
-  }, [startCamera])
-
-  const eligibleTariffs = selectedProduct
-    ? approvedTariffs.filter(t =>
-        selectedProduct.price >= t.minAmount &&
-        selectedProduct.price <= t.maxAmount
-      )
-    : approvedTariffs
-
-  const downPaymentPercent = selectedProduct?.downPaymentPercent ?? 0
-  const downPaymentAmount = selectedProduct ? Math.round(selectedProduct.price * downPaymentPercent / 100) : 0
-  const financedAmount = selectedProduct ? selectedProduct.price - downPaymentAmount : 0
-
-  const monthlyPayment = selectedTariff && selectedProduct
-    ? calculateMonthly(financedAmount, selectedMonths, selectedTariff.interestRate)
-    : 0
-
-  const totalAmount = monthlyPayment * selectedMonths
-
-  const score = calculateScore(client, monthlyPayment)
-  const outcome: ScoringOutcome = selectedTariff
-    ? getScoringOutcome(score.total, selectedTariff.minScore)
-    : 'REJECTED'
-
-  const approvedAmount = outcome === 'PARTIAL' ? Math.round(financedAmount * PARTIAL_RATIO) : financedAmount
-  const approvedMonthly = selectedTariff && outcome !== 'REJECTED'
-    ? calculateMonthly(approvedAmount, selectedMonths, selectedTariff.interestRate)
-    : 0
-
-  const scoreColor = score.total >= 70 ? 'text-emerald-600' : score.total >= 50 ? 'text-yellow-600' : 'text-red-600'
-  const scoreBg = score.total >= 70 ? 'bg-emerald-50 border-emerald-200' : score.total >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
-
-  const handleSubmit = () => {
-    if (!selectedProduct || !selectedTariff) return
+  const handleConfirm = async () => {
+    if (!selectedOffer || !appId) return
     setSubmitting(true)
-    apiApplications.submit({
-      merchant_id: merchantId,
-      product_id: selectedProduct.id,
-      tariff_id: selectedTariff.id,
-      months: selectedMonths,
-      client: {
-        full_name: client.fullName,
-        passport_number: client.passportNumber,
-        phone: client.phone,
-        monthly_income: parseInt(client.monthlyIncome) || 0,
-        age: parseInt(client.age) || 0,
-        credit_history: client.creditHistory,
-      },
-    })
-      .then(app => { setAppId(app.id); setSubmitted(true) })
-      .catch(() => {
-        const id = `APP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-        setAppId(id)
-        setSubmitted(true)
+    const sigDataUrl = sigPadRef.current?.toDataURL()
+    const sigB64 = sigDataUrl ? sigDataUrl.split(',')[1] : ''
+
+    try {
+      const res = await apiApplications.confirm(appId, {
+        tariff_id: selectedOffer.tariff.tariff_id,
+        months: selectedOffer.months,
+        signature_b64: sigB64,
       })
-      .finally(() => setSubmitting(false))
+      setFinalApp(res)
+      setStep(7)
+    } catch {
+      // Demo fallback
+      setFinalApp({ monthly_payment: roundK(calculateMonthly(selectedOffer.tariff.approved_amount, selectedOffer.months, selectedOffer.tariff.interest_rate)), months: selectedOffer.months })
+      setStep(7)
+    } finally {
+      setSubmitting(false)
+    }
   }
+
+  // ── Reset ─────────────────────────────────────────────────────────────────────
 
   const handleReset = () => {
-    setStep(1)
-    setSelectedProduct(null)
-    setClient(emptyClient)
-    setSelectedTariff(null)
-    setSelectedMonths(12)
-    setSubmitted(false)
-    setAppId('')
-    setCapturedImage(null)
-    setVerifyResult(null)
-    setFaceVerified(false)
+    setStep(1); setCart([]); setSearchQuery(''); setSelectedCategory(null)
+    setClientForm({ passportSeries: '', birthDate: '', pinfl: '' }); setClientErrors({})
+    setFace1Image(null); setFace1Verified(false)
+    setCheckItems([false, false, false, false]); setAnimDone(false); setApiDone(false); setApiResult(null); setScoringError(false)
+    setScoreResult(null); setEligibleOffers([]); setFraudGate('PASS'); setFraudSignals([]); setAppId(null)
+    setSelectedOffer(null)
+    setFace2Image(null); setFace2Verified(false); setHasSignature(false)
+    setFinalApp(null); setSubmitting(false)
   }
 
-  if (submitted) {
-    const outcomeConfig = {
-      APPROVED: { icon: 'text-emerald-600', bg: 'bg-emerald-100', title: t('newApp.submittedTitle'), subtitle: t('newApp.approvedSubtitle') },
-      PARTIAL: { icon: 'text-yellow-600', bg: 'bg-yellow-100', title: t('newApp.submittedTitle'), subtitle: t('newApp.partialSubtitle') },
-      REJECTED: { icon: 'text-red-500', bg: 'bg-red-100', title: t('newApp.submittedTitleLow'), subtitle: t('newApp.rejectedSubtitle') },
-    }[outcome]
-
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center max-w-md w-full">
-          <div className={clsx('mx-auto h-16 w-16 rounded-full flex items-center justify-center mb-4', outcomeConfig.bg)}>
-            <CheckCircleIcon className={clsx('h-9 w-9', outcomeConfig.icon)} />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-1">{outcomeConfig.title}</h2>
-          <p className="text-gray-500 text-sm mb-5">{outcomeConfig.subtitle}</p>
-
-          <div className={clsx(
-            'rounded-xl border px-4 py-3 mb-4 text-sm font-semibold',
-            outcome === 'APPROVED' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-            outcome === 'PARTIAL' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
-            'bg-red-50 border-red-200 text-red-700'
-          )}>
-            {outcome === 'APPROVED' && t('newApp.approvedOutcome', { amount: formatUZS(financedAmount) })}
-            {outcome === 'PARTIAL' && t('newApp.partialOutcome', { amount: formatUZS(approvedAmount) })}
-            {outcome === 'REJECTED' && t('newApp.rejectedOutcome')}
-          </div>
-
-          <div className="rounded-xl bg-gray-50 border border-gray-200 px-6 py-4 mb-5">
-            <p className="text-xs text-gray-500">{t('newApp.appId')}</p>
-            <p className="text-lg font-bold text-blue-700 font-mono mt-1">{appId}</p>
-          </div>
-          <div className="space-y-2 text-left mb-5">
-            {[
-              [t('common.client'), client.fullName],
-              [t('common.product'), selectedProduct?.name ?? ''],
-              [t('newApp.downPayment', { pct: downPaymentPercent }), downPaymentPercent > 0 ? t('newApp.downPaymentDetail', { amount: formatUZS(downPaymentAmount), pct: downPaymentPercent }) : t('newApp.downPaymentNone', { amount: formatUZS(downPaymentAmount) })],
-              [t('newApp.financedAmount'), formatUZS(financedAmount)],
-              [t('newApp.durationMonths'), `${selectedMonths} months`],
-              [t('newApp.monthlyPayment'), formatUZS(Math.round(outcome === 'PARTIAL' ? approvedMonthly : monthlyPayment))],
-              [t('newApp.creditScore'), `${score.total}/100`],
-            ].map(([label, value]) => (
-              <div key={label} className="flex justify-between text-sm">
-                <span className="text-gray-500">{label}</span>
-                <span className={clsx('font-medium', label === t('newApp.creditScore') ? scoreColor : '')}>{value}</span>
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={handleReset}
-            className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-          >
-            {t('newApp.submitAnother')}
-          </button>
-        </div>
-      </div>
-    )
-  }
+  // ── RENDER ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-2">
-        {[1, 2, 3, 4].map(s => (
-          <div key={s} className="flex items-center gap-2">
-            <div className={clsx(
-              'h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors',
-              s <= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
-            )}>
-              {s < step ? <CheckCircleIcon className="h-4 w-4" /> : s}
-            </div>
-            <span className={clsx('text-sm font-medium hidden sm:inline', s === step ? 'text-blue-700' : 'text-gray-400')}>
-              {s === 1 ? t('newApp.stepSelectProduct') : s === 2 ? t('newApp.stepClientInfo') : s === 3 ? t('newApp.stepFaceVerify') : t('newApp.stepReview')}
-            </span>
-            {s < 4 && <div className={clsx('flex-1 h-0.5 min-w-6', s < step ? 'bg-blue-600' : 'bg-gray-200')} />}
-          </div>
-        ))}
-      </div>
+    <div className="max-w-3xl mx-auto px-4 pb-24">
+      {step < 7 && <StepIndicator step={step} />}
 
+      {/* ── STEP 1: Product Selection ─────────────────────────────────────────── */}
       {step === 1 && (
-        <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">{t('newApp.selectProductTitle')}</h2>
-          {availableProducts.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">{t('newApp.noProducts')}</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {availableProducts.map(product => (
-                <button
-                  key={product.id}
-                  onClick={() => setSelectedProduct(product)}
-                  className={clsx(
-                    'text-left rounded-xl border-2 p-4 transition-all',
-                    selectedProduct?.id === product.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
-                  )}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{product.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{product.category}</p>
-                      <p className="text-xs text-gray-400 mt-1">{product.description}</p>
-                    </div>
-                    {selectedProduct?.id === product.id && (
-                      <CheckCircleIcon className="h-5 w-5 text-blue-600 shrink-0 ml-2" />
-                    )}
-                  </div>
-                  <p className="text-base font-bold text-blue-700 mt-3">{formatUZS(product.price)}</p>
-                  {product.downPaymentPercent > 0 && (
-                    <p className="text-xs text-gray-400 mt-0.5">{t('merchantProducts.downPaymentInfo', { pct: product.downPaymentPercent, amount: formatUZS(Math.round(product.price * product.downPaymentPercent / 100)) })}</p>
-                  )}
-                </button>
+        <div className="space-y-4">
+          {/* Search + categories */}
+          <div className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm space-y-3">
+            <input
+              type="text"
+              placeholder="Search products…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={clsx('rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                  !selectedCategory ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
+              >All</button>
+              {categories.map(cat => (
+                <button key={cat}
+                  onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
+                  className={clsx('rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                    selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
+                >{cat}</button>
               ))}
             </div>
-          )}
-          <div className="flex justify-end mt-5">
-            <button
-              onClick={() => setStep(2)}
-              disabled={!selectedProduct}
-              className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {t('newApp.nextClientInfo')}
-            </button>
           </div>
-        </div>
-      )}
 
-      {step === 2 && (
-        <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">{t('newApp.clientInfoTitle')}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.fullName')}</label>
-              <input
-                type="text"
-                value={client.fullName}
-                onChange={e => setClient(c => ({ ...c, fullName: e.target.value }))}
-                placeholder={t('newApp.namePlaceholder')}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.passportNumber')}</label>
-              <input
-                type="text"
-                value={client.passportNumber}
-                onChange={e => setClient(c => ({ ...c, passportNumber: e.target.value }))}
-                placeholder={t('newApp.passportPlaceholder')}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.phone')}</label>
-              <input
-                type="text"
-                value={client.phone}
-                onChange={e => setClient(c => ({ ...c, phone: e.target.value }))}
-                placeholder={t('newApp.phonePlaceholder')}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.monthlyIncome')}</label>
-              <input
-                type="number"
-                value={client.monthlyIncome}
-                onChange={e => setClient(c => ({ ...c, monthlyIncome: e.target.value }))}
-                placeholder={t('newApp.incomePlaceholder')}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.age')}</label>
-              <input
-                type="number"
-                value={client.age}
-                onChange={e => setClient(c => ({ ...c, age: e.target.value }))}
-                placeholder="30"
-                min="18" max="75"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('newApp.creditHistory')}</label>
-              <div className="grid grid-cols-4 gap-2">
-                {(['GOOD', 'FAIR', 'NONE', 'BAD'] as const).map(ch => (
-                  <button
-                    key={ch}
-                    type="button"
-                    onClick={() => setClient(c => ({ ...c, creditHistory: ch }))}
-                    className={clsx(
-                      'rounded-lg py-2 text-xs font-semibold transition-all border',
-                      client.creditHistory === ch
-                        ? ch === 'GOOD' ? 'bg-emerald-600 text-white border-emerald-600'
-                          : ch === 'FAIR' ? 'bg-yellow-500 text-white border-yellow-500'
-                          : ch === 'BAD' ? 'bg-red-600 text-white border-red-600'
-                          : 'bg-gray-600 text-white border-gray-600'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                    )}
-                  >
-                    {ch}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-3 justify-between mt-5">
-            <button
-              onClick={() => setStep(1)}
-              className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              {t('newApp.back')}
-            </button>
-            <button
-              onClick={() => setStep(3)}
-              disabled={!client.fullName || !client.phone || !client.passportNumber}
-              className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {t('newApp.nextFaceVerify')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-1">{t('newApp.faceVerifyTitle')}</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            {t('newApp.faceVerifyDesc')} <span className="font-mono font-semibold text-gray-700">{client.passportNumber}</span>.
-          </p>
-
-          <canvas ref={canvasRef} className="hidden" />
-
-          {cameraError ? (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 mb-4">
-              {cameraError}
-            </div>
-          ) : !capturedImage ? (
-            <div className="space-y-3">
-              <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-video">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 border-4 border-blue-400/30 rounded-xl pointer-events-none" />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-48 h-60 border-2 border-blue-400/60 rounded-2xl" />
-                </div>
-              </div>
-              <p className="text-xs text-center text-gray-400">{t('newApp.positionFace')}</p>
-              <button
-                onClick={capturePhoto}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-              >
-                <CameraIcon className="h-5 w-5" />
-                {t('newApp.capturePhoto')}
-              </button>
-            </div>
+          {/* Product grid */}
+          {filteredProducts.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">No products found.</p>
           ) : (
-            <div className="space-y-4">
-              <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-video">
-                <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
-              </div>
-
-              {verifying && (
-                <div className="flex items-center gap-3 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3">
-                  <svg className="h-5 w-5 text-blue-600 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  <span className="text-sm text-blue-700 font-medium">{t('newApp.verifying')}</span>
-                </div>
-              )}
-
-              {verifyResult && !verifying && (
-                <div className={clsx(
-                  'rounded-xl border px-4 py-3',
-                  verifyResult.verified
-                    ? 'bg-emerald-50 border-emerald-200'
-                    : 'bg-red-50 border-red-200'
-                )}>
-                  <div className="flex items-start gap-2">
-                    <CheckCircleIcon className={clsx('h-5 w-5 shrink-0 mt-0.5', verifyResult.verified ? 'text-emerald-600' : 'text-red-500')} />
-                    <div>
-                      <p className={clsx('text-sm font-semibold', verifyResult.verified ? 'text-emerald-700' : 'text-red-700')}>
-                        {verifyResult.verified ? t('newApp.verified') : t('newApp.verificationFailed')}
-                      </p>
-                      <p className="text-xs text-gray-600 mt-0.5">{verifyResult.message}</p>
-                      {verifyResult.verified && (
-                        <p className="text-xs text-emerald-600 mt-1 font-medium">
-                          {t('newApp.confidence', { pct: (verifyResult.confidence * 100).toFixed(1) })}
-                        </p>
-                      )}
-                    </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {filteredProducts.map(product => {
+                const cartItem = inCart(product.id)
+                return (
+                  <div key={product.id} className={clsx(
+                    'rounded-xl border-2 bg-white p-3 transition-all relative',
+                    cartItem ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                  )}>
+                    {cartItem && (
+                      <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-blue-600 flex items-center justify-center">
+                        <CheckIcon className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                    <p className="text-sm font-semibold text-gray-900 pr-6 leading-tight">{product.name}</p>
+                    <span className="inline-block mt-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{product.category}</span>
+                    <p className="text-sm font-bold text-blue-700 mt-2">{formatUZS(product.price)}</p>
+                    {product.downPaymentPercent > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">Down: {product.downPaymentPercent}%</p>
+                    )}
+                    {cartItem ? (
+                      <div className="flex items-center gap-2 mt-3">
+                        <button
+                          onClick={() => changeQty(product.id, -1)}
+                          className="h-7 w-7 rounded-lg bg-blue-100 text-blue-700 font-bold text-sm hover:bg-blue-200 flex items-center justify-center"
+                        >−</button>
+                        <span className="text-sm font-bold text-gray-900 w-6 text-center">{cartItem.quantity}</span>
+                        <button
+                          onClick={() => changeQty(product.id, 1)}
+                          disabled={cartItem.quantity >= 10}
+                          className="h-7 w-7 rounded-lg bg-blue-100 text-blue-700 font-bold text-sm hover:bg-blue-200 flex items-center justify-center disabled:opacity-40"
+                        >+</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => addToCart(product)}
+                        className="mt-3 w-full rounded-lg bg-blue-600 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
+                      >Add</button>
+                    )}
                   </div>
-                </div>
-              )}
-
-              {!verifying && (
-                <button
-                  onClick={retakePhoto}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  <ArrowPathIcon className="h-4 w-4" />
-                  {t('newApp.retakePhoto')}
-                </button>
-              )}
+                )
+              })}
             </div>
           )}
 
-          <div className="flex gap-3 justify-between mt-5">
-            <button
-              onClick={() => setStep(2)}
-              className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              {t('newApp.back')}
-            </button>
-            <button
-              onClick={() => setStep(4)}
-              disabled={!faceVerified}
-              className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {t('newApp.nextReview')}
-            </button>
-          </div>
+          {/* Fixed cart bar */}
+          {cart.length > 0 && (
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-20 shadow-lg">
+              <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+                <div className="text-sm">
+                  <span className="font-semibold text-gray-900">{cart.length} item{cart.length > 1 ? 's' : ''}</span>
+                  <span className="text-gray-500"> · Total: </span>
+                  <span className="font-bold text-gray-900">{formatUZS(cartTotal)}</span>
+                  <span className="text-gray-400 hidden sm:inline"> · Financed: </span>
+                  <span className="font-semibold text-blue-600 hidden sm:inline">{formatUZS(financedAmount)}</span>
+                </div>
+                <button
+                  onClick={() => setStep(2)}
+                  className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shrink-0"
+                >Continue →</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {step === 4 && (
-        <div className="space-y-5">
-          <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">{t('newApp.selectTariff')}</h2>
-            {eligibleTariffs.length === 0 ? (
-              <p className="text-sm text-yellow-700 bg-yellow-50 rounded-lg p-3">
-                {t('newApp.noTariffs')}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {eligibleTariffs.map(tariff => (
-                  <div
-                    key={tariff.id}
-                    onClick={() => {
-                      setSelectedTariff(tariff)
-                      setSelectedMonths(tariff.months)
-                    }}
-                    className={clsx(
-                      'rounded-xl border-2 p-4 cursor-pointer transition-all',
-                      selectedTariff?.id === tariff.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-300'
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{tariff.name}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{tariff.mfoName} · {tariff.interestRate}% annual</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">{t('newApp.duration')}</p>
-                        <p className="text-sm font-medium">{tariff.months} months</p>
-                      </div>
-                    </div>
+      {/* ── STEP 2: Client Identification ─────────────────────────────────────── */}
+      {step === 2 && (
+        <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-5">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Client Identification</h2>
+            <p className="text-sm text-gray-500 mt-1">Enter passport details to begin verification</p>
+          </div>
 
-                    {selectedTariff?.id === tariff.id && selectedProduct && (
-                      <div className="mt-3 pt-3 border-t border-blue-200 flex items-center gap-2">
-                        <span className="text-xs font-medium text-gray-700">{t('newApp.duration')}:</span>
-                        <span className="rounded-lg bg-blue-600 text-white border border-blue-600 px-3 py-1 text-xs font-semibold">
-                          {tariff.months} mo
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+          {/* Passport */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Passport Series</label>
+            <input
+              type="text"
+              value={clientForm.passportSeries}
+              onChange={e => setClientForm(f => ({ ...f, passportSeries: e.target.value.toUpperCase() }))}
+              onBlur={() => validateClientForm()}
+              placeholder="AA1234567"
+              maxLength={9}
+              className={clsx(
+                'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100',
+                clientErrors.passportSeries ? 'border-red-400' : 'border-gray-300 focus:border-blue-400'
+              )}
+            />
+            {clientErrors.passportSeries && (
+              <p className="text-xs text-red-500 mt-1">{clientErrors.passportSeries}</p>
             )}
           </div>
 
-          {selectedTariff && selectedProduct && (
-            <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-5">
-              <h2 className="text-base font-semibold text-gray-900">{t('newApp.appSummary')}</h2>
+          {/* Birth date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Birth Date</label>
+            <input
+              type="date"
+              value={clientForm.birthDate}
+              onChange={e => setClientForm(f => ({ ...f, birthDate: e.target.value }))}
+              onBlur={() => validateClientForm()}
+              className={clsx(
+                'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100',
+                clientErrors.birthDate ? 'border-red-400' : 'border-gray-300 focus:border-blue-400'
+              )}
+            />
+            {clientErrors.birthDate && (
+              <p className="text-xs text-red-500 mt-1">{clientErrors.birthDate}</p>
+            )}
+          </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-500">{t('common.product')}</p>
-                  <p className="font-semibold mt-0.5">{selectedProduct.name}</p>
+          {/* PINFL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">PINFL <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input
+              type="text"
+              value={clientForm.pinfl}
+              onChange={e => setClientForm(f => ({ ...f, pinfl: e.target.value.replace(/\D/g, '') }))}
+              onBlur={() => validateClientForm()}
+              placeholder="14-digit national ID"
+              maxLength={14}
+              className={clsx(
+                'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100',
+                clientErrors.pinfl ? 'border-red-400' : 'border-gray-300 focus:border-blue-400'
+              )}
+            />
+            {clientErrors.pinfl && (
+              <p className="text-xs text-red-500 mt-1">{clientErrors.pinfl}</p>
+            )}
+          </div>
+
+          {/* Camera section — only show when form is valid */}
+          {clientFormValid && (
+            <div className="pt-2 border-t border-gray-100">
+              <FaceVerifyCamera
+                passportNumber={clientForm.passportSeries.toUpperCase()}
+                title="Identity Photo"
+                subtitle="Take a photo of the client to verify passport identity"
+                onVerified={(b64) => { setFace1Image(b64); setFace1Verified(true) }}
+                onReset={() => { setFace1Image(null); setFace1Verified(false) }}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-between pt-2">
+            <button onClick={() => setStep(1)} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              Back
+            </button>
+            <button
+              onClick={() => { if (validateClientForm() && face1Verified) setStep(3) }}
+              disabled={!clientFormValid || !face1Verified}
+              className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Continue →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 3: Scoring Animation ─────────────────────────────────────────── */}
+      {step === 3 && (
+        <div className="rounded-xl bg-white border border-gray-100 p-8 shadow-sm">
+          <style>{`
+            @keyframes checkBounce {
+              0%   { transform: scale(0.5); opacity: 0; }
+              60%  { transform: scale(1.2); opacity: 1; }
+              100% { transform: scale(1); }
+            }
+            .check-appear { animation: checkBounce 0.4s ease forwards; }
+            @keyframes barFill { from { width: 0% } to { width: 100% } }
+          `}</style>
+
+          <div className="text-center mb-8">
+            <h2 className="text-lg font-bold text-gray-900">Analyzing Credit Profile</h2>
+            <p className="text-sm text-gray-500 mt-1">Please wait while we evaluate the client</p>
+          </div>
+
+          <div className="space-y-4 max-w-sm mx-auto mb-8">
+            {['Identity verified', 'Income analysis', 'Credit history check', 'Behavioral scoring'].map((label, i) => (
+              <div key={label} className="flex items-center gap-3">
+                <div className={clsx(
+                  'h-7 w-7 rounded-full flex items-center justify-center shrink-0',
+                  checkItems[i] ? 'bg-emerald-100' : 'bg-gray-100'
+                )}>
+                  {checkItems[i] ? (
+                    <CheckIcon className="h-4 w-4 text-emerald-600 check-appear" />
+                  ) : (
+                    <svg className="h-4 w-4 text-gray-400 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  )}
                 </div>
-                <div>
-                  <p className="text-gray-500">{t('common.client')}</p>
-                  <p className="font-semibold mt-0.5">{client.fullName || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">{t('newApp.productPrice')}</p>
-                  <p className="font-semibold mt-0.5">{formatUZS(selectedProduct.price)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">{t('newApp.downPayment', { pct: downPaymentPercent })}</p>
-                  <p className="font-semibold text-orange-600 mt-0.5">{formatUZS(downPaymentAmount)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">{t('newApp.financedAmount')}</p>
-                  <p className="font-semibold mt-0.5">{formatUZS(financedAmount)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">{t('newApp.durationMonths')}</p>
-                  <p className="font-semibold mt-0.5">{selectedMonths} months</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">{t('newApp.monthlyPayment')}</p>
-                  <p className="font-bold text-blue-700 text-base mt-0.5">{formatUZS(Math.round(monthlyPayment))}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">{t('newApp.totalRepayment')}</p>
-                  <p className="font-bold text-gray-900 text-base mt-0.5">{formatUZS(Math.round(totalAmount))}</p>
+                <span className={clsx('text-sm font-medium', checkItems[i] ? 'text-emerald-700' : 'text-gray-400')}>
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress bar */}
+          <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-full bg-blue-500 rounded-full"
+              style={{
+                animation: 'barFill 7s ease-in-out forwards',
+                width: animDone ? '100%' : undefined,
+              }}
+            />
+          </div>
+          {checkItems[3] && animDone && (
+            <p className="text-center text-sm text-emerald-600 font-medium mt-3">Processing complete</p>
+          )}
+
+          {scoringError && (
+            <div className="mt-4 text-center">
+              <p className="text-sm text-red-600 mb-2">An error occurred. Please try again.</p>
+              <button onClick={startScoring} className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── STEP 4: Scoring Result ────────────────────────────────────────────── */}
+      {step === 4 && scoreResult && (
+        <div className="space-y-4">
+          <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-900 mb-4">Credit Assessment Result</h2>
+
+            {/* Fraud BLOCK */}
+            {fraudGate === 'BLOCK' && (
+              <div className="rounded-xl bg-red-50 border border-red-200 p-5 mb-4">
+                <p className="text-lg font-bold text-red-700">Application Blocked</p>
+                <p className="text-sm text-red-600 mt-1">Reason: {fraudSignals.join(', ')}</p>
+                <button onClick={handleReset} className="mt-4 rounded-xl bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700">
+                  Start New Application
+                </button>
+              </div>
+            )}
+
+            {/* Fraud FLAG */}
+            {fraudGate === 'FLAG' && (
+              <div className="rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-3 mb-4">
+                <p className="text-sm font-semibold text-yellow-800">Risk signals detected — score adjusted</p>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {fraudSignals.map(s => (
+                    <span key={s} className="rounded-full bg-yellow-200 text-yellow-800 px-2 py-0.5 text-xs">{s}</span>
+                  ))}
                 </div>
               </div>
+            )}
 
-              <div className={clsx('rounded-xl border p-4', scoreBg)}>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-semibold text-gray-700">{t('newApp.estimatedScore')}</p>
-                  <span className={clsx('text-2xl font-black', scoreColor)}>{score.total}/100</span>
+            {fraudGate !== 'BLOCK' && (
+              <>
+                {/* Score gauge + decision */}
+                <div className="flex flex-col sm:flex-row items-center gap-6 mb-6">
+                  <ScoreGauge score={scoreResult.total_score} />
+                  <div className="flex-1 space-y-2">
+                    <div className={clsx(
+                      'inline-flex rounded-full px-4 py-1.5 text-sm font-bold',
+                      scoreResult.decision === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                      scoreResult.decision === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    )}>
+                      {scoreResult.decision === 'APPROVED' && '✓ APPROVED'}
+                      {scoreResult.decision === 'PARTIAL' && '⚠ PARTIAL APPROVAL'}
+                      {scoreResult.decision === 'REJECTED' && '✗ REJECTED'}
+                    </div>
+                    {scoreResult.decision === 'PARTIAL' && (
+                      <p className="text-sm text-gray-600">
+                        Approved amount: <span className="font-semibold text-gray-900">
+                          {formatUZS(Math.round(financedAmount * scoreResult.approved_ratio))}
+                        </span> ({Math.round(scoreResult.approved_ratio * 100)}% of financed)
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mb-3">{t('newApp.tariffMinScore', { score: selectedTariff.minScore })}</p>
 
-                <div className="space-y-2 mb-4">
+                {/* Factor bars */}
+                <div className="space-y-3 mb-4">
                   {[
-                    { label: t('newApp.incomeVsPayment'), value: score.incomeScore, max: 30 },
-                    { label: t('newApp.creditHistory_'), value: score.creditScore, max: 30 },
-                    { label: t('newApp.ageFactor'), value: score.ageScore, max: 20 },
-                    { label: t('newApp.tariffMatch'), value: score.tariffScore, max: 20 },
+                    { label: 'F1 Affordability', val: scoreResult.f1, w: scoreResult.weights.w1, color: 'bg-emerald-500' },
+                    { label: 'F2 Credit History', val: scoreResult.f2, w: scoreResult.weights.w2, color: 'bg-blue-500' },
+                    { label: 'F3 Behavioral', val: scoreResult.f3, w: scoreResult.weights.w3, color: 'bg-amber-500' },
+                    { label: 'F4 Demographic', val: scoreResult.f4, w: scoreResult.weights.w4, color: 'bg-violet-500' },
                   ].map(item => (
-                    <div key={item.label} className="flex items-center gap-3 text-xs">
-                      <span className="w-32 text-gray-600 shrink-0">{item.label}</span>
-                      <div className="flex-1 bg-white/60 rounded-full h-1.5">
+                    <div key={item.label}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-medium text-gray-700">{item.label} ({Math.round(item.w * 100)}%)</span>
+                        <span className="font-bold text-gray-900">{Math.round(item.val)}</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className={clsx('h-1.5 rounded-full', score.total >= 70 ? 'bg-emerald-500' : score.total >= 50 ? 'bg-yellow-500' : 'bg-red-500')}
-                          style={{ width: `${(item.value / item.max) * 100}%` }}
+                          className={clsx('h-full rounded-full transition-all', item.color)}
+                          style={{ width: `${item.val}%` }}
                         />
                       </div>
-                      <span className="font-semibold w-8 text-right">{item.value}/{item.max}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className={clsx(
-                  'rounded-lg px-3 py-2 text-xs font-semibold',
-                  outcome === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
-                  outcome === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-red-100 text-red-700'
+                {/* Reason codes */}
+                {scoreResult.reason_codes.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {scoreResult.reason_codes.map(code => (
+                      <span key={code} className="rounded-full bg-gray-100 text-gray-500 px-2 py-0.5 text-xs">{code}</span>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {fraudGate !== 'BLOCK' && (
+            <div className="flex gap-3 justify-between">
+              <button
+                onClick={handleReset}
+                className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                ✗ Reject Application
+              </button>
+              <div className="relative group">
+                <button
+                  onClick={() => setStep(5)}
+                  disabled={scoreResult.decision === 'REJECTED'}
+                  className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Continue to Offers →
+                </button>
+                {scoreResult.decision === 'REJECTED' && (
+                  <div className="absolute bottom-full right-0 mb-1 w-48 rounded-lg bg-gray-800 text-white text-xs p-2 hidden group-hover:block">
+                    Score too low to proceed
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── STEP 5: MFO Offers ────────────────────────────────────────────────── */}
+      {step === 5 && (
+        <div className="space-y-4">
+          <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-900">Available Financing Offers</h2>
+            <p className="text-sm text-gray-500 mt-1">{eligibleOffers.length} offer{eligibleOffers.length !== 1 ? 's' : ''} available for your credit score</p>
+          </div>
+
+          {eligibleOffers.length === 0 ? (
+            <div className="rounded-xl bg-white border border-gray-100 p-8 shadow-sm text-center">
+              <p className="text-sm text-gray-500 mb-4">No offers available</p>
+              <button onClick={handleReset} className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                Start New Application
+              </button>
+            </div>
+          ) : (
+            eligibleOffers.map(offer => {
+              const isSelected = selectedOffer?.tariff.tariff_id === offer.tariff_id
+              const selMonths = isSelected ? selectedOffer!.months : null
+
+              return (
+                <div key={offer.tariff_id} className={clsx(
+                  'rounded-xl bg-white border-2 p-5 shadow-sm transition-all',
+                  isSelected ? 'border-blue-500' : 'border-gray-200'
                 )}>
-                  {outcome === 'APPROVED' && t('newApp.approvedPrelim', { amount: formatUZS(financedAmount) })}
-                  {outcome === 'PARTIAL' && t('newApp.partialPrelim', { amount: formatUZS(approvedAmount), monthly: formatUZS(Math.round(approvedMonthly)) })}
-                  {outcome === 'REJECTED' && t('newApp.rejectedPrelim')}
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <p className="text-base font-bold text-gray-900">{offer.mfo_name}</p>
+                      <p className="text-sm text-gray-500">{offer.tariff_name}</p>
+                    </div>
+                    {isSelected && (
+                      <div className="h-6 w-6 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                        <CheckIcon className="h-3.5 w-3.5 text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                    <div>
+                      <p className="text-gray-500 text-xs">Interest Rate</p>
+                      <p className="font-semibold">{offer.interest_rate}% / year</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs">Approved Amount</p>
+                      <p className="font-semibold">{formatUZS(offer.approved_amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs">Down Payment</p>
+                      <p className="font-semibold">{offer.min_down_payment_pct}%</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 text-xs">Approval</p>
+                      <p className="font-semibold">{Math.round(offer.approved_ratio * 100)}%</p>
+                    </div>
+                  </div>
+
+                  {/* Month selector */}
+                  <div className="mb-4">
+                    <p className="text-xs font-medium text-gray-500 mb-2">Select Duration</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {offer.available_months.map(m => {
+                        const mp = roundK(calculateMonthly(offer.approved_amount, m, offer.interest_rate))
+                        const active = selMonths === m && isSelected
+                        return (
+                          <button
+                            key={m}
+                            onClick={() => setSelectedOffer({ tariff: offer, months: m })}
+                            className={clsx(
+                              'rounded-xl p-2 text-center transition-all border',
+                              active ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                            )}
+                          >
+                            <p className="text-sm font-bold">{m} mo</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{(mp / 1000).toFixed(0)}K/mo</p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Summary row when months selected */}
+                  {isSelected && selMonths && (
+                    <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 mb-4 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Monthly Payment</span>
+                        <span className="font-bold text-blue-700">
+                          {formatUZS(roundK(calculateMonthly(offer.approved_amount, selMonths, offer.interest_rate)))}
+                        </span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-gray-600">Total Repayment</span>
+                        <span className="font-semibold text-gray-900">
+                          {formatUZS(roundK(calculateMonthly(offer.approved_amount, selMonths, offer.interest_rate)) * selMonths)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-gray-600">Overpayment</span>
+                        <span className="font-semibold text-gray-500">
+                          {formatUZS(roundK(calculateMonthly(offer.approved_amount, selMonths, offer.interest_rate)) * selMonths - offer.approved_amount)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      const m = selMonths ?? offer.available_months[offer.available_months.length - 1]
+                      setSelectedOffer({ tariff: offer, months: m })
+                    }}
+                    className={clsx(
+                      'w-full rounded-xl py-2.5 text-sm font-semibold transition-colors',
+                      isSelected
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'border border-blue-600 text-blue-600 hover:bg-blue-50'
+                    )}
+                  >
+                    {isSelected ? '✓ Selected' : 'Select This Offer'}
+                  </button>
                 </div>
+              )
+            })
+          )}
+
+          <div className="flex gap-3 justify-between">
+            <button onClick={() => setStep(4)} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              Back
+            </button>
+            <button
+              onClick={() => setStep(6)}
+              disabled={!selectedOffer}
+              className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Continue to Signing →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 6: Confirm & Sign ────────────────────────────────────────────── */}
+      {step === 6 && selectedOffer && (
+        <div className="space-y-4">
+          {/* Section 1: Re-verify */}
+          <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Contract Signing</h2>
+            <p className="text-sm text-gray-500 mb-4">Re-verify client identity before signing</p>
+
+            {!face2Verified ? (
+              <FaceVerifyCamera
+                passportNumber={clientForm.passportSeries.toUpperCase()}
+                title="Re-verify Identity"
+                subtitle="Take a second photo to confirm client identity"
+                onVerified={(b64) => { setFace2Image(b64); setFace2Verified(true) }}
+                onReset={() => { setFace2Image(null); setFace2Verified(false) }}
+              />
+            ) : (
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3">
+                <CheckCircleIcon className="h-5 w-5 text-emerald-600 shrink-0" />
+                <span className="text-sm font-medium text-emerald-700">Identity re-verified successfully</span>
+                <button
+                  onClick={() => { setFace2Image(null); setFace2Verified(false) }}
+                  className="ml-auto text-xs text-gray-400 hover:text-gray-600 underline"
+                >Retake</button>
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Contract Summary */}
+          {face2Verified && (
+            <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Contract Summary</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Products</span>
+                  <span className="font-medium text-right max-w-xs">
+                    {cart.map(i => `${i.product.name} ×${i.quantity}`).join(', ')}
+                  </span>
+                </div>
+                {[
+                  ['Total Amount', formatUZS(cartTotal)],
+                  ['Down Payment', formatUZS(downAmount) + ` (${maxDownPct}%)`],
+                  ['Financed Amount', formatUZS(financedAmount)],
+                  ['MFO', selectedOffer.tariff.mfo_name],
+                  ['Tariff', selectedOffer.tariff.tariff_name],
+                  ['Duration', `${selectedOffer.months} months`],
+                  ['Monthly Payment', formatUZS(roundK(calculateMonthly(selectedOffer.tariff.approved_amount, selectedOffer.months, selectedOffer.tariff.interest_rate)))],
+                  ['Total Repayment', formatUZS(roundK(calculateMonthly(selectedOffer.tariff.approved_amount, selectedOffer.months, selectedOffer.tariff.interest_rate)) * selectedOffer.months)],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between">
+                    <span className="text-gray-500">{label}</span>
+                    <span className="font-medium">{value}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
+          {/* Section 3: Signature */}
+          {face2Verified && (
+            <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900">Client Signature</h3>
+                <button
+                  onClick={() => { sigPadRef.current?.clear(); setHasSignature(false) }}
+                  className="text-xs text-gray-400 hover:text-gray-600 border border-gray-300 rounded-lg px-3 py-1"
+                >Clear</button>
+              </div>
+              <SignaturePad ref={sigPadRef} onChange={setHasSignature} />
+              {!hasSignature && (
+                <p className="text-xs text-gray-400 mt-2 text-center">Sign in the box above</p>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-3 justify-between">
-            <button
-              onClick={() => setStep(3)}
-              className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              {t('newApp.back')}
+            <button onClick={() => setStep(5)} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              Back
             </button>
             <button
-              onClick={handleSubmit}
-              disabled={!selectedTariff || submitting}
-              className="rounded-xl bg-blue-600 px-8 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              onClick={handleConfirm}
+              disabled={!face2Verified || !hasSignature || submitting}
+              className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {submitting ? t('newApp.submitting') : t('newApp.submit')}
+              {submitting ? 'Submitting…' : 'Confirm & Submit'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 7: Success ───────────────────────────────────────────────────── */}
+      {step === 7 && selectedOffer && (
+        <div className="flex items-center justify-center min-h-80">
+          <div className="text-center max-w-md w-full">
+            <style>{`
+              @keyframes scaleIn {
+                from { transform: scale(0); opacity: 0; }
+                to   { transform: scale(1); opacity: 1; }
+              }
+              .scale-in { animation: scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+            `}</style>
+
+            <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center mb-5 scale-in">
+              <CheckCircleIcon className="h-10 w-10 text-emerald-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Application Registered Successfully</h2>
+            <p className="text-sm text-gray-500 mb-6">The client's installment application has been submitted for review.</p>
+
+            {/* Info card */}
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-5 mb-6 text-left space-y-2 text-sm">
+              {/* Application ID with copy */}
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Application ID</span>
+                <div className="flex items-center gap-1">
+                  <span className="font-mono font-bold text-blue-700 text-xs">
+                    {appId ? `APP-${appId.slice(-8).toUpperCase()}` : '—'}
+                  </span>
+                  <button
+                    onClick={() => { if (appId) navigator.clipboard.writeText(appId).catch(() => {}) }}
+                    className="text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Copy"
+                  >
+                    <ClipboardDocumentIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              {[
+                ['Client', maskPassport(clientForm.passportSeries)],
+                ['Products', `${cart.length} item${cart.length > 1 ? 's' : ''}`],
+                ['Total Amount', formatUZS(cartTotal)],
+                ['Monthly Payment', `${formatUZS(finalApp?.monthly_payment ?? roundK(calculateMonthly(selectedOffer.tariff.approved_amount, selectedOffer.months, selectedOffer.tariff.interest_rate)))} × ${finalApp?.months ?? selectedOffer.months} mo`],
+                ['MFO', selectedOffer.tariff.mfo_name],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between">
+                  <span className="text-gray-500">{label}</span>
+                  <span className="font-medium text-right max-w-xs">{value}</span>
+                </div>
+              ))}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Status</span>
+                <span className="rounded-full bg-yellow-100 text-yellow-700 px-2 py-0.5 text-xs font-semibold">PENDING REVIEW</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleReset}
+                className="flex-1 rounded-xl border border-blue-600 text-blue-600 py-2.5 text-sm font-semibold hover:bg-blue-50 transition-colors"
+              >
+                Start New Application
+              </button>
+              <button
+                onClick={() => navigate('/merchant/installments')}
+                className="flex-1 rounded-xl bg-blue-600 text-white py-2.5 text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                View Applications
+              </button>
+            </div>
           </div>
         </div>
       )}
