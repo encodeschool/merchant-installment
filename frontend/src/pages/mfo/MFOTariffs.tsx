@@ -7,6 +7,7 @@ import Button from '../../components/ui/Button'
 import { Tariff } from '../../types'
 import { apiTariffs } from '../../api'
 import { useTranslation } from 'react-i18next'
+import { MFOTariffsSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   return n.toLocaleString() + ' UZS'
@@ -29,6 +30,7 @@ export default function MFOTariffs() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const [tariffs, setTariffs] = useState<Tariff[]>([])
+  const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Tariff | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Tariff | null>(null)
@@ -39,6 +41,7 @@ export default function MFOTariffs() {
     apiTariffs.list()
       .then(setTariffs)
       .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const openCreate = () => { setForm(emptyForm); setCreateOpen(true) }
@@ -192,6 +195,8 @@ export default function MFOTariffs() {
       </div>
     </div>
   )
+
+  if (loading) return <MFOTariffsSkeleton />
 
   return (
     <div className="space-y-5">

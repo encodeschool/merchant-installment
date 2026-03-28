@@ -5,6 +5,7 @@ import { AuditLog, Role } from '../../types'
 import { apiDashboard } from '../../api'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { CBAuditLogsSkeleton } from '../../components/ui/Skeleton'
 
 function actionBadge(action: string) {
   const map: Record<string, { color: string; label: string }> = {
@@ -43,12 +44,13 @@ const PAGE_SIZE = 20
 export default function CBAuditLogs() {
   const { t } = useTranslation()
   const [logs, setLogs] = useState<AuditLog[]>([])
+  const [loading, setLoading] = useState(true)
   const [roleFilter, setRoleFilter] = useState<string>('ALL')
   const [actionFilter, setActionFilter] = useState<string>('ALL')
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    apiDashboard.auditLogs().then(setLogs).catch(() => {})
+    apiDashboard.auditLogs().then(setLogs).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const filtered = logs.filter(log => {
@@ -65,6 +67,8 @@ export default function CBAuditLogs() {
     const d = new Date(ts)
     return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
   }
+
+  if (loading) return <CBAuditLogsSkeleton />
 
   return (
     <div className="space-y-5">

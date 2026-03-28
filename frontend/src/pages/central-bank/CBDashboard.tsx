@@ -13,6 +13,7 @@ import { statusBadge } from '../../components/ui/Badge'
 import { apiDashboard } from '../../api'
 import { MFOStats } from '../../types'
 import { useTranslation } from 'react-i18next'
+import { CBDashboardSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B UZS'
@@ -22,6 +23,7 @@ function formatUZS(n: number): string {
 
 export default function CBDashboard() {
   const { t } = useTranslation()
+  const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     totalMFOs: 0,
     totalApplications: 0,
@@ -33,19 +35,23 @@ export default function CBDashboard() {
   const [mfoList, setMfoList] = useState<MFOStats[]>([])
 
   useEffect(() => {
-    apiDashboard.cb().then(d => setStats({
-      totalMFOs: d.totalMFOs,
-      totalApplications: d.totalApplications,
-      totalDisbursed: d.totalDisbursed,
-      avgDefaultRate: d.avgDefaultRate,
-      monthlyTrend: d.monthlyTrend,
-    })).catch(() => {})
-
-    apiDashboard.mfoList().then(list => {
+    Promise.all([
+      apiDashboard.cb().catch(() => null),
+      apiDashboard.mfoList().catch(() => [] as MFOStats[]),
+    ]).then(([d, list]) => {
+      if (d) setStats({
+        totalMFOs: d.totalMFOs,
+        totalApplications: d.totalApplications,
+        totalDisbursed: d.totalDisbursed,
+        avgDefaultRate: d.avgDefaultRate,
+        monthlyTrend: d.monthlyTrend,
+      })
       setMfoList(list)
       setPendingTariffs(0)
-    }).catch(() => {})
+    }).finally(() => setLoading(false))
   }, [])
+
+  if (loading) return <CBDashboardSkeleton />
 
   return (
     <div className="space-y-6">

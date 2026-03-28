@@ -7,6 +7,7 @@ import { Application } from '../../types'
 import { apiApplications } from '../../api'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { MFOApplicationsSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M UZS'
@@ -32,6 +33,7 @@ const PAGE_SIZE = 10
 
 export default function MFOApplications() {
   const [applications, setApplications] = useState<Application[]>([])
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabFilter>('ALL')
   const [page, setPage] = useState(1)
   const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' | 'partial' } | null>(null)
@@ -40,7 +42,7 @@ export default function MFOApplications() {
   const { t } = useTranslation()
 
   useEffect(() => {
-    apiApplications.list().then(setApplications).catch(() => {})
+    apiApplications.list().then(setApplications).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const filtered = applications.filter(a =>
@@ -95,6 +97,8 @@ export default function MFOApplications() {
       })
       .finally(() => setDeciding(false))
   }
+
+  if (loading) return <MFOApplicationsSkeleton />
 
   return (
     <div className="space-y-5">

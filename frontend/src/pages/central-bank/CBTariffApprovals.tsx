@@ -7,6 +7,7 @@ import { Tariff } from '../../types'
 import { apiTariffs } from '../../api'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { CBTariffApprovalsSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   return n.toLocaleString() + ' UZS'
@@ -17,12 +18,13 @@ type FilterTab = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
 export default function CBTariffApprovals() {
   const { t } = useTranslation()
   const [tariffs, setTariffs] = useState<Tariff[]>([])
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<FilterTab>('ALL')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Tariff | null>(null)
 
   useEffect(() => {
-    apiTariffs.list().then(setTariffs).catch(() => {})
+    apiTariffs.list().then(setTariffs).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const filtered = tariffs.filter(t => {
@@ -66,6 +68,8 @@ export default function CBTariffApprovals() {
     APPROVED: tariffs.filter(t => t.status === 'APPROVED').length,
     REJECTED: tariffs.filter(t => t.status === 'REJECTED').length,
   }
+
+  if (loading) return <CBTariffApprovalsSkeleton />
 
   return (
     <div className="space-y-5">

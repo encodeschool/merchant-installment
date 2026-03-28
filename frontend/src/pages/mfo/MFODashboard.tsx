@@ -13,6 +13,7 @@ import { statusBadge } from '../../components/ui/Badge'
 import { Application } from '../../types'
 import { apiDashboard, apiApplications } from '../../api'
 import { useTranslation } from 'react-i18next'
+import { MFODashboardSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M UZS'
@@ -21,6 +22,7 @@ function formatUZS(n: number): string {
 
 export default function MFODashboard() {
   const { t } = useTranslation()
+  const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     totalMerchants: 0,
     pendingApplications: 0,
@@ -32,25 +34,29 @@ export default function MFODashboard() {
   const [recentApps, setRecentApps] = useState<Application[]>([])
 
   useEffect(() => {
-    apiDashboard.mfo().then(d => setStats({
-      totalMerchants: d.totalMerchants,
-      pendingApplications: d.pendingApplications,
-      approvedThisMonth: d.approvedThisMonth,
-      totalTurnover: d.totalTurnover,
-      unpaidAmount: d.unpaidAmount,
-      monthlyTrend: d.monthlyTrend,
-    })).catch(() => {})
-
-    apiApplications.list().then(apps => {
+    Promise.all([
+      apiDashboard.mfo().catch(() => null),
+      apiApplications.list().catch(() => [] as Application[]),
+    ]).then(([d, apps]) => {
+      if (d) setStats({
+        totalMerchants: d.totalMerchants,
+        pendingApplications: d.pendingApplications,
+        approvedThisMonth: d.approvedThisMonth,
+        totalTurnover: d.totalTurnover,
+        unpaidAmount: d.unpaidAmount,
+        monthlyTrend: d.monthlyTrend,
+      })
       setRecentApps(
         [...apps].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)
       )
-    }).catch(() => {})
+    }).finally(() => setLoading(false))
   }, [])
 
   const revenueEstimate = recentApps
     .filter(a => a.status === 'ACTIVE')
     .reduce((sum, a) => sum + (a.totalAmount - a.productPrice), 0)
+
+  if (loading) return <MFODashboardSkeleton />
 
   return (
     <div className="space-y-6">
