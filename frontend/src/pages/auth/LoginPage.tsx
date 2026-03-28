@@ -79,8 +79,8 @@ export default function LoginPage() {
 
           {/* Demo accounts */}
           <div className="mb-6">
-            <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">{t('login.demoAccounts')}</p>
-            <div className="grid grid-cols-2 gap-2">
+            {/* <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">{t('login.demoAccounts')}</p> */}
+            {/* <div className="grid grid-cols-2 gap-2">
               {DEMO_ACCOUNTS.map((u) => {
                 const colors = roleColors[u.role]
                 return (
@@ -100,7 +100,7 @@ export default function LoginPage() {
                   </button>
                 )
               })}
-            </div>
+            </div> */}
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
