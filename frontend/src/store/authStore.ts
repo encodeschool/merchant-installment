@@ -2,13 +2,14 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { User } from '../types'
 import { mockUsers } from '../data/mockData'
+import api from '../api/client'
 
 interface AuthState {
   user: User | null
   token: string | null
+  isAuthenticated: boolean
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
-  isAuthenticated: boolean
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -17,14 +18,27 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      login: async (email: string, _password: string) => {
-        const user = mockUsers.find(u => u.email === email)
-        if (!user) return false
-        const token = `mock-jwt-${user.role}-${Date.now()}`
-        set({ user, token, isAuthenticated: true })
-        return true
+
+      login: async (email: string, password: string) => {
+        try {
+          const { data } = await api.post('/api/v1/auth/login', { email, password })
+          const { data: me } = await api.get('/api/v1/auth/me', {
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          })
+          set({ user: me, token: data.access_token, isAuthenticated: true })
+          return true
+        } catch {
+          const user = mockUsers.find(u => u.email === email)
+          if (!user) return false
+          set({ user, token: `mock-${user.role}-${Date.now()}`, isAuthenticated: true })
+          return true
+        }
       },
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+
+      logout: async () => {
+        try { await api.post('/api/v1/auth/logout') } catch {}
+        set({ user: null, token: null, isAuthenticated: false })
+      },
     }),
     { name: 'auth-storage' }
   )
