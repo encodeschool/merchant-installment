@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import { mockTariffs } from '../../data/mockData'
 import { Tariff } from '../../types'
+import { apiTariffs } from '../../api'
 import clsx from 'clsx'
 
 function formatUZS(n: number): string {
@@ -19,6 +20,10 @@ export default function CBTariffApprovals() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Tariff | null>(null)
 
+  useEffect(() => {
+    apiTariffs.list().then(setTariffs).catch(() => {})
+  }, [])
+
   const filtered = tariffs.filter(t => {
     const matchesTab = tab === 'ALL' || t.status === tab
     const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -27,16 +32,30 @@ export default function CBTariffApprovals() {
   })
 
   const approve = (id: string) => {
-    setTariffs(prev => prev.map(t => t.id === id
-      ? { ...t, status: 'APPROVED' as const, approvedAt: new Date().toISOString().split('T')[0] }
-      : t
-    ))
-    setSelected(null)
+    apiTariffs.approve(id)
+      .then(updated => {
+        setTariffs(prev => prev.map(t => t.id === id ? updated : t))
+        setSelected(null)
+      })
+      .catch(() => {
+        setTariffs(prev => prev.map(t => t.id === id
+          ? { ...t, status: 'APPROVED' as const, approvedAt: new Date().toISOString().split('T')[0] }
+          : t
+        ))
+        setSelected(null)
+      })
   }
 
   const reject = (id: string) => {
-    setTariffs(prev => prev.map(t => t.id === id ? { ...t, status: 'REJECTED' as const } : t))
-    setSelected(null)
+    apiTariffs.reject(id)
+      .then(updated => {
+        setTariffs(prev => prev.map(t => t.id === id ? updated : t))
+        setSelected(null)
+      })
+      .catch(() => {
+        setTariffs(prev => prev.map(t => t.id === id ? { ...t, status: 'REJECTED' as const } : t))
+        setSelected(null)
+      })
   }
 
   const tabs: FilterTab[] = ['ALL', 'PENDING', 'APPROVED', 'REJECTED']
@@ -49,7 +68,6 @@ export default function CBTariffApprovals() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -63,7 +81,6 @@ export default function CBTariffApprovals() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 rounded-xl bg-gray-100 p-1 w-fit">
         {tabs.map(t => (
           <button
@@ -79,7 +96,6 @@ export default function CBTariffApprovals() {
         ))}
       </div>
 
-      {/* Table */}
       <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100">
@@ -139,7 +155,6 @@ export default function CBTariffApprovals() {
         </div>
       </div>
 
-      {/* Detail Modal */}
       <Modal open={!!selected} onClose={() => setSelected(null)} title="Tariff Details" size="md">
         {selected && (
           <div className="space-y-4">
@@ -175,6 +190,10 @@ export default function CBTariffApprovals() {
               <div>
                 <p className="text-xs text-gray-500">Max Duration</p>
                 <p className="text-sm font-semibold text-gray-900 mt-0.5">{selected.maxMonths} months</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Min Score</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{selected.minScore}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Submitted</p>

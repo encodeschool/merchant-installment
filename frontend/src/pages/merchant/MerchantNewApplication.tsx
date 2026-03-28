@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
-import { mockProducts, mockTariffs } from '../../data/mockData'
+import { mockProducts, mockTariffs, mockMerchants } from '../../data/mockData'
 import { Product, Tariff } from '../../types'
+import { apiProducts, apiTariffs, apiApplications, apiMerchants } from '../../api'
+import { useAuthStore } from '../../store/authStore'
 import clsx from 'clsx'
-
-const MERCHANT_ID = 'm1'
 
 function formatUZS(n: number): string {
   return n.toLocaleString() + ' UZS'
@@ -58,7 +58,6 @@ type ScoringOutcome = 'APPROVED' | 'PARTIAL' | 'REJECTED'
 function getScoringOutcome(score: number, tariffMinScore: number): ScoringOutcome {
   if (score < 50) return 'REJECTED'
   if (score >= tariffMinScore) return 'APPROVED'
-  // score is 50–(minScore-1): partial
   return 'PARTIAL'
 }
 
@@ -69,6 +68,10 @@ function calculateMonthly(price: number, months: number, rate: number) {
 }
 
 export default function MerchantNewApplication() {
+  const { user } = useAuthStore()
+  const [merchantId, setMerchantId] = useState('')
+  const [availableProducts, setAvailableProducts] = useState<Product[]>([])
+  const [approvedTariffs, setApprovedTariffs] = useState<Tariff[]>([])
   const [step, setStep] = useState(1)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [client, setClient] = useState<ClientInfo>(emptyClient)
@@ -76,9 +79,27 @@ export default function MerchantNewApplication() {
   const [selectedMonths, setSelectedMonths] = useState(12)
   const [submitted, setSubmitted] = useState(false)
   const [appId, setAppId] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const availableProducts = mockProducts.filter(p => p.merchantId === MERCHANT_ID && p.available)
-  const approvedTariffs = mockTariffs.filter(t => t.status === 'APPROVED')
+  useEffect(() => {
+    apiMerchants.my()
+      .then(m => setMerchantId(m.id))
+      .catch(() => {
+        const mock = mockMerchants.find(m => m.name === user?.organization)
+        if (mock) setMerchantId(mock.id)
+      })
+
+    apiProducts.list()
+      .then(data => setAvailableProducts(data.filter(p => p.available)))
+      .catch(() => {
+        const mock = mockMerchants.find(m => m.name === user?.organization)
+        setAvailableProducts(mockProducts.filter(p => p.merchantId === (mock?.id ?? 'm1') && p.available))
+      })
+
+    apiTariffs.list()
+      .then(data => setApprovedTariffs(data.filter(t => t.status === 'APPROVED')))
+      .catch(() => setApprovedTariffs(mockTariffs.filter(t => t.status === 'APPROVED')))
+  }, [user])
 
   const eligibleTariffs = selectedProduct
     ? approvedTariffs.filter(t =>
@@ -111,9 +132,29 @@ export default function MerchantNewApplication() {
   const scoreBg = score.total >= 70 ? 'bg-emerald-50 border-emerald-200' : score.total >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
 
   const handleSubmit = () => {
-    const id = `APP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-    setAppId(id)
-    setSubmitted(true)
+    if (!selectedProduct || !selectedTariff) return
+    setSubmitting(true)
+    apiApplications.submit({
+      merchant_id: merchantId,
+      product_id: selectedProduct.id,
+      tariff_id: selectedTariff.id,
+      months: selectedMonths,
+      client: {
+        full_name: client.fullName,
+        passport_number: client.passportNumber,
+        phone: client.phone,
+        monthly_income: parseInt(client.monthlyIncome) || 0,
+        age: parseInt(client.age) || 0,
+        credit_history: client.creditHistory,
+      },
+    })
+      .then(app => { setAppId(app.id); setSubmitted(true) })
+      .catch(() => {
+        const id = `APP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+        setAppId(id)
+        setSubmitted(true)
+      })
+      .finally(() => setSubmitting(false))
   }
 
   const handleReset = () => {
@@ -142,7 +183,6 @@ export default function MerchantNewApplication() {
           <h2 className="text-xl font-bold text-gray-900 mb-1">{outcomeConfig.title}</h2>
           <p className="text-gray-500 text-sm mb-5">{outcomeConfig.subtitle}</p>
 
-          {/* Outcome banner */}
           <div className={clsx(
             'rounded-xl border px-4 py-3 mb-4 text-sm font-semibold',
             outcome === 'APPROVED' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
@@ -187,15 +227,12 @@ export default function MerchantNewApplication() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Step indicator */}
       <div className="flex items-center gap-2">
         {[1, 2, 3].map(s => (
           <div key={s} className="flex items-center gap-2">
             <div className={clsx(
               'h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors',
-              s < step ? 'bg-blue-600 text-white' :
-              s === step ? 'bg-blue-600 text-white' :
-              'bg-gray-200 text-gray-500'
+              s <= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
             )}>
               {s < step ? <CheckCircleIcon className="h-4 w-4" /> : s}
             </div>
@@ -207,7 +244,6 @@ export default function MerchantNewApplication() {
         ))}
       </div>
 
-      {/* Step 1: Select Product */}
       {step === 1 && (
         <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Select Product</h2>
@@ -237,6 +273,9 @@ export default function MerchantNewApplication() {
                     )}
                   </div>
                   <p className="text-base font-bold text-blue-700 mt-3">{formatUZS(product.price)}</p>
+                  {product.downPaymentPercent > 0 && (
+                    <p className="text-xs text-gray-400 mt-0.5">Down payment: {product.downPaymentPercent}%</p>
+                  )}
                 </button>
               ))}
             </div>
@@ -253,7 +292,6 @@ export default function MerchantNewApplication() {
         </div>
       )}
 
-      {/* Step 2: Client Info */}
       {step === 2 && (
         <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Client Information</h2>
@@ -351,10 +389,8 @@ export default function MerchantNewApplication() {
         </div>
       )}
 
-      {/* Step 3: Select Tariff + Review */}
       {step === 3 && (
         <div className="space-y-5">
-          {/* Tariff Selection */}
           <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
             <h2 className="text-base font-semibold text-gray-900 mb-4">Select Tariff & Duration</h2>
             {eligibleTariffs.length === 0 ? (
@@ -396,7 +432,7 @@ export default function MerchantNewApplication() {
                             <button
                               key={m}
                               type="button"
-                              onClick={() => setSelectedMonths(m)}
+                              onClick={e => { e.stopPropagation(); setSelectedMonths(m) }}
                               className={clsx(
                                 'rounded-lg py-1.5 text-xs font-semibold transition-all border',
                                 selectedMonths === m
@@ -416,12 +452,10 @@ export default function MerchantNewApplication() {
             )}
           </div>
 
-          {/* Summary */}
           {selectedTariff && selectedProduct && (
             <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm space-y-5">
               <h2 className="text-base font-semibold text-gray-900">Application Summary</h2>
 
-              {/* Payment breakdown */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Product</p>
@@ -457,7 +491,6 @@ export default function MerchantNewApplication() {
                 </div>
               </div>
 
-              {/* Score + Outcome */}
               <div className={clsx('rounded-xl border p-4', scoreBg)}>
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-semibold text-gray-700">Estimated Credit Score</p>
@@ -465,7 +498,6 @@ export default function MerchantNewApplication() {
                 </div>
                 <p className="text-xs text-gray-500 mb-3">Tariff minimum score: {selectedTariff.minScore}</p>
 
-                {/* Score bars */}
                 <div className="space-y-2 mb-4">
                   {[
                     { label: 'Income vs Payment', value: score.incomeScore, max: 30 },
@@ -486,7 +518,6 @@ export default function MerchantNewApplication() {
                   ))}
                 </div>
 
-                {/* Decision outcome */}
                 <div className={clsx(
                   'rounded-lg px-3 py-2 text-xs font-semibold',
                   outcome === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
@@ -510,10 +541,10 @@ export default function MerchantNewApplication() {
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!selectedTariff}
+              disabled={!selectedTariff || submitting}
               className="rounded-xl bg-blue-600 px-8 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              Submit Application
+              {submitting ? 'Submitting…' : 'Submit Application'}
             </button>
           </div>
         </div>

@@ -4,6 +4,8 @@ import { useAuthStore } from '../../store/authStore'
 import { mockUsers } from '../../data/mockData'
 import clsx from 'clsx'
 
+const DEMO_PASSWORD = 'demo1234'
+
 const roleColors = {
   CENTRAL_BANK: { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', light: 'bg-purple-50 border-purple-200 text-purple-700', ring: 'ring-purple-400' },
   MFO_ADMIN: { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700', light: 'bg-emerald-50 border-emerald-200 text-emerald-700', ring: 'ring-emerald-400' },
@@ -28,20 +30,20 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const ok = await login(email, password || 'demo')
+    const ok = await login(email, password || DEMO_PASSWORD)
     setLoading(false)
     if (!ok) {
       setError('Invalid email. Use one of the demo accounts below.')
       return
     }
-    const user = mockUsers.find(u => u.email === email)
+    const role = useAuthStore.getState().user?.role ?? mockUsers.find(u => u.email === email)?.role
     const map: Record<string, string> = { CENTRAL_BANK: '/cb', MFO_ADMIN: '/mfo', MERCHANT: '/merchant' }
-    navigate(map[user?.role ?? ''] ?? '/')
+    navigate(map[role ?? ''] ?? '/')
   }
 
   const quickLogin = (userEmail: string) => {
     setEmail(userEmail)
-    setPassword('demo')
+    setPassword(DEMO_PASSWORD)
   }
 
   return (
@@ -115,7 +117,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Any password (demo mode)"
+                placeholder={`Password (demo: ${DEMO_PASSWORD})`}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             </div>

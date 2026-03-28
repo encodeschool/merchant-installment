@@ -1,36 +1,53 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CreditCardIcon, ClockIcon, ShoppingBagIcon, BanknotesIcon, PlusCircleIcon, ArrowRightIcon,
 } from '@heroicons/react/24/outline'
 import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
-import { mockApplications, mockContracts, mockProducts } from '../../data/mockData'
+import { mockApplications, mockContracts, mockProducts, mockMerchants } from '../../data/mockData'
+import { Application, Contract, Product } from '../../types'
+import { apiApplications, apiContracts, apiProducts } from '../../api'
+import { useAuthStore } from '../../store/authStore'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M UZS'
   return n.toLocaleString() + ' UZS'
 }
 
-const MERCHANT_ID = 'm1'
-
 export default function MerchantDashboard() {
-  const myApplications = mockApplications.filter(a => a.merchantId === MERCHANT_ID)
-  const myProducts = mockProducts.filter(p => p.merchantId === MERCHANT_ID)
-  const myContracts = mockContracts.filter(c => c.merchantName === 'TechMart Savdo')
+  const { user } = useAuthStore()
+  const mockMerchant = mockMerchants.find(m => m.name === user?.organization)
+  const fallbackMerchantId = mockMerchant?.id ?? 'm1'
 
-  const activeInstallments = myContracts.filter(c => c.status === 'ACTIVE').length
-  const pendingApps = myApplications.filter(a => a.status === 'PENDING').length
-  const revenueThisMonth = myApplications
+  const [applications, setApplications] = useState<Application[]>(
+    mockApplications.filter(a => a.merchantId === fallbackMerchantId)
+  )
+  const [contracts, setContracts] = useState<Contract[]>(
+    mockContracts.filter(c => c.merchantName === user?.organization)
+  )
+  const [products, setProducts] = useState<Product[]>(
+    mockProducts.filter(p => p.merchantId === fallbackMerchantId)
+  )
+
+  useEffect(() => {
+    apiApplications.list().then(setApplications).catch(() => {})
+    apiContracts.list().then(setContracts).catch(() => {})
+    apiProducts.list().then(setProducts).catch(() => {})
+  }, [])
+
+  const activeInstallments = contracts.filter(c => c.status === 'ACTIVE').length
+  const pendingApps = applications.filter(a => a.status === 'PENDING').length
+  const revenueThisMonth = applications
     .filter(a => a.status === 'ACTIVE')
     .reduce((sum, a) => sum + a.monthlyPayment, 0)
 
-  const recentApps = [...myApplications]
+  const recentApps = [...applications]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5)
 
   return (
     <div className="space-y-6">
-      {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Active Installments"
@@ -49,8 +66,8 @@ export default function MerchantDashboard() {
         />
         <StatCard
           title="Total Products"
-          value={myProducts.length}
-          subtitle={`${myProducts.filter(p => p.available).length} available`}
+          value={products.length}
+          subtitle={`${products.filter(p => p.available).length} available`}
           icon={<ShoppingBagIcon className="h-5 w-5" />}
           color="blue"
         />
@@ -64,7 +81,6 @@ export default function MerchantDashboard() {
         />
       </div>
 
-      {/* CTA Banner */}
       <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 text-white">
         <div>
           <p className="font-semibold text-lg">New Customer?</p>
@@ -79,9 +95,7 @@ export default function MerchantDashboard() {
         </Link>
       </div>
 
-      {/* Recent Applications + Active Contracts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Applications */}
         <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="text-base font-semibold text-gray-900">Recent Applications</h2>
@@ -107,7 +121,6 @@ export default function MerchantDashboard() {
           </div>
         </div>
 
-        {/* Active Contracts */}
         <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="text-base font-semibold text-gray-900">Active Contracts</h2>
@@ -116,9 +129,9 @@ export default function MerchantDashboard() {
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
-            {myContracts.length === 0 ? (
+            {contracts.length === 0 ? (
               <p className="px-5 py-8 text-sm text-center text-gray-400">No active contracts.</p>
-            ) : myContracts.map(contract => (
+            ) : contracts.map(contract => (
               <div key={contract.id} className="px-5 py-4 hover:bg-gray-50">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-medium text-gray-900">{contract.clientName}</p>

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BuildingLibraryIcon, DocumentCheckIcon, BanknotesIcon,
@@ -10,6 +11,7 @@ import {
 import StatCard from '../../components/ui/StatCard'
 import { statusBadge } from '../../components/ui/Badge'
 import { mockMFOStats, mockMonthlyTrend, mockTariffs } from '../../data/mockData'
+import { apiDashboard } from '../../api'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B UZS'
@@ -18,26 +20,45 @@ function formatUZS(n: number): string {
 }
 
 export default function CBDashboard() {
-  const pendingTariffs = mockTariffs.filter(t => t.status === 'PENDING').length
-  const totalDisbursed = mockMFOStats.reduce((sum, m) => sum + m.totalDisbursed, 0)
-  const avgDefaultRate = (mockMFOStats.reduce((sum, m) => sum + m.defaultRate, 0) / mockMFOStats.length).toFixed(1)
-  const totalApplications = mockMFOStats.reduce((sum, m) => sum + m.totalApplications, 0)
+  const [stats, setStats] = useState({
+    totalMFOs: mockMFOStats.length,
+    totalApplications: mockMFOStats.reduce((s, m) => s + m.totalApplications, 0),
+    totalDisbursed: mockMFOStats.reduce((s, m) => s + m.totalDisbursed, 0),
+    avgDefaultRate: Number((mockMFOStats.reduce((s, m) => s + m.defaultRate, 0) / mockMFOStats.length).toFixed(1)),
+    monthlyTrend: mockMonthlyTrend,
+  })
+  const [pendingTariffs, setPendingTariffs] = useState(mockTariffs.filter(t => t.status === 'PENDING').length)
+  const [mfoList, setMfoList] = useState(mockMFOStats)
+
+  useEffect(() => {
+    apiDashboard.cb().then(d => setStats({
+      totalMFOs: d.totalMFOs,
+      totalApplications: d.totalApplications,
+      totalDisbursed: d.totalDisbursed,
+      avgDefaultRate: d.avgDefaultRate,
+      monthlyTrend: d.monthlyTrend,
+    })).catch(() => {})
+
+    apiDashboard.mfoList().then(list => {
+      setMfoList(list)
+      setPendingTariffs(0)
+    }).catch(() => {})
+  }, [])
 
   return (
     <div className="space-y-6">
-      {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total MFOs"
-          value={mockMFOStats.length}
-          subtitle={`${mockMFOStats.filter(m => m.status === 'ACTIVE').length} active`}
+          value={stats.totalMFOs}
+          subtitle={`${mfoList.filter(m => m.status === 'ACTIVE').length} active`}
           icon={<BuildingLibraryIcon className="h-5 w-5" />}
           color="purple"
           trend={0}
         />
         <StatCard
           title="Total Applications"
-          value={totalApplications.toLocaleString()}
+          value={stats.totalApplications.toLocaleString()}
           subtitle="All MFOs combined"
           icon={<DocumentCheckIcon className="h-5 w-5" />}
           color="purple"
@@ -45,7 +66,7 @@ export default function CBDashboard() {
         />
         <StatCard
           title="Total Disbursed"
-          value={formatUZS(totalDisbursed)}
+          value={formatUZS(stats.totalDisbursed)}
           subtitle="All time"
           icon={<BanknotesIcon className="h-5 w-5" />}
           color="purple"
@@ -53,7 +74,7 @@ export default function CBDashboard() {
         />
         <StatCard
           title="Avg Default Rate"
-          value={`${avgDefaultRate}%`}
+          value={`${stats.avgDefaultRate}%`}
           subtitle="Across all MFOs"
           icon={<ExclamationTriangleIcon className="h-5 w-5" />}
           color="red"
@@ -61,7 +82,6 @@ export default function CBDashboard() {
         />
       </div>
 
-      {/* Pending Tariff Approvals Alert */}
       {pendingTariffs > 0 && (
         <div className="flex items-center justify-between rounded-xl bg-yellow-50 border border-yellow-200 px-5 py-4">
           <div className="flex items-center gap-3">
@@ -82,9 +102,7 @@ export default function CBDashboard() {
         </div>
       )}
 
-      {/* Chart + MFO Table */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Area Chart */}
         <div className="lg:col-span-2 rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -94,7 +112,7 @@ export default function CBDashboard() {
             <ChartBarIcon className="h-5 w-5 text-purple-400" />
           </div>
           <ResponsiveContainer width="100%" height={250}>
-            <AreaChart data={mockMonthlyTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <AreaChart data={stats.monthlyTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorApps" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#9333ea" stopOpacity={0.2} />
@@ -116,14 +134,13 @@ export default function CBDashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* MFO Summary */}
         <div className="rounded-xl bg-white border border-gray-100 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-gray-900">MFO Summary</h2>
             <Link to="/cb/mfo" className="text-xs text-purple-600 hover:underline">View all</Link>
           </div>
           <div className="space-y-3">
-            {mockMFOStats.map((mfo) => (
+            {mfoList.map((mfo) => (
               <div key={mfo.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{mfo.name}</p>
@@ -138,7 +155,6 @@ export default function CBDashboard() {
         </div>
       </div>
 
-      {/* Quick actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link
           to="/cb/tariffs"
@@ -157,7 +173,7 @@ export default function CBDashboard() {
           <BuildingLibraryIcon className="h-6 w-6 text-purple-600" />
           <div>
             <p className="text-sm font-semibold text-purple-900">MFO Monitoring</p>
-            <p className="text-xs text-purple-600">{mockMFOStats.length} registered MFOs</p>
+            <p className="text-xs text-purple-600">{stats.totalMFOs} registered MFOs</p>
           </div>
         </Link>
         <Link

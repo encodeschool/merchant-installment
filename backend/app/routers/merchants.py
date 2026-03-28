@@ -70,6 +70,17 @@ def list_merchants(
     return [_merchant_to_out(m, db) for m in merchants]
 
 
+@router.get("/my", response_model=MerchantOut)
+def get_my_merchant(
+    current_user: User = Depends(require_role("MERCHANT")),
+    db: Session = Depends(get_db),
+):
+    merchant = db.query(Merchant).filter(Merchant.name == current_user.organization).first()
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    return _merchant_to_out(merchant, db)
+
+
 @router.get("/{merchant_id}", response_model=MerchantOut)
 def get_merchant(
     merchant_id: str,

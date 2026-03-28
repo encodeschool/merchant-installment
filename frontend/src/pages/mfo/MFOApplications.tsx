@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { statusBadge } from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import { mockApplications } from '../../data/mockData'
 import { Application } from '../../types'
+import { apiApplications } from '../../api'
 import clsx from 'clsx'
 
 function formatUZS(n: number): string {
@@ -32,6 +33,11 @@ export default function MFOApplications() {
   const [tab, setTab] = useState<TabFilter>('ALL')
   const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' | 'partial' } | null>(null)
   const [detailApp, setDetailApp] = useState<Application | null>(null)
+  const [deciding, setDeciding] = useState(false)
+
+  useEffect(() => {
+    apiApplications.list().then(setApplications).catch(() => {})
+  }, [])
 
   const filtered = applications.filter(a =>
     tab === 'ALL' || a.status === tab
@@ -50,38 +56,39 @@ export default function MFOApplications() {
   const executeAction = () => {
     if (!confirmApp) return
     const { app, action } = confirmApp
-    const approvedAmount = action === 'partial'
-      ? Math.round(app.productPrice * 0.70)
-      : undefined
-    setApplications(prev => prev.map(a =>
-      a.id === app.id
-        ? {
-          ...a,
-          status: action === 'approve' ? 'APPROVED' as const : action === 'partial' ? 'PARTIAL' as const : 'REJECTED' as const,
-          approvedAmount,
-          decidedAt: new Date().toISOString().split('T')[0],
-        }
-        : a
-    ))
-    setConfirmApp(null)
-  }
+    const body = action === 'approve'
+      ? { action: 'APPROVED' }
+      : action === 'reject'
+      ? { action: 'REJECTED' }
+      : { action: 'PARTIAL' }
 
-  const scoreBreakdown = (_app: Application) => {
-    const incomeScore = 20
-    const creditScore = 20
-    const ageScore = 20
-    const tariffScore = 20
-    return [
-      { label: 'Income Score', weight: '30%', value: incomeScore, max: 30 },
-      { label: 'Credit History', weight: '30%', value: creditScore, max: 30 },
-      { label: 'Age Factor', weight: '20%', value: ageScore, max: 20 },
-      { label: 'Tariff Match', weight: '20%', value: tariffScore, max: 20 },
-    ]
+    setDeciding(true)
+    apiApplications.decide(app.id, body)
+      .then(updated => {
+        setApplications(prev => prev.map(a => a.id === app.id ? updated : a))
+        setConfirmApp(null)
+      })
+      .catch(() => {
+        const approvedAmount = action === 'partial'
+          ? Math.round(app.productPrice * 0.70)
+          : undefined
+        setApplications(prev => prev.map(a =>
+          a.id === app.id
+            ? {
+              ...a,
+              status: action === 'approve' ? 'APPROVED' as const : action === 'partial' ? 'PARTIAL' as const : 'REJECTED' as const,
+              approvedAmount,
+              decidedAt: new Date().toISOString().split('T')[0],
+            }
+            : a
+        ))
+        setConfirmApp(null)
+      })
+      .finally(() => setDeciding(false))
   }
 
   return (
     <div className="space-y-5">
-      {/* Tabs */}
       <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 w-fit">
         {tabs.map(t => (
           <button
@@ -97,7 +104,6 @@ export default function MFOApplications() {
         ))}
       </div>
 
-      {/* Table */}
       <div className="rounded-xl bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100">
@@ -166,7 +172,6 @@ export default function MFOApplications() {
         </div>
       </div>
 
-      {/* Confirm Action Modal */}
       <Modal
         open={!!confirmApp}
         onClose={() => setConfirmApp(null)}
@@ -200,33 +205,9 @@ export default function MFOApplications() {
               </div>
             </div>
 
-            {/* Score Breakdown */}
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">Score Breakdown</p>
-              <div className="space-y-2">
-                {scoreBreakdown(confirmApp.app).map(item => (
-                  <div key={item.label} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-600">{item.label}</span>
-                      <span className="text-gray-400">({item.weight})</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 bg-gray-100 rounded-full h-1.5">
-                        <div
-                          className="bg-emerald-500 h-1.5 rounded-full"
-                          style={{ width: `${(item.value / item.max) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-medium text-gray-700">{item.value}/{item.max}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {confirmApp.action === 'partial' && (
               <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-700">
-                Client will be approved for <strong>70% of product price</strong> ({Math.round(confirmApp.app.productPrice * 0.70).toLocaleString()} UZS). Client covers the remaining 30% as additional down payment.
+                Client will be approved for <strong>70% of financed amount</strong>. Client covers the remaining 30%.
               </div>
             )}
             <div className="flex gap-3 pt-2 border-t border-gray-100">
@@ -238,15 +219,15 @@ export default function MFOApplications() {
                 color={confirmApp.action === 'approve' ? 'emerald' : confirmApp.action === 'partial' ? 'gray' : 'red'}
                 className={clsx('flex-1', confirmApp.action === 'partial' && 'bg-yellow-500 hover:bg-yellow-600 text-white')}
                 onClick={executeAction}
+                disabled={deciding}
               >
-                {confirmApp.action === 'approve' ? 'Confirm Approval' : confirmApp.action === 'partial' ? 'Confirm Partial' : 'Confirm Rejection'}
+                {deciding ? 'Saving…' : confirmApp.action === 'approve' ? 'Confirm Approval' : confirmApp.action === 'partial' ? 'Confirm Partial' : 'Confirm Rejection'}
               </Button>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Detail Modal */}
       <Modal open={!!detailApp} onClose={() => setDetailApp(null)} title="Application Details" size="lg">
         {detailApp && (
           <div className="grid grid-cols-2 gap-4">
