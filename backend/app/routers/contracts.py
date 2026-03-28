@@ -61,7 +61,55 @@ def list_contracts(
         contracts = db.table("contracts").select("*").in_("application_id", app_ids).execute().data
     else:
         contracts = db.table("contracts").select("*").execute().data
-    return [_contract_to_out(c, db) for c in contracts]
+
+    if not contracts:
+        return []
+
+    # Batch-fetch all related data (avoids N+1)
+    app_ids = [c["application_id"] for c in contracts]
+    contract_ids = [c["id"] for c in contracts]
+
+    apps = {
+        a["id"]: a for a in
+        db.table("applications").select("id, client_id, merchant_id, product_id")
+        .in_("id", app_ids).execute().data
+    }
+
+    client_ids  = list({a["client_id"]  for a in apps.values()})
+    merchant_ids = list({a["merchant_id"] for a in apps.values()})
+    product_ids  = list({a["product_id"]  for a in apps.values()})
+
+    clients   = {r["id"]: r for r in db.table("clients").select("id, full_name").in_("id", client_ids).execute().data}
+    merchants = {r["id"]: r for r in db.table("merchants").select("id, name").in_("id", merchant_ids).execute().data}
+    products  = {r["id"]: r for r in db.table("products").select("id, name").in_("id", product_ids).execute().data}
+
+    # Group installments by contract_id
+    all_installments: dict[str, list] = {cid: [] for cid in contract_ids}
+    for inst in db.table("installments").select("contract_id, due_date, status").in_("contract_id", contract_ids).execute().data:
+        all_installments[inst["contract_id"]].append(inst)
+
+    result = []
+    for c in contracts:
+        app = apps.get(c["application_id"], {})
+        client   = clients.get(app.get("client_id", ""), {})
+        merchant = merchants.get(app.get("merchant_id", ""), {})
+        product  = products.get(app.get("product_id", ""), {})
+        insts    = all_installments.get(c["id"], [])
+        result.append(ContractOut(
+            id=c["id"],
+            applicationId=c["application_id"],
+            clientName=client.get("full_name", ""),
+            merchantName=merchant.get("name", ""),
+            productName=product.get("name", ""),
+            totalAmount=c["total_amount"],
+            months=c["months"],
+            monthlyPayment=c["monthly_payment"],
+            nextPaymentDate=_next_payment_date(insts),
+            paidInstallments=c["paid_installments"],
+            status=c["status"],
+            createdAt=c["created_at"],
+        ))
+    return result
 
 
 @router.get("/{contract_id}", response_model=ContractOut)

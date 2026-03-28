@@ -13,8 +13,11 @@ function formatUZS(n: number): string {
   return n.toLocaleString() + ' UZS'
 }
 
+const PAGE_SIZE = 10
+
 export default function MerchantInstallments() {
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [page, setPage] = useState(1)
   const [scheduleContract, setScheduleContract] = useState<Contract | null>(null)
   const [schedule, setSchedule] = useState<Installment[]>([])
   const [loadingSchedule, setLoadingSchedule] = useState(false)
@@ -22,6 +25,9 @@ export default function MerchantInstallments() {
   useEffect(() => {
     apiContracts.list().then(setContracts).catch(() => {})
   }, [])
+
+  const totalPages = Math.max(1, Math.ceil(contracts.length / PAGE_SIZE))
+  const paginated = contracts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const openSchedule = (contract: Contract) => {
     setScheduleContract(contract)
@@ -97,7 +103,7 @@ export default function MerchantInstallments() {
                     No installment contracts yet.
                   </td>
                 </tr>
-              ) : contracts.map(contract => {
+              ) : paginated.map(contract => {
                 const progress = Math.round((contract.paidInstallments / contract.months) * 100)
                 return (
                   <tr key={contract.id} className="hover:bg-gray-50 transition-colors">
@@ -147,6 +153,55 @@ export default function MerchantInstallments() {
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-1">
+          <p className="text-sm text-gray-500">
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, contracts.length)} of {contracts.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+              .reduce<(number | '…')[]>((acc, n, idx, arr) => {
+                if (idx > 0 && n - (arr[idx - 1] as number) > 1) acc.push('…')
+                acc.push(n)
+                return acc
+              }, [])
+              .map((n, i) =>
+                n === '…' ? (
+                  <span key={`ellipsis-${i}`} className="px-2 text-gray-400 text-sm">…</span>
+                ) : (
+                  <button
+                    key={n}
+                    onClick={() => setPage(n as number)}
+                    className={clsx(
+                      'rounded-lg px-3 py-1.5 text-sm font-medium',
+                      page === n
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                    )}
+                  >
+                    {n}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       <Modal
         open={!!scheduleContract}
