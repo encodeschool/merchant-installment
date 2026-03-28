@@ -1,5 +1,5 @@
 import api from './client'
-import { Application, AuditLog, Contract, Merchant, MFOStats, Product, Tariff, User } from '../types'
+import { Application, AuditLog, Contract, Merchant, MFOStats, MultiProductResponse, Product, Tariff, User } from '../types'
 
 export interface Installment {
   id: string
@@ -40,6 +40,10 @@ export const apiProducts = {
 export const apiApplications = {
   list: () => api.get<Application[]>('/api/v1/applications').then(r => r.data),
   submit: (b: object) => api.post<Application>('/api/v1/applications', b).then(r => r.data),
+  submitMulti: (b: object) =>
+    api.post<MultiProductResponse>('/api/v1/applications/multi-product', b).then(r => r.data),
+  confirm: (id: string, b: object) =>
+    api.post(`/api/v1/applications/${id}/confirm`, b).then(r => r.data),
   decide: (id: string, b: object) =>
     api.patch<Application>(`/api/v1/applications/${id}/decide`, b).then(r => r.data),
 }
