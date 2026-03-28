@@ -1,3 +1,4 @@
+import base64
 import uuid
 from datetime import date
 from io import BytesIO
@@ -5,6 +6,7 @@ from io import BytesIO
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Image as RLImage
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
 
@@ -44,6 +46,30 @@ _STATUS_UZ = {
     "REJECTED": "Rad etilgan",
     "PENDING": "Kutilmoqda",
 }
+
+
+def _b64_to_rl_image(b64_str: str, max_width: float, max_height: float):
+    """Decode a base64 PNG/JPEG string into a scaled ReportLab Image.
+
+    Returns ``None`` if the string is empty or cannot be decoded.
+    """
+    if not b64_str:
+        return None
+    try:
+        # Strip data-URI prefix if present (e.g. "data:image/png;base64,…")
+        if "," in b64_str:
+            b64_str = b64_str.split(",", 1)[1]
+        data = base64.b64decode(b64_str)
+        buf = BytesIO(data)
+        img = RLImage(buf)
+        img_w = img.imageWidth or 1
+        img_h = img.imageHeight or 1
+        scale = min(max_width / img_w, max_height / img_h, 1.0)
+        img.drawWidth = img_w * scale
+        img.drawHeight = img_h * scale
+        return img
+    except Exception:
+        return None
 
 
 def generate_pdf(contract: dict, application: dict, schedule: list[dict]) -> bytes:
@@ -130,6 +156,49 @@ def generate_pdf(contract: dict, application: dict, schedule: list[dict]) -> byt
         ])
     )
     elements.append(sched_table)
+
+    # ── Client photo + signature section ─────────────────────────────────────
+    face_b64 = application.get("_face_image", "") or ""
+    sig_b64  = application.get("_signature", "") or ""
+
+    face_img = _b64_to_rl_image(face_b64, max_width=120, max_height=140)
+    sig_img  = _b64_to_rl_image(sig_b64,  max_width=180, max_height=80)
+
+    if face_img or sig_img:
+        elements.append(Spacer(1, 28))
+        elements.append(Paragraph("Mijoz tasdiqlovchi ma'lumotlar", styles["Heading2"]))
+        elements.append(Spacer(1, 10))
+
+        # Build two-column table: [photo label + image | signature label + image]
+        label_style = styles["Normal"]
+
+        face_cell_content: list = [Paragraph("Mijoz surati", label_style)]
+        if face_img:
+            face_cell_content.append(Spacer(1, 6))
+            face_cell_content.append(face_img)
+        else:
+            face_cell_content.append(Paragraph("(rasm mavjud emas)", label_style))
+
+        sig_cell_content: list = [Paragraph("Imzo", label_style)]
+        if sig_img:
+            sig_cell_content.append(Spacer(1, 6))
+            sig_cell_content.append(sig_img)
+        else:
+            sig_cell_content.append(Paragraph("(imzo mavjud emas)", label_style))
+
+        media_table = Table(
+            [[face_cell_content, sig_cell_content]],
+            colWidths=[240, 250],
+        )
+        media_table.setStyle(
+            TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F9FAFB")),
+                ("PADDING", (0, 0), (-1, -1), 10),
+            ])
+        )
+        elements.append(media_table)
 
     # ── Footer ────────────────────────────────────────────────────────────────
     elements.append(Spacer(1, 30))

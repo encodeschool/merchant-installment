@@ -77,6 +77,7 @@ class ConfirmRequest(BaseModel):
     tariff_id: str
     months: int
     signature_b64: str = ""
+    face_image_b64: str = ""
 
 
 class ConfirmResponse(BaseModel):

@@ -374,6 +374,7 @@ export default function MerchantNewApplication() {
         tariff_id: selectedOffer.tariff.tariff_id,
         months: selectedOffer.months,
         signature_b64: sigB64,
+        face_image_b64: face2Image ?? '',
       })
       setFinalApp(res)
       setStep(7)

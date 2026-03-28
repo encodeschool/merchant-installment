@@ -220,7 +220,13 @@ def _app_to_out(app: dict, db: Client, include_score: bool = True) -> Applicatio
         if sd:
             score_breakdown_out = ScoreBreakdownOut(**sd)
 
-    contract_rows = db.table("contracts").select("id").eq("application_id", app["id"]).execute().data
+    contract_rows = (
+        db.table("contracts")
+        .select("id")
+        .eq("application_id", app["id"])
+        .execute()
+        .data
+    )
     contract_id = contract_rows[0]["id"] if contract_rows else None
 
     return _AppOut(
@@ -409,8 +415,10 @@ def list_applications(
     )
 
     start = (page - 1) * page_size
-    end   = start + page_size - 1
-    empty = ApplicationPage(items=[], total=0, page=page, page_size=page_size, total_pages=0)
+    end = start + page_size - 1
+    empty = ApplicationPage(
+        items=[], total=0, page=page, page_size=page_size, total_pages=0
+    )
 
     if current_user["role"] == "MERCHANT":
         merchants = (
@@ -439,23 +447,52 @@ def list_applications(
             .execute()
         )
 
-    apps  = res.data or []
+    apps = res.data or []
     total = res.count or 0
 
     if not apps:
-        return ApplicationPage(items=[], total=total, page=page, page_size=page_size,
-                               total_pages=math.ceil(total / page_size) if total else 0)
+        return ApplicationPage(
+            items=[],
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=math.ceil(total / page_size) if total else 0,
+        )
 
     # Batch fetch merchants, clients, products, tariffs
     merchant_ids = list(set(a["merchant_id"] for a in apps if a.get("merchant_id")))
-    client_ids   = list(set(a["client_id"]   for a in apps if a.get("client_id")))
-    product_ids  = list(set(a["product_id"]  for a in apps if a.get("product_id")))
-    tariff_ids   = list(set(a["tariff_id"]   for a in apps if a.get("tariff_id")))
+    client_ids = list(set(a["client_id"] for a in apps if a.get("client_id")))
+    product_ids = list(set(a["product_id"] for a in apps if a.get("product_id")))
+    tariff_ids = list(set(a["tariff_id"] for a in apps if a.get("tariff_id")))
 
-    merchants_data = db.table("merchants").select("id, name").in_("id", merchant_ids).execute().data if merchant_ids else []
-    clients_data   = db.table("clients").select("*").in_("id", client_ids).execute().data if client_ids else []
-    products_data  = db.table("products").select("id, name, price, category").in_("id", product_ids).execute().data if product_ids else []
-    tariffs_data   = db.table("tariffs").select("id, name, mfo_user_id").in_("id", tariff_ids).execute().data if tariff_ids else []
+    merchants_data = (
+        db.table("merchants").select("id, name").in_("id", merchant_ids).execute().data
+        if merchant_ids
+        else []
+    )
+    clients_data = (
+        db.table("clients").select("*").in_("id", client_ids).execute().data
+        if client_ids
+        else []
+    )
+    products_data = (
+        db.table("products")
+        .select("id, name, price, category")
+        .in_("id", product_ids)
+        .execute()
+        .data
+        if product_ids
+        else []
+    )
+    tariffs_data = (
+        db.table("tariffs")
+        .select("id, name, mfo_user_id")
+        .in_("id", tariff_ids)
+        .execute()
+        .data
+        if tariff_ids
+        else []
+    )
 
     mfo_user_ids = list(set(t["mfo_user_id"] for t in tariffs_data))
     mfo_data = (
@@ -477,19 +514,27 @@ def list_applications(
         }
 
     merchants_map = {m["id"]: m for m in merchants_data}
-    clients_map   = {c["id"]: c for c in clients_data}
-    products_map  = {p["id"]: p for p in products_data}
+    clients_map = {c["id"]: c for c in clients_data}
+    products_map = {p["id"]: p for p in products_data}
 
     app_ids = [a["id"] for a in apps]
-    contracts_rows = db.table("contracts").select("id, application_id").in_("application_id", app_ids).execute().data if app_ids else []
+    contracts_rows = (
+        db.table("contracts")
+        .select("id, application_id")
+        .in_("application_id", app_ids)
+        .execute()
+        .data
+        if app_ids
+        else []
+    )
     contracts_map = {c["application_id"]: c["id"] for c in contracts_rows}
 
     result = []
     for app in apps:
         merchant = merchants_map.get(app.get("merchant_id", ""), {})
-        c       = clients_map.get(app.get("client_id", ""), {})
+        c = clients_map.get(app.get("client_id", ""), {})
         product = products_map.get(app.get("product_id", ""), {})
-        tariff  = tariff_map.get(app.get("tariff_id"), {})
+        tariff = tariff_map.get(app.get("tariff_id"), {})
 
         client_out = ClientDetailOut(
             full_name=c.get("full_name", ""),
@@ -509,58 +554,72 @@ def list_applications(
         raw_items = app.get("application_items")
         if raw_items:
             try:
-                parsed = json.loads(raw_items) if isinstance(raw_items, str) else raw_items
+                parsed = (
+                    json.loads(raw_items) if isinstance(raw_items, str) else raw_items
+                )
                 for it in parsed or []:
                     p = products_map.get(it.get("product_id", ""))
                     if p:
                         qty = it.get("quantity", 1)
-                        items_out.append(ApplicationItemOut(
-                            product_id=p["id"], product_name=p["name"],
-                            category=p.get("category", ""), price=int(p["price"]),
-                            quantity=qty, subtotal=int(p["price"]) * qty,
-                        ))
+                        items_out.append(
+                            ApplicationItemOut(
+                                product_id=p["id"],
+                                product_name=p["name"],
+                                category=p.get("category", ""),
+                                price=int(p["price"]),
+                                quantity=qty,
+                                subtotal=int(p["price"]) * qty,
+                            )
+                        )
             except Exception:
                 pass
         if not items_out and product:
-            items_out.append(ApplicationItemOut(
-                product_id=product["id"], product_name=product["name"],
-                category=product.get("category", ""), price=int(product["price"]),
-                quantity=1, subtotal=int(product["price"]),
-            ))
+            items_out.append(
+                ApplicationItemOut(
+                    product_id=product["id"],
+                    product_name=product["name"],
+                    category=product.get("category", ""),
+                    price=int(product["price"]),
+                    quantity=1,
+                    subtotal=int(product["price"]),
+                )
+            )
 
-        total_amount        = int(app.get("total_amount") or 0)
-        approved_amount     = app.get("approved_amount")
-        financed_amount     = int(approved_amount or total_amount)
+        total_amount = int(app.get("total_amount") or 0)
+        approved_amount = app.get("approved_amount")
+        financed_amount = int(approved_amount or total_amount)
         down_payment_amount = max(0, total_amount - financed_amount)
 
-        result.append(_AppOut(
-            id=app["id"],
-            merchant_id=app.get("merchant_id", ""),
-            merchant_name=merchant.get("name", ""),
-            client=client_out,
-            items=items_out,
-            total_amount=total_amount,
-            down_payment_amount=down_payment_amount,
-            financed_amount=financed_amount,
-            tariff_id=app.get("tariff_id"),
-            tariff_name=tariff.get("name"),
-            mfo_name=tariff.get("mfo_name"),
-            months=app.get("months"),
-            monthly_payment=app.get("monthly_payment"),
-            approved_amount=approved_amount,
-            score=int(app.get("score") or 0),
-            score_breakdown=None,
-            fraud_gate=app.get("fraud_gate", "PASS") or "PASS",
-            fraud_signals=[],
-            face_image_url=None,
-            signature_url=None,
-            status=app["status"],
-            created_at=app["created_at"],
-            decided_at=app.get("decided_at"),
-            decided_by=app.get("decided_by"),
-            override_reason=app.get("override_reason"),
-            contract_id=contracts_map.get(app["id"]),
-        ))
+        result.append(
+            _AppOut(
+                id=app["id"],
+                merchant_id=app.get("merchant_id", ""),
+                merchant_name=merchant.get("name", ""),
+                client=client_out,
+                items=items_out,
+                total_amount=total_amount,
+                down_payment_amount=down_payment_amount,
+                financed_amount=financed_amount,
+                tariff_id=app.get("tariff_id"),
+                tariff_name=tariff.get("name"),
+                mfo_name=tariff.get("mfo_name"),
+                months=app.get("months"),
+                monthly_payment=app.get("monthly_payment"),
+                approved_amount=approved_amount,
+                score=int(app.get("score") or 0),
+                score_breakdown=None,
+                fraud_gate=app.get("fraud_gate", "PASS") or "PASS",
+                fraud_signals=[],
+                face_image_url=None,
+                signature_url=None,
+                status=app["status"],
+                created_at=app["created_at"],
+                decided_at=app.get("decided_at"),
+                decided_by=app.get("decided_by"),
+                override_reason=app.get("override_reason"),
+                contract_id=contracts_map.get(app["id"]),
+            )
+        )
 
     return ApplicationPage(
         items=result,
@@ -757,7 +816,7 @@ def _run_scoring(
             _DEFAULT_WEIGHTS["w_demographic"],
         )
 
-    result = calculate_score(
+    result = calculate_score_full(
         monthly_income=client_data.get("monthly_income", 0),
         monthly_payment=mp,
         age=client_data.get("age", 30),
@@ -1150,6 +1209,7 @@ def confirm_application(
         "total_amount": total,
         "status": "APPROVED",
         "client_signature": body.signature_b64,
+        "face_image_b64": body.face_image_b64,
         "decided_at": datetime.now(timezone.utc).isoformat(),
     }
 

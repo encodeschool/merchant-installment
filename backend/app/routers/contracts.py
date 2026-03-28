@@ -301,6 +301,7 @@ def get_contract_pdf(
     app["_items_summary"]   = items_summary
     app["_interest_rate"]   = tariff.get("interest_rate", 0)
     app["_signature"]       = app.get("client_signature") or app.get("signature") or ""
+    app["_face_image"]      = app.get("face_image_b64") or ""
 
     installments = (
         db.table("installments").select("*")
