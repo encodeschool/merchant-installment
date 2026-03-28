@@ -8,6 +8,7 @@ import { MFOStats } from '../../types'
 import { apiDashboard } from '../../api'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { CBMFOMonitoringSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B UZS'
@@ -30,9 +31,10 @@ function defaultRateBg(rate: number) {
 export default function CBMFOMonitoring() {
   const { t } = useTranslation()
   const [mfos, setMfos] = useState<MFOStats[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    apiDashboard.mfoList().then(setMfos).catch(() => {})
+    apiDashboard.mfoList().then(setMfos).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const activeMFOs = mfos.filter(m => m.status === 'ACTIVE').length
@@ -41,6 +43,8 @@ export default function CBMFOMonitoring() {
     ? (mfos.reduce((sum, m) => sum + m.approvalRate, 0) / mfos.length).toFixed(0)
     : '0'
   const totalDisbursed = mfos.reduce((sum, m) => sum + m.totalDisbursed, 0)
+
+  if (loading) return <CBMFOMonitoringSkeleton />
 
   return (
     <div className="space-y-6">

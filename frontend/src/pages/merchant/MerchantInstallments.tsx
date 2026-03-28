@@ -8,6 +8,7 @@ import { Contract } from '../../types'
 import { apiContracts, Installment } from '../../api'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { MerchantInstallmentsSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M UZS'
@@ -19,6 +20,7 @@ const PAGE_SIZE = 10
 export default function MerchantInstallments() {
   const { t } = useTranslation()
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -61,6 +63,8 @@ export default function MerchantInstallments() {
   const nextDueDate = contracts
     .filter(c => c.status === 'ACTIVE' && c.nextPaymentDate)
     .sort((a, b) => new Date(a.nextPaymentDate).getTime() - new Date(b.nextPaymentDate).getTime())[0]?.nextPaymentDate ?? 'N/A'
+
+  if (loading) return <MerchantInstallmentsSkeleton />
 
   return (
     <div className="space-y-6">

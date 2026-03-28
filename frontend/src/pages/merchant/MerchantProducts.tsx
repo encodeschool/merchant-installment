@@ -8,6 +8,7 @@ import { apiProducts, apiMerchants } from '../../api'
 import { useAuthStore } from '../../store/authStore'
 import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
+import { MerchantProductsSkeleton } from '../../components/ui/Skeleton'
 
 function formatUZS(n: number): string {
   return n.toLocaleString() + ' UZS'
@@ -39,6 +40,7 @@ export default function MerchantProducts() {
   const { user } = useAuthStore()
   const [merchantId, setMerchantId] = useState('')
   const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
@@ -46,13 +48,13 @@ export default function MerchantProducts() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    apiMerchants.my()
-      .then(m => setMerchantId(m.id))
-      .catch(() => {})
-
-    apiProducts.list()
-      .then(setProducts)
-      .catch(() => {})
+    Promise.all([
+      apiMerchants.my().catch(() => null),
+      apiProducts.list().catch(() => [] as Product[]),
+    ]).then(([merchant, prods]) => {
+      if (merchant) setMerchantId(merchant.id)
+      setProducts(prods)
+    }).finally(() => setLoading(false))
   }, [user])
 
   const openCreate = () => { setForm(emptyForm); setCreateOpen(true) }
@@ -225,6 +227,8 @@ export default function MerchantProducts() {
       </div>
     </div>
   )
+
+  if (loading) return <MerchantProductsSkeleton />
 
   return (
     <div className="space-y-5">
