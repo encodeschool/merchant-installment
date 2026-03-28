@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
-import { CheckCircleIcon } from '@heroicons/react/24/outline'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { CheckCircleIcon, CameraIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import { Product, Tariff } from '../../types'
-import { apiProducts, apiTariffs, apiApplications, apiMerchants } from '../../api'
+import { apiProducts, apiTariffs, apiApplications, apiMerchants, apiFaceVerify } from '../../api'
 import { useAuthStore } from '../../store/authStore'
 import clsx from 'clsx'
 
@@ -80,6 +80,16 @@ export default function MerchantNewApplication() {
   const [appId, setAppId] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  // Face verification state
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [faceVerified, setFaceVerified] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<{ verified: boolean; confidence: number; message: string } | null>(null)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+
   useEffect(() => {
     apiMerchants.my()
       .then(m => setMerchantId(m.id))
@@ -93,6 +103,66 @@ export default function MerchantNewApplication() {
       .then(data => setApprovedTariffs(data.filter(t => t.status === 'APPROVED')))
       .catch(() => {})
   }, [user])
+
+  const startCamera = useCallback(async () => {
+    setCameraError(null)
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      streamRef.current = s
+      if (videoRef.current) videoRef.current.srcObject = s
+    } catch {
+      setCameraError('Camera access denied. Please allow camera permissions and try again.')
+    }
+  }, [])
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+  }, [])
+
+  useEffect(() => {
+    if (step === 3) {
+      setCapturedImage(null)
+      setVerifyResult(null)
+      setFaceVerified(false)
+      startCamera()
+    } else {
+      stopCamera()
+    }
+    return () => { if (step === 3) stopCamera() }
+  }, [step, startCamera, stopCamera])
+
+  const capturePhoto = useCallback(() => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas) return
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext('2d')!.drawImage(video, 0, 0)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+    const b64 = dataUrl.split(',')[1]
+    setCapturedImage(dataUrl)
+    stopCamera()
+
+    setVerifying(true)
+    apiFaceVerify.verify(client.passportNumber, b64)
+      .then(res => {
+        setVerifyResult(res)
+        setFaceVerified(res.verified)
+      })
+      .catch(() => {
+        setVerifyResult({ verified: false, confidence: 0, message: 'Verification service unavailable. Please retake.' })
+        setFaceVerified(false)
+      })
+      .finally(() => setVerifying(false))
+  }, [client.passportNumber, stopCamera])
+
+  const retakePhoto = useCallback(() => {
+    setCapturedImage(null)
+    setVerifyResult(null)
+    setFaceVerified(false)
+    startCamera()
+  }, [startCamera])
 
   const eligibleTariffs = selectedProduct
     ? approvedTariffs.filter(t =>
@@ -158,6 +228,9 @@ export default function MerchantNewApplication() {
     setSelectedMonths(12)
     setSubmitted(false)
     setAppId('')
+    setCapturedImage(null)
+    setVerifyResult(null)
+    setFaceVerified(false)
   }
 
   if (submitted) {
@@ -221,7 +294,7 @@ export default function MerchantNewApplication() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-2">
-        {[1, 2, 3].map(s => (
+        {[1, 2, 3, 4].map(s => (
           <div key={s} className="flex items-center gap-2">
             <div className={clsx(
               'h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors',
@@ -229,10 +302,10 @@ export default function MerchantNewApplication() {
             )}>
               {s < step ? <CheckCircleIcon className="h-4 w-4" /> : s}
             </div>
-            <span className={clsx('text-sm font-medium', s === step ? 'text-blue-700' : 'text-gray-400')}>
-              {s === 1 ? 'Select Product' : s === 2 ? 'Client Info' : 'Review & Submit'}
+            <span className={clsx('text-sm font-medium hidden sm:inline', s === step ? 'text-blue-700' : 'text-gray-400')}>
+              {s === 1 ? 'Select Product' : s === 2 ? 'Client Info' : s === 3 ? 'Face Verify' : 'Review & Submit'}
             </span>
-            {s < 3 && <div className={clsx('flex-1 h-0.5 min-w-8', s < step ? 'bg-blue-600' : 'bg-gray-200')} />}
+            {s < 4 && <div className={clsx('flex-1 h-0.5 min-w-6', s < step ? 'bg-blue-600' : 'bg-gray-200')} />}
           </div>
         ))}
       </div>
@@ -373,7 +446,114 @@ export default function MerchantNewApplication() {
             </button>
             <button
               onClick={() => setStep(3)}
-              disabled={!client.fullName || !client.phone}
+              disabled={!client.fullName || !client.phone || !client.passportNumber}
+              className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next: Face Verify
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
+          <h2 className="text-base font-semibold text-gray-900 mb-1">Face Verification</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Take a photo of the client to verify identity against passport <span className="font-mono font-semibold text-gray-700">{client.passportNumber}</span>.
+          </p>
+
+          <canvas ref={canvasRef} className="hidden" />
+
+          {cameraError ? (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 mb-4">
+              {cameraError}
+            </div>
+          ) : !capturedImage ? (
+            <div className="space-y-3">
+              <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-video">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 border-4 border-blue-400/30 rounded-xl pointer-events-none" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-48 h-60 border-2 border-blue-400/60 rounded-2xl" />
+                </div>
+              </div>
+              <p className="text-xs text-center text-gray-400">Position the client's face within the frame</p>
+              <button
+                onClick={capturePhoto}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+              >
+                <CameraIcon className="h-5 w-5" />
+                Capture Photo
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-video">
+                <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
+              </div>
+
+              {verifying && (
+                <div className="flex items-center gap-3 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3">
+                  <svg className="h-5 w-5 text-blue-600 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span className="text-sm text-blue-700 font-medium">Verifying identity…</span>
+                </div>
+              )}
+
+              {verifyResult && !verifying && (
+                <div className={clsx(
+                  'rounded-xl border px-4 py-3',
+                  verifyResult.verified
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-red-50 border-red-200'
+                )}>
+                  <div className="flex items-start gap-2">
+                    <CheckCircleIcon className={clsx('h-5 w-5 shrink-0 mt-0.5', verifyResult.verified ? 'text-emerald-600' : 'text-red-500')} />
+                    <div>
+                      <p className={clsx('text-sm font-semibold', verifyResult.verified ? 'text-emerald-700' : 'text-red-700')}>
+                        {verifyResult.verified ? 'Identity Verified' : 'Verification Failed'}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-0.5">{verifyResult.message}</p>
+                      {verifyResult.verified && (
+                        <p className="text-xs text-emerald-600 mt-1 font-medium">
+                          Confidence: {(verifyResult.confidence * 100).toFixed(1)}%
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!verifying && (
+                <button
+                  onClick={retakePhoto}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <ArrowPathIcon className="h-4 w-4" />
+                  Retake Photo
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-between mt-5">
+            <button
+              onClick={() => setStep(2)}
+              className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => setStep(4)}
+              disabled={!faceVerified}
               className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Next: Review
@@ -382,7 +562,7 @@ export default function MerchantNewApplication() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <div className="space-y-5">
           <div className="rounded-xl bg-white border border-gray-100 p-6 shadow-sm">
             <h2 className="text-base font-semibold text-gray-900 mb-4">Select Tariff & Duration</h2>
@@ -527,7 +707,7 @@ export default function MerchantNewApplication() {
 
           <div className="flex gap-3 justify-between">
             <button
-              onClick={() => setStep(2)}
+              onClick={() => setStep(3)}
               className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Back

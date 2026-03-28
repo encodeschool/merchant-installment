@@ -62,6 +62,14 @@ export const apiScore = {
     api.post('/api/v1/score/calculate', b).then(r => r.data),
 }
 
+export const apiFaceVerify = {
+  verify: (passportNumber: string, faceImage: string) =>
+    api.post<{ verified: boolean; confidence: number; message: string }>(
+      '/api/v1/face-verify',
+      { passport_number: passportNumber, face_image: faceImage },
+    ).then(r => r.data),
+}
+
 export const apiDashboard = {
   mfo: () => api.get<{
     totalMerchants: number
