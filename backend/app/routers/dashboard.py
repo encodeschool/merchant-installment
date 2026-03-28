@@ -160,7 +160,7 @@ def cb_dashboard(
 
 @router.get("/mfo-list")
 def mfo_list(
-    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    current_user: dict = Depends(require_role("CENTRAL_BANK")),
     db: Client = Depends(get_supabase),
 ):
     mfo_users = db.table("users").select("*").eq("role", "MFO_ADMIN").execute().data
@@ -252,7 +252,7 @@ def mfo_list(
 
 @router.get("/audit-logs")
 def audit_logs_list(
-    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    current_user: dict = Depends(require_role("CENTRAL_BANK")),
     db: Client = Depends(get_supabase),
 ):
     logs = (

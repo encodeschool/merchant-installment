@@ -148,5 +148,8 @@ class ApplicationOut(BaseModel):
     status: str
     decision_source: str  # always "AUTOMATED"
     created_at: str
+    decided_at: Optional[str] = None
+    decided_by: Optional[str] = None
+    override_reason: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
