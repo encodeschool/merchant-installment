@@ -6,7 +6,7 @@ from supabase import Client
 from ..core.database import get_supabase
 from ..core.deps import get_current_user, require_role
 from ..schemas.application import ApplicationCreate, DecisionRequest, ApplicationOut
-from ..services.scoring import calculate_score, get_outcome, monthly_payment as calc_monthly_payment
+from ..services.scoring import calculate_score, monthly_payment as calc_monthly_payment
 from ..services.contract import generate_payment_schedule
 from ..services.audit import log_action
 
@@ -79,6 +79,9 @@ def create_application(
             "monthly_income": body.client.monthly_income,
             "age": body.client.age,
             "credit_history": body.client.credit_history,
+            "open_loans": body.client.open_loans,
+            "overdue_days": body.client.overdue_days,
+            "has_bankruptcy": body.client.has_bankruptcy,
         }).eq("id", client_id).execute()
         client = db.table("clients").select("*").eq("id", client_id).execute().data[0]
     else:
@@ -90,6 +93,9 @@ def create_application(
             "monthly_income": body.client.monthly_income,
             "age": body.client.age,
             "credit_history": body.client.credit_history,
+            "open_loans": body.client.open_loans,
+            "overdue_days": body.client.overdue_days,
+            "has_bankruptcy": body.client.has_bankruptcy,
         }
         client = db.table("clients").insert(client_data).execute().data[0]
 
@@ -97,7 +103,27 @@ def create_application(
     financed_amount = product["price"] - down_payment
     mp = calc_monthly_payment(financed_amount, body.months, tariff["interest_rate"])
     total = int(mp * body.months)
-    score_breakdown = calculate_score(client["monthly_income"], mp, client["age"], client["credit_history"])
+
+    score_result = calculate_score(
+        monthly_income=client["monthly_income"],
+        monthly_payment=mp,
+        age=client["age"],
+        credit_history=client["credit_history"],
+        open_loans=client["open_loans"],
+        overdue_days=client["overdue_days"],
+        has_bankruptcy=client["has_bankruptcy"],
+        w_affordability=tariff["w_affordability"],
+        w_credit=tariff["w_credit_history"],
+        w_behavioral=tariff["w_behavioral"],
+        w_demographic=tariff["w_demographic"],
+        min_score=tariff["min_score"],
+        partial_threshold=tariff["partial_threshold"],
+        partial_ratio=tariff["partial_ratio"],
+        hard_dti_min=tariff["hard_dti_min"],
+        max_open_loans=tariff["max_open_loans"],
+        max_overdue_days=tariff["max_overdue_days"],
+        bankruptcy_reject=tariff["bankruptcy_reject"],
+    )
 
     app_data = {
         "id": str(uuid.uuid4()),
@@ -108,22 +134,25 @@ def create_application(
         "months": body.months,
         "monthly_payment": int(mp),
         "total_amount": total,
-        "score": score_breakdown["total"],
+        "score": score_result["total_score"],
         "status": "PENDING",
     }
     application = db.table("applications").insert(app_data).execute().data[0]
 
-    outcome = get_outcome(score_breakdown["total"], tariff["min_score"])
     db.table("scoring_logs").insert({
         "id": str(uuid.uuid4()),
         "application_id": application["id"],
         "client_id": client["id"],
-        "income_score": score_breakdown["income_score"],
-        "credit_score": score_breakdown["credit_score"],
-        "age_score": score_breakdown["age_score"],
-        "tariff_score": score_breakdown["tariff_score"],
-        "total_score": score_breakdown["total"],
-        "outcome": outcome,
+        "income_score": score_result["f1_affordability"],
+        "credit_score": score_result["f2_credit"],
+        "age_score": score_result["f4_demographic"],
+        "tariff_score": score_result["f3_behavioral"],
+        "total_score": score_result["total_score"],
+        "outcome": score_result["decision"],
+        "weights_snapshot": score_result["weights"],
+        "hard_reject": score_result["hard_reject"],
+        "hard_reject_reason": score_result["hard_reject_reason"],
+        "reason_codes": score_result["reason_codes"],
     }).execute()
 
     log_action(db, current_user["id"], "CREATE", "application", application["id"], request.client.host if request.client else "")

@@ -5,7 +5,7 @@ from supabase import Client
 
 from ..core.database import get_supabase
 from ..core.deps import get_current_user, require_role
-from ..schemas.tariff import TariffCreate, TariffUpdate, TariffOut
+from ..schemas.tariff import TariffCreate, TariffUpdate, TariffOut, ScoringConfigUpdate, ScoringConfigOut
 from ..services.audit import log_action
 
 router = APIRouter()
@@ -119,6 +119,76 @@ def delete_tariff(
         raise HTTPException(status_code=400, detail="Approved tariffs cannot be deleted")
     log_action(db, current_user["id"], "DELETE", "tariff", tariff_id, request.client.host if request.client else "")
     db.table("tariffs").delete().eq("id", tariff_id).execute()
+
+
+@router.get("/{tariff_id}/scoring-config", response_model=ScoringConfigOut)
+def get_scoring_config(
+    tariff_id: str,
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
+):
+    rows = db.table("tariffs").select("*").eq("id", tariff_id).eq("mfo_user_id", current_user["id"]).execute().data
+    if not rows:
+        raise HTTPException(status_code=404, detail="Tariff not found")
+    t = rows[0]
+    return ScoringConfigOut(
+        w_affordability=t["w_affordability"],
+        w_credit_history=t["w_credit_history"],
+        w_behavioral=t["w_behavioral"],
+        w_demographic=t["w_demographic"],
+        min_score=t["min_score"],
+        partial_threshold=t["partial_threshold"],
+        partial_ratio=t["partial_ratio"],
+        hard_dti_min=t["hard_dti_min"],
+        max_open_loans=t["max_open_loans"],
+        max_overdue_days=t["max_overdue_days"],
+        bankruptcy_reject=t["bankruptcy_reject"],
+    )
+
+
+@router.patch("/{tariff_id}/scoring-config", response_model=ScoringConfigOut)
+def update_scoring_config(
+    tariff_id: str,
+    body: ScoringConfigUpdate,
+    request: Request,
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
+):
+    rows = db.table("tariffs").select("*").eq("id", tariff_id).eq("mfo_user_id", current_user["id"]).execute().data
+    if not rows:
+        raise HTTPException(status_code=404, detail="Tariff not found")
+    t = rows[0]
+    if t["status"] == "APPROVED":
+        raise HTTPException(status_code=400, detail="Cannot update scoring config of an APPROVED tariff")
+
+    updates = body.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=422, detail="No fields provided")
+
+    # Cross-field validation: partial_threshold < min_score (using merged values)
+    effective_min_score = updates.get("min_score", t["min_score"])
+    effective_partial_threshold = updates.get("partial_threshold", t["partial_threshold"])
+    if effective_partial_threshold >= effective_min_score:
+        raise HTTPException(
+            status_code=422,
+            detail=f"partial_threshold ({effective_partial_threshold}) must be less than min_score ({effective_min_score})",
+        )
+
+    updated = db.table("tariffs").update(updates).eq("id", tariff_id).execute().data[0]
+    log_action(db, current_user["id"], "UPDATE_SCORING_CONFIG", "tariff", tariff_id, request.client.host if request.client else "")
+    return ScoringConfigOut(
+        w_affordability=updated["w_affordability"],
+        w_credit_history=updated["w_credit_history"],
+        w_behavioral=updated["w_behavioral"],
+        w_demographic=updated["w_demographic"],
+        min_score=updated["min_score"],
+        partial_threshold=updated["partial_threshold"],
+        partial_ratio=updated["partial_ratio"],
+        hard_dti_min=updated["hard_dti_min"],
+        max_open_loans=updated["max_open_loans"],
+        max_overdue_days=updated["max_overdue_days"],
+        bankruptcy_reject=updated["bankruptcy_reject"],
+    )
 
 
 @router.patch("/{tariff_id}/approve", response_model=TariffOut)

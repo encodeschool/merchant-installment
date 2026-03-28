@@ -8,6 +8,9 @@ class ClientCreate(BaseModel):
     monthly_income: int
     age: int
     credit_history: str = "NONE"
+    open_loans: int = 0
+    overdue_days: int = 0
+    has_bankruptcy: bool = False
 
 
 class ClientOut(BaseModel):

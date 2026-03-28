@@ -46,6 +46,50 @@ class TariffUpdate(BaseModel):
         return v
 
 
+class ScoringConfigUpdate(BaseModel):
+    w_affordability: Optional[float] = None
+    w_credit_history: Optional[float] = None
+    w_behavioral: Optional[float] = None
+    w_demographic: Optional[float] = None
+    min_score: Optional[int] = None
+    partial_threshold: Optional[int] = None
+    partial_ratio: Optional[float] = None
+    hard_dti_min: Optional[float] = None
+    max_open_loans: Optional[int] = None
+    max_overdue_days: Optional[int] = None
+    bankruptcy_reject: Optional[bool] = None
+
+    @model_validator(mode="after")
+    def validate_weights_and_thresholds(self):
+        weights = [self.w_affordability, self.w_credit_history, self.w_behavioral, self.w_demographic]
+        provided = [w for w in weights if w is not None]
+        if len(provided) > 0 and len(provided) < 4:
+            raise ValueError("All four weights must be provided together")
+        if len(provided) == 4:
+            total = sum(provided)
+            if abs(total - 1.0) > 0.001:
+                raise ValueError(f"Weights must sum to 1.0 (got {total:.4f})")
+
+        if self.partial_ratio is not None and not (0.5 <= self.partial_ratio <= 0.9):
+            raise ValueError("partial_ratio must be between 0.5 and 0.9")
+
+        return self
+
+
+class ScoringConfigOut(BaseModel):
+    w_affordability: float
+    w_credit_history: float
+    w_behavioral: float
+    w_demographic: float
+    min_score: int
+    partial_threshold: int
+    partial_ratio: float
+    hard_dti_min: float
+    max_open_loans: int
+    max_overdue_days: int
+    bankruptcy_reject: bool
+
+
 class TariffOut(BaseModel):
     id: str
     name: str
