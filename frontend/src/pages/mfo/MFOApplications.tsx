@@ -35,6 +35,8 @@ export default function MFOApplications() {
   const [applications, setApplications] = useState<Application[]>([])
   const [tab, setTab] = useState<TabFilter>('ALL')
   const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [confirmApp, setConfirmApp] = useState<{ app: Application; action: 'approve' | 'reject' | 'partial' } | null>(null)
   const [detailApp, setDetailApp] = useState<Application | null>(null)
   const [detailTab, setDetailTab] = useState<DetailTab>('overview')
@@ -43,8 +45,12 @@ export default function MFOApplications() {
   const { t } = useTranslation()
 
   useEffect(() => {
-    apiApplications.list().then(setApplications).catch(() => {})
-  }, [])
+    apiApplications.list(page, PAGE_SIZE).then(res => {
+      setApplications(res.items)
+      setTotal(res.total)
+      setTotalPages(res.total_pages)
+    }).catch(() => {})
+  }, [page])
 
   // When opening detail, fetch full version (with score_breakdown)
   const openDetail = (app: Application) => {
@@ -56,8 +62,7 @@ export default function MFOApplications() {
   }
 
   const filtered = applications.filter(a => tab === 'ALL' || a.status === tab)
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const paginated = filtered
 
   const changeTab = (t: TabFilter) => { setTab(t); setPage(1) }
 
@@ -205,7 +210,7 @@ export default function MFOApplications() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-1">
           <p className="text-sm text-gray-500">
-            {t('common.showing', { from: (page - 1) * PAGE_SIZE + 1, to: Math.min(page * PAGE_SIZE, filtered.length), total: filtered.length })}
+            {t('common.showing', { from: (page - 1) * PAGE_SIZE + 1, to: Math.min(page * PAGE_SIZE, total), total })}
           </p>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}

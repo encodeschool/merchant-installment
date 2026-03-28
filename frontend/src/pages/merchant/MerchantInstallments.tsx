@@ -20,16 +20,21 @@ export default function MerchantInstallments() {
   const { t } = useTranslation()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [scheduleContract, setScheduleContract] = useState<Contract | null>(null)
   const [schedule, setSchedule] = useState<Installment[]>([])
   const [loadingSchedule, setLoadingSchedule] = useState(false)
 
   useEffect(() => {
-    apiContracts.list().then(setContracts).catch(() => {})
-  }, [])
+    apiContracts.list(page, PAGE_SIZE).then(res => {
+      setContracts(res.items)
+      setTotal(res.total)
+      setTotalPages(res.total_pages)
+    }).catch(() => {})
+  }, [page])
 
-  const totalPages = Math.max(1, Math.ceil(contracts.length / PAGE_SIZE))
-  const paginated = contracts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const paginated = contracts
 
   const openSchedule = (contract: Contract) => {
     setScheduleContract(contract)
@@ -159,7 +164,7 @@ export default function MerchantInstallments() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-1">
           <p className="text-sm text-gray-500">
-            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, contracts.length)} of {contracts.length}
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
           </p>
           <div className="flex items-center gap-1">
             <button

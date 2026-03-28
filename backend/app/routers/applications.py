@@ -3,13 +3,15 @@ import base64
 import hashlib
 import json
 from datetime import datetime, timezone, date
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+import math
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from supabase import Client
 
 from ..core.database import get_supabase
 from ..core.deps import get_current_user, require_role
 from ..schemas.application import (
     ApplicationCreate,
+    ApplicationPage,
     DecisionRequest,
     ApplicationOut,
     MultiProductCreate,
@@ -378,18 +380,22 @@ def create_application(
     return _app_to_out(application, db)
 
 
-@router.get("", response_model=list[ApplicationOut])
+@router.get("", response_model=ApplicationPage)
 def list_applications(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
     db: Client = Depends(get_supabase),
 ):
     from ..schemas.application import (
         ApplicationItemOut,
         ClientDetailOut,
-        ScoreBreakdownOut,
-        FraudSignalOut,
         ApplicationOut as _AppOut,
     )
+
+    start = (page - 1) * page_size
+    end   = start + page_size - 1
+    empty = ApplicationPage(items=[], total=0, page=page, page_size=page_size, total_pages=0)
 
     if current_user["role"] == "MERCHANT":
         merchants = (
@@ -400,90 +406,59 @@ def list_applications(
             .data
         )
         if not merchants:
-            return []
-        apps = (
+            return empty
+        res = (
             db.table("applications")
-            .select("*")
+            .select("*", count="exact")
             .eq("merchant_id", merchants[0]["id"])
             .order("created_at", desc=True)
+            .range(start, end)
             .execute()
-            .data
         )
     else:
-        apps = (
+        res = (
             db.table("applications")
-            .select("*")
+            .select("*", count="exact")
             .order("created_at", desc=True)
+            .range(start, end)
             .execute()
-            .data
         )
 
+    apps  = res.data or []
+    total = res.count or 0
+
     if not apps:
-        return []
+        return ApplicationPage(items=[], total=total, page=page, page_size=page_size,
+                               total_pages=math.ceil(total / page_size) if total else 0)
 
     # Batch fetch merchants, clients, products, tariffs
     merchant_ids = list(set(a["merchant_id"] for a in apps if a.get("merchant_id")))
-    client_ids = list(set(a["client_id"] for a in apps if a.get("client_id")))
-    product_ids = list(set(a["product_id"] for a in apps if a.get("product_id")))
-    tariff_ids = list(set(a["tariff_id"] for a in apps if a.get("tariff_id")))
+    client_ids   = list(set(a["client_id"]   for a in apps if a.get("client_id")))
+    product_ids  = list(set(a["product_id"]  for a in apps if a.get("product_id")))
+    tariff_ids   = list(set(a["tariff_id"]   for a in apps if a.get("tariff_id")))
 
-    merchants_data = (
-        db.table("merchants").select("id, name").in_("id", merchant_ids).execute().data
-        if merchant_ids
-        else []
-    )
-    clients_data = (
-        db.table("clients").select("*").in_("id", client_ids).execute().data
-        if client_ids
-        else []
-    )
-    products_data = (
-        db.table("products")
-        .select("id, name, price, category")
-        .in_("id", product_ids)
-        .execute()
-        .data
-        if product_ids
-        else []
-    )
-    tariffs_data = (
-        db.table("tariffs")
-        .select("id, name, mfo_user_id")
-        .in_("id", tariff_ids)
-        .execute()
-        .data
-        if tariff_ids
-        else []
-    )
+    merchants_data = db.table("merchants").select("id, name").in_("id", merchant_ids).execute().data if merchant_ids else []
+    clients_data   = db.table("clients").select("*").in_("id", client_ids).execute().data if client_ids else []
+    products_data  = db.table("products").select("id, name, price, category").in_("id", product_ids).execute().data if product_ids else []
+    tariffs_data   = db.table("tariffs").select("id, name, mfo_user_id").in_("id", tariff_ids).execute().data if tariff_ids else []
 
-    # Get MFO names for all tariffs
     mfo_user_ids = list(set(t["mfo_user_id"] for t in tariffs_data))
-    mfo_data = (
-        db.table("users")
-        .select("id, organization")
-        .in_("id", mfo_user_ids)
-        .execute()
-        .data
-        if mfo_user_ids
-        else []
-    )
-    mfo_map = {m["id"]: m["organization"] for m in mfo_data}
-
-    # Add mfo_name to tariffs
+    mfo_data     = db.table("users").select("id, organization").in_("id", mfo_user_ids).execute().data if mfo_user_ids else []
+    mfo_map      = {m["id"]: m["organization"] for m in mfo_data}
     for t in tariffs_data:
         t["mfo_name"] = mfo_map.get(t["mfo_user_id"], "")
 
     merchants_map = {m["id"]: m for m in merchants_data}
-    clients_map = {c["id"]: c for c in clients_data}
-    products_map = {p["id"]: p for p in products_data}
-    tariffs_map = {t["id"]: t for t in tariffs_data}
+    clients_map   = {c["id"]: c for c in clients_data}
+    products_map  = {p["id"]: p for p in products_data}
+    tariffs_map   = {t["id"]: t for t in tariffs_data}
 
     result = []
     for app in apps:
         merchant = merchants_map.get(app.get("merchant_id", ""), {})
-        c = clients_map.get(app.get("client_id", ""), {})
-        product = products_map.get(app.get("product_id", ""), {})
-        tariff = tariffs_map.get(app.get("tariff_id", ""), {})
+        c        = clients_map.get(app.get("client_id", ""), {})
+        product  = products_map.get(app.get("product_id", ""), {})
+        tariff   = tariffs_map.get(app.get("tariff_id", ""), {})
 
         client_out = ClientDetailOut(
             full_name=c.get("full_name", ""),
@@ -499,79 +474,69 @@ def list_applications(
             credit_history=c.get("credit_history", "NONE"),
         )
 
-        # Items: try application_items JSON, fall back to product row
         items_out: list[ApplicationItemOut] = []
         raw_items = app.get("application_items")
         if raw_items:
             try:
-                parsed = (
-                    json.loads(raw_items) if isinstance(raw_items, str) else raw_items
-                )
+                parsed = json.loads(raw_items) if isinstance(raw_items, str) else raw_items
                 for it in parsed or []:
                     p = products_map.get(it.get("product_id", ""))
                     if p:
                         qty = it.get("quantity", 1)
-                        items_out.append(
-                            ApplicationItemOut(
-                                product_id=p["id"],
-                                product_name=p["name"],
-                                category=p.get("category", ""),
-                                price=int(p["price"]),
-                                quantity=qty,
-                                subtotal=int(p["price"]) * qty,
-                            )
-                        )
+                        items_out.append(ApplicationItemOut(
+                            product_id=p["id"], product_name=p["name"],
+                            category=p.get("category", ""), price=int(p["price"]),
+                            quantity=qty, subtotal=int(p["price"]) * qty,
+                        ))
             except Exception:
                 pass
-
         if not items_out and product:
-            items_out.append(
-                ApplicationItemOut(
-                    product_id=product["id"],
-                    product_name=product["name"],
-                    category=product.get("category", ""),
-                    price=int(product["price"]),
-                    quantity=1,
-                    subtotal=int(product["price"]),
-                )
-            )
+            items_out.append(ApplicationItemOut(
+                product_id=product["id"], product_name=product["name"],
+                category=product.get("category", ""), price=int(product["price"]),
+                quantity=1, subtotal=int(product["price"]),
+            ))
 
-        total_amount = int(app.get("total_amount") or 0)
-        approved_amount = app.get("approved_amount")
-        financed_amount = int(approved_amount or total_amount)
+        total_amount        = int(app.get("total_amount") or 0)
+        approved_amount     = app.get("approved_amount")
+        financed_amount     = int(approved_amount or total_amount)
         down_payment_amount = max(0, total_amount - financed_amount)
 
-        result.append(
-            _AppOut(
-                id=app["id"],
-                merchant_id=app.get("merchant_id", ""),
-                merchant_name=merchant.get("name", ""),
-                client=client_out,
-                items=items_out,
-                total_amount=total_amount,
-                down_payment_amount=down_payment_amount,
-                financed_amount=financed_amount,
-                tariff_id=app.get("tariff_id"),
-                tariff_name=tariff.get("name"),
-                mfo_name=tariff.get("mfo_name"),
-                months=app.get("months"),
-                monthly_payment=app.get("monthly_payment"),
-                approved_amount=approved_amount,
-                score=int(app.get("score") or 0),
-                score_breakdown=None,  # skip for list to avoid N+1
-                fraud_gate=app.get("fraud_gate", "PASS") or "PASS",
-                fraud_signals=[],
-                face_image_url=None,
-                signature_url=None,
-                status=app["status"],
-                created_at=app["created_at"],
-                decided_at=app.get("decided_at"),
-                decided_by=app.get("decided_by"),
-                override_reason=app.get("override_reason"),
-            )
-        )
+        result.append(_AppOut(
+            id=app["id"],
+            merchant_id=app.get("merchant_id", ""),
+            merchant_name=merchant.get("name", ""),
+            client=client_out,
+            items=items_out,
+            total_amount=total_amount,
+            down_payment_amount=down_payment_amount,
+            financed_amount=financed_amount,
+            tariff_id=app.get("tariff_id"),
+            tariff_name=tariff.get("name"),
+            mfo_name=tariff.get("mfo_name"),
+            months=app.get("months"),
+            monthly_payment=app.get("monthly_payment"),
+            approved_amount=approved_amount,
+            score=int(app.get("score") or 0),
+            score_breakdown=None,
+            fraud_gate=app.get("fraud_gate", "PASS") or "PASS",
+            fraud_signals=[],
+            face_image_url=None,
+            signature_url=None,
+            status=app["status"],
+            created_at=app["created_at"],
+            decided_at=app.get("decided_at"),
+            decided_by=app.get("decided_by"),
+            override_reason=app.get("override_reason"),
+        ))
 
-    return result
+    return ApplicationPage(
+        items=result,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=math.ceil(total / page_size),
+    )
 
 
 @router.get("/{application_id}/detail", response_model=ApplicationOut)
@@ -1107,25 +1072,40 @@ def confirm_application(
         "months": body.months,
         "monthly_payment": mp_rounded,
         "total_amount": total,
-        "status": "PENDING",
+        "status": "APPROVED",
+        "client_signature": body.signature_b64,
+        "decided_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    try:
-        updated = (
-            db.table("applications")
-            .update({**updates, "signature": body.signature_b64})
-            .eq("id", application_id)
-            .execute()
-            .data[0]
-        )
-    except Exception:
-        updated = (
-            db.table("applications")
-            .update(updates)
-            .eq("id", application_id)
-            .execute()
-            .data[0]
-        )
+    updated = (
+        db.table("applications")
+        .update(updates)
+        .eq("id", application_id)
+        .execute()
+        .data[0]
+    )
+
+    # Auto-create contract + payment schedule
+    contract_id = None
+    contract_data = {
+        "id": str(uuid.uuid4()),
+        "application_id": updated["id"],
+        "total_amount": total,
+        "months": body.months,
+        "monthly_payment": mp_rounded,
+        "paid_installments": 0,
+        "status": "ACTIVE",
+    }
+    contract = db.table("contracts").insert(contract_data).execute().data[0]
+    contract_id = contract["id"]
+
+    schedule = generate_payment_schedule(
+        contract_id,
+        datetime.now(timezone.utc).date(),
+        mp_rounded,
+        body.months,
+    )
+    db.table("installments").insert(schedule).execute()
 
     log_action(
         db,
@@ -1142,4 +1122,5 @@ def confirm_application(
         monthly_payment=mp_rounded,
         total_amount=total,
         months=body.months,
+        contract_id=contract_id,
     )

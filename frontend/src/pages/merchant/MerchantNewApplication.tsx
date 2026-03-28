@@ -6,7 +6,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { CheckIcon } from '@heroicons/react/24/solid'
 import { Product, EligibleOffer, ScoreResult, MultiProductResponse } from '../../types'
-import { apiProducts, apiApplications, apiMerchants } from '../../api'
+import { apiProducts, apiApplications, apiMerchants, apiContracts } from '../../api'
 import { useAuthStore } from '../../store/authStore'
 import FaceVerifyCamera, { VerifyResult } from '../../components/merchant/FaceVerifyCamera'
 import SignaturePad, { SignaturePadHandle } from '../../components/merchant/SignaturePad'
@@ -176,7 +176,7 @@ export default function MerchantNewApplication() {
   const sigPadRef = useRef<SignaturePadHandle>(null)
 
   // Step 7: Final
-  const [finalApp, setFinalApp] = useState<{ monthly_payment: number; months: number } | null>(null)
+  const [finalApp, setFinalApp] = useState<{ monthly_payment: number; months: number; contract_id?: string } | null>(null)
 
   // Load data
   useEffect(() => {
@@ -1115,9 +1115,21 @@ export default function MerchantNewApplication() {
               ))}
               <div className="flex justify-between">
                 <span className="text-gray-500">Status</span>
-                <span className="rounded-full bg-yellow-100 text-yellow-700 px-2 py-0.5 text-xs font-semibold">PENDING REVIEW</span>
+                <span className="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">APPROVED</span>
               </div>
             </div>
+
+            {finalApp?.contract_id && (
+              <button
+                onClick={() => apiContracts.downloadPdf(finalApp.contract_id!)}
+                className="w-full mb-3 rounded-xl border border-emerald-600 text-emerald-700 py-2.5 text-sm font-semibold hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Shartnomani PDF yuklab olish
+              </button>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button

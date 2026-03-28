@@ -41,10 +41,8 @@ export default function MFODashboard() {
       monthlyTrend: d.monthlyTrend,
     })).catch(() => {})
 
-    apiApplications.list().then(apps => {
-      setRecentApps(
-        [...apps].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)
-      )
+    apiApplications.list(1, 5).then(res => {
+      setRecentApps(res.items)
     }).catch(() => {})
   }, [])
 

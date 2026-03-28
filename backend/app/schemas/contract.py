@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from typing import Optional, List
 
 
 class InstallmentOut(BaseModel):
@@ -27,3 +27,11 @@ class ContractOut(BaseModel):
     status: str
     createdAt: str
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class ContractPage(BaseModel):
+    items: List[ContractOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

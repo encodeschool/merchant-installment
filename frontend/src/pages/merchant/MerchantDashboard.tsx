@@ -28,12 +28,12 @@ export default function MerchantDashboard() {
 
   useEffect(() => {
     Promise.all([
-      apiApplications.list(),
-      apiContracts.list(),
+      apiApplications.list(1, 100),
+      apiContracts.list(1, 100),
       apiProducts.list(),
-    ]).then(([apps, ctrs, prods]) => {
-      setApplications(apps)
-      setContracts(ctrs)
+    ]).then(([appsPage, ctrsPage, prods]) => {
+      setApplications(appsPage.items)
+      setContracts(ctrsPage.items)
       setProducts(prods)
     }).catch(() => {})
   }, [])

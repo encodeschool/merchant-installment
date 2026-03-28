@@ -83,6 +83,7 @@ class ConfirmResponse(BaseModel):
     monthly_payment: int
     total_amount: int
     months: int
+    contract_id: str | None = None
 
 
 # ── New detailed output schemas ────────────────────────────────────────────────
@@ -166,3 +167,11 @@ class ApplicationOut(BaseModel):
     override_reason: Optional[str]
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class ApplicationPage(BaseModel):
+    items: list[ApplicationOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

@@ -37,10 +37,18 @@ export const apiProducts = {
   remove: (id: string) => api.delete(`/api/v1/products/${id}`),
 }
 
+export interface PagedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export const apiApplications = {
-  list: () =>
-    api.get<any[]>('/api/v1/applications')
-      .then(r => r.data.map(normalizeApplication)),
+  list: (page = 1, pageSize = 10) =>
+    api.get<PagedResponse<any>>('/api/v1/applications', { params: { page, page_size: pageSize } })
+      .then(r => ({ ...r.data, items: r.data.items.map(normalizeApplication) })),
   get: (id: string) =>
     api.get<any>(`/api/v1/applications/${id}/detail`)
       .then(r => normalizeApplication(r.data)),
@@ -50,17 +58,36 @@ export const apiApplications = {
   submitMulti: (b: object) =>
     api.post<MultiProductResponse>('/api/v1/applications/multi-product', b).then(r => r.data),
   confirm: (id: string, b: object) =>
-    api.post<any>(`/api/v1/applications/${id}/confirm`, b)
-      .then(r => normalizeApplication(r.data)).catch(() => r => r),
+    api.post<any>(`/api/v1/applications/${id}/confirm`, b).then(r => r.data),
   decide: (id: string, b: object) =>
     api.patch<any>(`/api/v1/applications/${id}/decide`, b)
       .then(r => normalizeApplication(r.data)),
 }
 
 export const apiContracts = {
-  list: () => api.get<Contract[]>('/api/v1/contracts').then(r => r.data),
+  list: (page = 1, pageSize = 10) =>
+    api.get<PagedResponse<Contract>>('/api/v1/contracts', { params: { page, page_size: pageSize } })
+      .then(r => r.data),
   schedule: (id: string) =>
     api.get<Installment[]>(`/api/v1/contracts/${id}/schedule`).then(r => r.data),
+  downloadPdf: (id: string) => {
+    const raw = localStorage.getItem('auth-storage')
+    const token = raw ? (JSON.parse(raw)?.state?.token ?? '') : ''
+    const base = (import.meta as any).env?.VITE_API_URL ?? ''
+    fetch(`${base}/api/v1/contracts/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => {
+        if (!res.ok) throw new Error(`PDF error ${res.status}`)
+        return res.blob()
+      })
+      .then(blob => {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = `shartnoma-${id.slice(-8).toUpperCase()}.pdf`
+        a.click()
+        URL.revokeObjectURL(a.href)
+      })
+      .catch(err => console.error('PDF download failed:', err))
+  },
 }
 
 export const apiScoringConfig = {
