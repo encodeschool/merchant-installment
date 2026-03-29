@@ -4,6 +4,7 @@ from supabase import Client
 
 from ..core.database import get_supabase
 from ..core.deps import require_role
+from ..services.forecast import build_forecast
 
 router = APIRouter()
 
@@ -427,53 +428,45 @@ def audit_logs_list(
     current_user: dict = Depends(require_role("CENTRAL_BANK")),
     db: Client = Depends(get_supabase),
 ):
-    # --- DUMMY DATA ---
-    return [
-        {"id": "log-001", "userId": "usr-101", "userName": "Alisher Umarov",    "role": "MFO_ADMIN",    "action": "APPROVED",  "resource": "application", "resourceId": "APP-2023", "ipAddress": "91.212.34.10",  "timestamp": "2026-03-29T08:47:12Z"},
-        {"id": "log-002", "userId": "usr-203", "userName": "Dilnoza Yusupova",  "role": "CENTRAL_BANK", "action": "REVIEWED",  "resource": "tariff",      "resourceId": "TRF-0089", "ipAddress": "95.130.18.55",  "timestamp": "2026-03-29T07:33:04Z"},
-        {"id": "log-003", "userId": "usr-102", "userName": "Bobur Karimov",     "role": "MFO_ADMIN",    "action": "REJECTED",  "resource": "application", "resourceId": "APP-2021", "ipAddress": "91.212.34.11",  "timestamp": "2026-03-28T16:55:38Z"},
-        {"id": "log-004", "userId": "usr-301", "userName": "Sarvar Toshmatov",  "role": "MERCHANT",     "action": "SUBMITTED", "resource": "application", "resourceId": "APP-2024", "ipAddress": "213.230.71.44", "timestamp": "2026-03-28T14:22:19Z"},
-        {"id": "log-005", "userId": "usr-203", "userName": "Dilnoza Yusupova",  "role": "CENTRAL_BANK", "action": "SUSPENDED", "resource": "mfo",         "resourceId": "mfo-008",  "ipAddress": "95.130.18.55",  "timestamp": "2026-03-28T11:10:05Z"},
-        {"id": "log-006", "userId": "usr-103", "userName": "Nodira Rashidova",  "role": "MFO_ADMIN",    "action": "APPROVED",  "resource": "application", "resourceId": "APP-2022", "ipAddress": "82.215.66.23",  "timestamp": "2026-03-27T17:44:51Z"},
-        {"id": "log-007", "userId": "usr-302", "userName": "Jasur Mirzayev",    "role": "MERCHANT",     "action": "SUBMITTED", "resource": "application", "resourceId": "APP-2020", "ipAddress": "84.54.102.8",   "timestamp": "2026-03-27T13:08:33Z"},
-        {"id": "log-008", "userId": "usr-101", "userName": "Alisher Umarov",    "role": "MFO_ADMIN",    "action": "CREATED",   "resource": "tariff",      "resourceId": "TRF-0092", "ipAddress": "91.212.34.10",  "timestamp": "2026-03-27T09:30:17Z"},
-        {"id": "log-009", "userId": "usr-204", "userName": "Kamola Nazarova",   "role": "CENTRAL_BANK", "action": "APPROVED",  "resource": "tariff",      "resourceId": "TRF-0092", "ipAddress": "95.130.22.11",  "timestamp": "2026-03-26T18:15:44Z"},
-        {"id": "log-010", "userId": "usr-104", "userName": "Umid Holmatov",     "role": "MFO_ADMIN",    "action": "REJECTED",  "resource": "application", "resourceId": "APP-2019", "ipAddress": "82.215.66.24",  "timestamp": "2026-03-26T15:02:28Z"},
-        {"id": "log-011", "userId": "usr-303", "userName": "Malika Ergasheva",  "role": "MERCHANT",     "action": "SUBMITTED", "resource": "application", "resourceId": "APP-2018", "ipAddress": "109.207.40.31", "timestamp": "2026-03-26T10:47:09Z"},
-        {"id": "log-012", "userId": "usr-203", "userName": "Dilnoza Yusupova",  "role": "CENTRAL_BANK", "action": "REVIEWED",  "resource": "mfo",         "resourceId": "mfo-007",  "ipAddress": "95.130.18.55",  "timestamp": "2026-03-25T16:39:52Z"},
-        {"id": "log-013", "userId": "usr-102", "userName": "Bobur Karimov",     "role": "MFO_ADMIN",    "action": "APPROVED",  "resource": "application", "resourceId": "APP-2017", "ipAddress": "91.212.34.11",  "timestamp": "2026-03-25T12:11:36Z"},
-        {"id": "log-014", "userId": "usr-304", "userName": "Sherzod Qodirov",   "role": "MERCHANT",     "action": "SIGNED",    "resource": "contract",    "resourceId": "CON-0341", "ipAddress": "91.185.47.20",  "timestamp": "2026-03-25T09:58:14Z"},
-        {"id": "log-015", "userId": "usr-101", "userName": "Alisher Umarov",    "role": "MFO_ADMIN",    "action": "APPROVED",  "resource": "application", "resourceId": "APP-2016", "ipAddress": "91.212.34.10",  "timestamp": "2026-03-24T14:25:03Z"},
-    ]
+    logs = (
+        db.table("audit_logs")
+        .select("*")
+        .order("created_at", desc=True)
+        .limit(500)
+        .execute()
+        .data
+    )
+    user_cache: dict = {}
+    result = []
+    for log in logs:
+        uid = log["user_id"]
+        if uid not in user_cache:
+            rows = db.table("users").select("name, role").eq("id", uid).execute().data
+            user_cache[uid] = rows[0] if rows else None
+        user = user_cache[uid]
+        result.append(
+            {
+                "id": log["id"],
+                "userId": uid,
+                "userName": user["name"] if user else "Unknown",
+                "role": user["role"] if user else "UNKNOWN",
+                "action": log["action"],
+                "resource": log["resource"],
+                "resourceId": log["resource_id"],
+                "ipAddress": log["ip_address"],
+                "timestamp": log["created_at"],
+            }
+        )
+    return result
 
-    # --- REAL DB (commented out) ---
-    # logs = (
-    #     db.table("audit_logs")
-    #     .select("*")
-    #     .order("created_at", desc=True)
-    #     .limit(500)
-    #     .execute()
-    #     .data
-    # )
-    # user_cache: dict = {}
-    # result = []
-    # for log in logs:
-    #     uid = log["user_id"]
-    #     if uid not in user_cache:
-    #         rows = db.table("users").select("name, role").eq("id", uid).execute().data
-    #         user_cache[uid] = rows[0] if rows else None
-    #     user = user_cache[uid]
-    #     result.append(
-    #         {
-    #             "id": log["id"],
-    #             "userId": uid,
-    #             "userName": user["name"] if user else "Unknown",
-    #             "role": user["role"] if user else "UNKNOWN",
-    #             "action": log["action"],
-    #             "resource": log["resource"],
-    #             "resourceId": log["resource_id"],
-    #             "ipAddress": log["ip_address"],
-    #             "timestamp": log["created_at"],
-    #         }
-    #     )
-    # return result
+
+@router.get("/mfo/forecast")
+def mfo_revenue_forecast(
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
+):
+    return build_forecast(
+        db=db,
+        mfo_user_id=current_user["id"],
+        mfo_name=current_user.get("organization", "MFO"),
+    )
