@@ -109,21 +109,28 @@ jobs:
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          BACKEND_ENV_FILE: ${{ secrets.BACKEND_ENV_FILE }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
+          envs: BACKEND_ENV_FILE,GHCR_PAT,GHCR_USERNAME
           script_stop: true
           script: |
             set -e
-            echo "Deploy target environment: production"
             cd ${{ secrets.DEPLOY_PATH }}
             git fetch --all --prune
             git checkout main
             git pull --ff-only origin main
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+            printf '%s' "${BACKEND_ENV_FILE}" > backend/.env
+
+            echo "${GHCR_PAT}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
             BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}"
             BACKEND_IMAGE="$BACKEND_IMAGE" docker compose -f infra/docker-compose.prod.yml pull backend
-            BACKEND_IMAGE="$BACKEND_IMAGE" docker compose -f infra/docker-compose.prod.yml up -d backend
+            BACKEND_IMAGE="$BACKEND_IMAGE" docker compose -f infra/docker-compose.prod.yml up -d
             docker compose -f infra/docker-compose.prod.yml ps

@@ -131,4 +131,11 @@ export const apiDashboard = {
 
   mfoList: () => api.get<MFOStats[]>('/api/v1/dashboard/mfo-list').then(r => r.data),
   auditLogs: () => api.get<AuditLog[]>('/api/v1/dashboard/audit-logs').then(r => r.data),
+  mfoForecast: () => api.get<{
+    monthlyHistory: { month: string; revenue: number; approved: number }[]
+    projections: { month: string; projectedRevenue: number }[]
+    aiInsight: string
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
+    riskReason: string
+  }>('/api/v1/dashboard/mfo/forecast').then(r => r.data),
 }

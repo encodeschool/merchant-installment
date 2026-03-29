@@ -34,9 +34,9 @@ export default function MerchantDashboard() {
       apiContracts.list(1, 100),
       apiProducts.list(),
     ]).then(([appsPage, ctrsPage, prods]) => {
-      setApplications(appsPage.items)
-      setContracts(ctrsPage.items)
-      setProducts(prods)
+      setApplications(appsPage.items ?? [])
+      setContracts(Array.isArray(ctrsPage) ? ctrsPage : (ctrsPage.items ?? []))
+      setProducts(Array.isArray(prods) ? prods : [])
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 

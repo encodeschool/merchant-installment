@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     DEBUG: bool = True
+    ANTHROPIC_API_KEY: str = ""
+    DATABASE_URL: str = ""  # If set, use local PostgreSQL instead of Supabase
 
     @property
     def cors_origins(self) -> list[str]:
