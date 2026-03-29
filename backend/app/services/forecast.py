@@ -128,7 +128,9 @@ class ForecastService:
             (now + timedelta(days=30 * i)).strftime("%b %Y") for i in range(1, 4)
         ]
 
-        if settings.ANTHROPIC_API_KEY:
+        if settings.GROQ_API_KEY:
+            result = self._groq_forecast(monthly_history, tariffs, pipeline, next_months)
+        elif settings.ANTHROPIC_API_KEY:
             result = self._claude_forecast(monthly_history, tariffs, pipeline, next_months)
         else:
             result = self._fallback_forecast(monthly_history, next_months)
@@ -176,6 +178,74 @@ class ForecastService:
             }).execute()
         except Exception:
             pass
+
+    # ------------------------------------------------------------------
+    # Private: Groq AI forecast
+    # ------------------------------------------------------------------
+
+    def _groq_forecast(
+        self,
+        monthly_history: list[dict],
+        tariffs: list[dict],
+        pipeline: dict,
+        next_months: list[str],
+    ) -> dict:
+        history_text = "\n".join(
+            f"  {h['month']}: disbursed={h['disbursed']:,} UZS, "
+            f"approved={h['approved']}, rejected={h['rejected']}, "
+            f"approval_rate={h['approvalRate']}%, avg_score={h['avgScore']}"
+            for h in monthly_history
+        )
+        tariff_text = "\n".join(
+            f"  {t['name']}: rate={t['interest_rate']}%, min_score={t['min_score']}, "
+            f"range={t['min_amount']:,}–{t['max_amount']:,} UZS"
+            for t in tariffs
+        ) or "  No active tariffs"
+
+        prompt = f"""You are a financial forecasting AI for {self.mfo_name}, a microfinance organization in Uzbekistan.
+
+## Historical monthly data (last 6 months):
+{history_text}
+
+## Active tariff products:
+{tariff_text}
+
+## Current pipeline:
+- Pending applications: {pipeline['count']} (total value: {pipeline['total']:,} UZS, avg score: {pipeline['avgScore']})
+
+## Your task:
+Analyze the trends and forecast the next 3 months.
+
+Respond ONLY with a valid JSON object in this exact format:
+{{
+  "projections": [
+    {{"month": "{next_months[0]}", "projectedRevenue": <integer_uzs>}},
+    {{"month": "{next_months[1]}", "projectedRevenue": <integer_uzs>}},
+    {{"month": "{next_months[2]}", "projectedRevenue": <integer_uzs>}}
+  ],
+  "insight": "<2-3 sentences: key trend, forecast rationale, one actionable recommendation. Max 90 words.>",
+  "riskLevel": "<LOW|MEDIUM|HIGH>",
+  "riskReason": "<one sentence explaining the main risk factor>"
+}}"""
+
+        try:
+            from groq import Groq
+            client = Groq(api_key=settings.GROQ_API_KEY)
+            response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                max_tokens=400,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw = response.choices[0].message.content.strip()
+            parsed = json.loads(raw[raw.find("{"):raw.rfind("}") + 1])
+            return {
+                "projections": parsed["projections"],
+                "aiInsight": parsed["insight"],
+                "riskLevel": parsed.get("riskLevel", "MEDIUM"),
+                "riskReason": parsed.get("riskReason", ""),
+            }
+        except Exception:
+            return self._fallback_forecast(monthly_history, next_months)
 
     # ------------------------------------------------------------------
     # Private: Claude AI forecast
