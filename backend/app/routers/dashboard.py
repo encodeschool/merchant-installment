@@ -470,3 +470,5 @@ def mfo_revenue_forecast(
         mfo_user_id=current_user["id"],
         mfo_name=current_user.get("organization", "MFO"),
     )
+
+
