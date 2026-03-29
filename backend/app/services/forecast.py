@@ -5,11 +5,14 @@ Collects rich monthly metrics from DB and delegates projection + insight to Clau
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone, timedelta
 
 from supabase import Client
 
 from ..core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class ForecastService:
@@ -22,14 +25,19 @@ class ForecastService:
     @property
     def merchant_ids(self) -> list[str]:
         if self._merchant_ids is None:
-            self._merchant_ids = [
-                m["id"]
-                for m in self.db.table("merchants")
+            rows = (
+                self.db.table("merchants")
                 .select("id")
                 .eq("mfo_user_id", self.mfo_user_id)
                 .execute()
                 .data
-            ]
+            )
+            self._merchant_ids = [m["id"] for m in rows]
+            logger.info(
+                "ForecastService: mfo_user_id=%s → merchant_ids=%s",
+                self.mfo_user_id,
+                self._merchant_ids,
+            )
         return self._merchant_ids
 
     def collect_monthly_history(self) -> list[dict]:
@@ -81,6 +89,10 @@ class ForecastService:
                 "avgScore": round(total_score / score_count, 1) if score_count > 0 else 0,
             })
 
+        logger.info(
+            "ForecastService: monthly_history=%s",
+            [(h["month"], h["disbursed"], h["approved"]) for h in history],
+        )
         return history
 
     def collect_active_tariffs(self) -> list[dict]:

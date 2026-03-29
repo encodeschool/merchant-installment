@@ -470,3 +470,38 @@ def mfo_revenue_forecast(
         mfo_user_id=current_user["id"],
         mfo_name=current_user.get("organization", "MFO"),
     )
+
+
+@router.get("/mfo/forecast/debug")
+def mfo_forecast_debug(
+    current_user: dict = Depends(require_role("MFO_ADMIN")),
+    db: Client = Depends(get_supabase),
+):
+    """Debug endpoint: returns raw data used for forecast (no caching)."""
+    from ..services.forecast import ForecastService
+    svc = ForecastService(db, current_user["id"], current_user.get("organization", "MFO"))
+    merchant_ids = svc.merchant_ids
+    history = svc.collect_monthly_history()
+    pipeline = svc.collect_pending_pipeline()
+    tariffs = svc.collect_active_tariffs()
+
+    # Sample raw applications for first merchant
+    sample_apps = []
+    if merchant_ids:
+        sample_apps = (
+            db.table("applications")
+            .select("id, status, approved_amount, total_amount, created_at")
+            .in_("merchant_id", merchant_ids)
+            .limit(5)
+            .execute()
+            .data
+        )
+
+    return {
+        "mfo_user_id": current_user["id"],
+        "merchant_ids": merchant_ids,
+        "monthly_history": history,
+        "pipeline": pipeline,
+        "tariffs_count": len(tariffs),
+        "sample_apps": sample_apps,
+    }
