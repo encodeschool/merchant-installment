@@ -14,6 +14,7 @@ const uz: Translations = {
     installments: 'Muddatli toʻlovlar',
     myProfile: 'Mening profilim',
     logout: 'Chiqish',
+    integrations: 'Integratsiyalar',
   },
   common: {
     back: 'Orqaga',

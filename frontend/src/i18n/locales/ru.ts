@@ -14,6 +14,7 @@ const ru: Translations = {
     installments: 'Рассрочки',
     myProfile: 'Мой профиль',
     logout: 'Выйти',
+    integrations: 'Интеграции',
   },
   common: {
     back: 'Назад',

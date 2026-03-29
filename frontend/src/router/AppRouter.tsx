@@ -17,6 +17,7 @@ import MerchantProducts from '../pages/merchant/MerchantProducts'
 import MerchantNewApplication from '../pages/merchant/MerchantNewApplication'
 import MerchantInstallments from '../pages/merchant/MerchantInstallments'
 import ProfilePage from '../pages/profile/ProfilePage'
+import IntegrationsPage from '../pages/shared/IntegrationsPage'
 
 function RequireAuth({ children, role }: { children: React.ReactNode; role: string }) {
   const { isAuthenticated, user } = useAuthStore()
@@ -48,6 +49,9 @@ export default function AppRouter() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+
+      {/* Public integration docs — no auth required */}
+      <Route path="/integrations" element={<IntegrationsPage />} />
 
       {/* Central Bank */}
       <Route path="/cb" element={<RequireAuth role="CENTRAL_BANK"><Layout /></RequireAuth>}>

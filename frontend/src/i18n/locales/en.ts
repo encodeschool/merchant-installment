@@ -12,6 +12,7 @@ const en = {
     installments: 'Installments',
     myProfile: 'My Profile',
     logout: 'Log out',
+    integrations: 'Integrations',
   },
   common: {
     back: 'Back',
