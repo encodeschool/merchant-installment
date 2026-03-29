@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     DEBUG: bool = True
     ANTHROPIC_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
     DATABASE_URL: str = ""  # If set, use local PostgreSQL instead of Supabase
 
     @property
