@@ -12,6 +12,7 @@ from .routers import (
     scoring,
     dashboard,
     face_verify,
+    chat,
 )
 
 app = FastAPI(title="Installment Platform API", version="1.0.0", debug=settings.DEBUG)
@@ -37,6 +38,7 @@ app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboar
 app.include_router(
     face_verify.router, prefix="/api/v1/face-verify", tags=["face-verify"]
 )
+app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
 
 
 @app.get("/health")
