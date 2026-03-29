@@ -92,7 +92,7 @@ export default function MFOScoringSettings() {
   const { t } = useTranslation()
 
   const WEIGHT_LABELS = [t('scoring.factorWeights') + ' F1', 'F2', 'F3', 'F4']
-  const WEIGHT_LABEL_NAMES = ['Affordability', 'Credit History', 'Behavioral', 'Demographic']
+  const WEIGHT_LABEL_NAMES = [t('scoring.f1Affordability'), t('scoring.f2CreditHistory'), t('scoring.f3Behavioral'), t('scoring.f4Demographic')]
 
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG)
   const [tariffName, setTariffName] = useState('')
@@ -534,10 +534,10 @@ export default function MFOScoringSettings() {
               <div className="space-y-2">
                 <p className="text-xs font-medium text-gray-500">{t('scoring.weightedContrib')}</p>
                 {[
-                  { label: 'F1 Affordability', raw: scoreResult.f1_affordability, w: config.w_affordability, color: '#10b981' },
-                  { label: 'F2 Credit History', raw: scoreResult.f2_credit, w: config.w_credit_history, color: '#3b82f6' },
-                  { label: 'F3 Behavioral', raw: scoreResult.f3_behavioral, w: config.w_behavioral, color: '#f59e0b' },
-                  { label: 'F4 Demographic', raw: scoreResult.f4_demographic, w: config.w_demographic, color: '#8b5cf6' },
+                  { label: `F1 ${t('scoring.f1Affordability')}`, raw: scoreResult.f1_affordability, w: config.w_affordability, color: '#10b981' },
+                  { label: `F2 ${t('scoring.f2CreditHistory')}`, raw: scoreResult.f2_credit, w: config.w_credit_history, color: '#3b82f6' },
+                  { label: `F3 ${t('scoring.f3Behavioral')}`, raw: scoreResult.f3_behavioral, w: config.w_behavioral, color: '#f59e0b' },
+                  { label: `F4 ${t('scoring.f4Demographic')}`, raw: scoreResult.f4_demographic, w: config.w_demographic, color: '#8b5cf6' },
                 ].map(({ label, raw, w, color }) => {
                   const contrib = Math.round(raw * w / 100)
                   return (

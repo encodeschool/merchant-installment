@@ -794,7 +794,7 @@ export default function MerchantNewApplication() {
           </div>
 
           <div className="space-y-4 max-w-sm mx-auto mb-8">
-            {['Identity verified', 'Income analysis', 'Credit history check', 'Behavioral scoring'].map((label, i) => (
+            {[t('scoring.identityVerified'), t('scoring.incomeAnalysis'), t('scoring.creditHistoryCheck'), t('scoring.behavioralScoring')].map((label, i) => (
               <div key={label} className="flex items-center gap-3">
                 <div className={clsx(
                   'h-7 w-7 rounded-full flex items-center justify-center shrink-0',
@@ -899,10 +899,10 @@ export default function MerchantNewApplication() {
                 {/* Factor bars */}
                 <div className="space-y-3 mb-4">
                   {[
-                    { label: 'F1 Affordability', val: scoreResult.f1_affordability, w: scoreResult.weights.w1, color: 'bg-emerald-500' },
-                    { label: 'F2 Credit History', val: scoreResult.f2_credit, w: scoreResult.weights.w2, color: 'bg-blue-500' },
-                    { label: 'F3 Behavioral', val: scoreResult.f3_behavioral, w: scoreResult.weights.w3, color: 'bg-amber-500' },
-                    { label: 'F4 Demographic', val: scoreResult.f4_demographic, w: scoreResult.weights.w4, color: 'bg-violet-500' },
+                    { label: `F1 ${t('scoring.f1Affordability')}`, val: scoreResult.f1_affordability, w: scoreResult.weights.w1, color: 'bg-emerald-500' },
+                    { label: `F2 ${t('scoring.f2CreditHistory')}`, val: scoreResult.f2_credit, w: scoreResult.weights.w2, color: 'bg-blue-500' },
+                    { label: `F3 ${t('scoring.f3Behavioral')}`, val: scoreResult.f3_behavioral, w: scoreResult.weights.w3, color: 'bg-amber-500' },
+                    { label: `F4 ${t('scoring.f4Demographic')}`, val: scoreResult.f4_demographic, w: scoreResult.weights.w4, color: 'bg-violet-500' },
                   ].map(item => (
                     <div key={item.label}>
                       <div className="flex items-center justify-between text-xs mb-1">
