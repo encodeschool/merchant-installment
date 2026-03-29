@@ -87,7 +87,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left brand panel — image carousel */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center p-12 text-white relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[55%] flex-col justify-center items-end p-12 text-white relative overflow-hidden bg-gradient-to-br from-[#0a1628]/70 via-[#0d1f3c]/50 to-transparent">
         {/* Background images with crossfade */}
         {BACKGROUND_IMAGES.map((img, idx) => (
           <div
@@ -103,25 +103,25 @@ export default function LoginPage() {
         ))}
         
         {/* Lighter overlay for more visible images */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/50 via-blue-900/40 to-slate-900/50" />
+        <div className="absolute inset-0 bg-black/45" />
 
-        <div className="flex flex-col items-center justify-center gap-10 relative z-10 max-w-xl">
-          <div className="text-center bg-slate-900/70 backdrop-blur-md px-10 py-8 rounded-3xl shadow-2xl border border-white/10">
+        <div className="flex flex-col items-end justify-center gap-10 relative z-10 max-w-xl text-right pr-12">
+          <div>
             <h1 className="text-5xl font-bold tracking-tight text-white mb-2" style={{ textShadow: '2px 2px 12px rgba(0,0,0,0.9)' }}>
               Markazlashgan Nasiya Platformasi
             </h1>
-            <p className="text-white/90 text-lg mt-4 max-w-md text-center leading-relaxed font-light" style={{ textShadow: '1px 1px 6px rgba(0,0,0,0.8)' }}>
+            <p className="text-white/90 text-lg mt-4 max-w-md leading-relaxed font-light ml-auto" style={{ textShadow: '1px 1px 6px rgba(0,0,0,0.8)' }}>
               O'zbekiston Markaziy Banki tomonidan sertifikatlangan
             </p>
           </div>
 
-          <div className="flex flex-col gap-4 bg-slate-900/70 backdrop-blur-md px-8 py-6 rounded-2xl shadow-2xl border border-white/10 w-full">
+          <div className="flex flex-col gap-4 w-full">
             {[
               'Hamma nasiya tashkilotlar bir yerda',
               'AI yordamida chuqurlashtirilgan skoring modeli',
               'Avtomatlashgan nasiya berish tizmi',
             ].map((feature) => (
-              <div key={feature} className="flex items-start gap-4 text-white text-base" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.8)' }}>
+              <div key={feature} className="flex flex-row-reverse items-start gap-4 text-white text-base" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.8)' }}>
                 <svg className="w-6 h-6 text-emerald-400 shrink-0 drop-shadow-lg mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
@@ -138,7 +138,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right login panel */}
-      <div className="flex flex-1 items-center justify-center p-8 min-h-screen bg-slate-50">
+      <div className="flex lg:w-[45%] flex-1 items-center justify-center p-8 min-h-screen bg-slate-50">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm space-y-6 relative">
           <div className="lg:hidden text-center">
             <h1 className="text-2xl font-bold text-slate-800">Merchant Installment</h1>
